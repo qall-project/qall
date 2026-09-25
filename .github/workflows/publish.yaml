@@ -1,0 +1,48 @@
+name: Deploy to PyPi
+
+on: [push]
+
+jobs:
+  publish:
+    permissions:
+      contents: write
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine setuptools-scm
+
+    - name: Get version
+      id: version
+      run: |
+        version=$(sed -n 's/^ *version.*=.*"\([^"]*\)".*/\1/p' pyproject.toml)
+        echo "version=$version" >> $GITHUB_ENV
+        echo "Version : $version"
+
+    - name: Build package
+      run: python -m build
+
+    - name: Publish package
+      uses: pypa/gh-action-pypi-publish@v1.5.0
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_API_TOKEN }}
+
+    - name: Create and push tag
+      run: |
+        git tag v$version
+        git push origin v$version
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

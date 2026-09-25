@@ -1,0 +1,30 @@
+qiskit-scaleway-worker:
+  provider: scaleway
+  version: 0.1.0
+  hash: xxxxxxxxxxxxxxxxx
+  input_formats:
+  - qiskit.QuantumCircuit
+perceval-scaleway-worker:
+  provider: scaleway
+  version: 0.1.0
+  hash: xxxxxxxxxxxxxxxxx
+  input_formats:
+  - perceval.Circuit
+cirq-scaleway-worker:
+  provider: scaleway
+  version: 0.1.0
+  hash: xxxxxxxxxxxxxxxxx
+  input_formats:
+  - cirq.Circuit
+cirq_local_qc_worker:
+  provider: local
+  version: latest
+  hash: zdpuAu5wZRLMPj8SMBQG5h85zmG6ypYKN8KD7Gg8UThTSCwwC
+  input_formats:
+  - cirq.Circuit
+qiskit_local_qc_worker:
+  provider: local
+  version: latest
+  hash: zdpuAkXnJzuDVo3DfVxPZ7GnHpbkZXpn9YP7GTFFrqGrzhDYz
+  input_formats:
+  - qiskit.QuantumCircuit
