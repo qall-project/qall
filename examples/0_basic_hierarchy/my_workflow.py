@@ -1,7 +1,7 @@
 import asyncio
 import random
 
-from qorus import task, workflow
+from qall import task, workflow
 
 from utils.hw_task import hw
 

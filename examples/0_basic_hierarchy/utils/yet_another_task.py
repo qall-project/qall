@@ -1,4 +1,4 @@
-from qorus import task
+from qall import task
 
 
 @task()

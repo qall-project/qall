@@ -16,7 +16,7 @@ import typer
 
 from typing import Optional
 
-from qorus.core.daemon import (
+from qall.core.daemon import (
     start_daemon,
     run_task,
     get_daemon_status,
@@ -60,7 +60,7 @@ def daemon_start(
     ),
 ):
     """
-    Start a local Qorus daemon in a Docker container.
+    Start a local Qall daemon in a Docker container.
     """
     try:
         start_daemon(
@@ -120,7 +120,7 @@ def daemon_run(
         None,
         "--daemon-address",
         "-d",
-        help="Daemon gRPC address (default: QORUS_DAEMON_ADDRESS env var or localhost:50053)",
+        help="Daemon gRPC address (default: QALL_DAEMON_ADDRESS env var or localhost:50053)",
     ),
     block_registry: str = typer.Option(
         None,
@@ -183,7 +183,7 @@ def daemon_status(
         None,
         "--daemon-address",
         "-d",
-        help="Daemon gRPC address (default: QORUS_DAEMON_ADDRESS env var or localhost:50053)",
+        help="Daemon gRPC address (default: QALL_DAEMON_ADDRESS env var or localhost:50053)",
     ),
     block_registry: str = typer.Option(
         None,

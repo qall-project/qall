@@ -18,6 +18,8 @@ dependencies = [
     "typer>=0.26.7",
     "lmdb>=2.3.0",
     "retry==0.9.2",
+    "qall-registry-client",
+    "qall-daemon-client",
 ]
 
 ### Dependencies ###

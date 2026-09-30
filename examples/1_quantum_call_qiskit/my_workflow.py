@@ -1,15 +1,15 @@
-import qorus
+import qall
 import qiskit
 
 from random import randint
 
 
-@qorus.task()
+@qall.task()
 def prepare(x):
     return randint(1, x)
 
 
-@qorus.task(min_qubits=2, piprequirements=["qiskit"])
+@qall.task(min_qubits=2, piprequirements=["qiskit"])
 def do_quantum_stuff(size, repeat):
     qc = qiskit.QuantumCircuit(size)
     qc.h(0)
@@ -19,17 +19,17 @@ def do_quantum_stuff(size, repeat):
 
     qc.measure_all()
 
-    pre_warm = qorus.run(qc, shots=100)
+    pre_warm = qall.run(qc, shots=100)
 
     r = 0
     for _ in range(repeat):
-        result = qorus.run(qc, shots=10)
+        result = qall.run(qc, shots=10)
         r += result.get_counts().get("0" * size, 0)
 
     return r
 
 
-@qorus.workflow()
+@qall.workflow()
 def main():
     a = prepare(5)
 

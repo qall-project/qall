@@ -13,7 +13,7 @@
 # limitations under the License.
 import typer
 
-from qorus.core import artifact
+from qall.core import artifact
 
 artifact_cli = typer.Typer(
     name="artifact",

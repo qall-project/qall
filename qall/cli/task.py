@@ -17,7 +17,7 @@ import os
 
 from typing import Optional
 
-from qorus.core.runtime import execute_task, ExecutionMode
+from qall.core.runtime import execute_task, ExecutionMode
 
 task_cli = typer.Typer(
     name="task",
@@ -77,7 +77,7 @@ def run(
     typer.echo(f"[Runtime] Executing in {execution_mode} mode")
 
     if not daemon_address:
-        daemon_address = os.environ.get("QORUS_DAEMON_ADDRESS", "127.0.0.1:50053")
+        daemon_address = os.environ.get("QALL_DAEMON_ADDRESS", "127.0.0.1:50053")
 
     task_output = execute_task(
         task_hash=task_hash,

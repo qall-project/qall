@@ -1,4 +1,4 @@
-from qorus import task
+from qall import task
 
 from .intermediate_non_task_func import blob
 

@@ -15,7 +15,7 @@ import typer
 
 from typing import Optional
 
-from qorus.core.runtime import execute_worker
+from qall.core.runtime import execute_worker
 
 worker_cli = typer.Typer(
     name="worker",

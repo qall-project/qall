@@ -15,7 +15,7 @@ import typer
 
 from typing import Optional
 
-import qorus.core as core
+import qall.core as core
 
 config_cli = typer.Typer(
     name="config",
@@ -33,12 +33,12 @@ def config_init(
         False, "--erase", help="Overwrite existing configuration files if present."
     ),
 ):
-    """Initialize a default .qorus.yml project layout file inside the current directory boundary."""
+    """Initialize a default .qall.yml project layout file inside the current directory boundary."""
     res = core.init_config(provider_name=provider, erase_exists=erase)
 
     if res is None:
         typer.echo("Configuration file already exists. Use --erase to force overwrite.")
     else:
         typer.echo(
-            "Project workspace configuration initialized successfully (.qorus.yml)."
+            "Project workspace configuration initialized successfully (.qall.yml)."
         )

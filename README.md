@@ -1,101 +1,45 @@
-# Hybrid computing as a Service
+# Qall
 
-## Protobuf
+A python tool for modern hybrid and quantum workflows.
 
-To re-generate registry client/server API:
+## Install
 
+This project is managed using uv.
+
+If you simply want to use it, install it with pip:
 ```bash
-cd protobuf/
-
-make registry
-```
-
-To re-generate daemon client/server API:
-
-```bash
-cd protobuf/
-
-make daemon
-```
-
-## Registry server
-
-To test registry server:
-```bash
-cd qall-registry-server/
-
-make test
-```
-
-To build registry server:
-```bash
-cd qall-registry-server/
-
-make build
-```
-
-To start local instructure
-```bash
-cd infrastructure/local/
-
-make start
-```
-
-## Registry client
-
-To install registry client:
-```bash
-cd qall-registry-client/
-
+uv pip install .
+# Or the slower but pip-only option
 pip install .
+qall --help
 ```
 
-To test registry client:
+In order to contribute, you shall sync dependencies:
 ```bash
-cd qall-registry-client/
-
-export qall_REGISTRY_URL=localhost:50051; pytest -vvv tests/
+uv sync
+uv run qall --help
 ```
 
-## Daemon server
+## Folder hierarchy
+`sdk`: SDK API used for workflow development
+- Must call `core` as possible
+- Never technology dependant
 
-To run daemon server:
-```bash
-make build
+`cli`: CLI implementation for workflow deployment:
+- Mostly CLI commodities and display
+- Must call `core` as possible
+- Never technology dependant
+- Only manipulate `object` objects
 
-qall daemon start
-```
+`core`: High level business logic
+- Never technology dependant
+- Handle every default value
+- Only manipulate `object`, `core` and mid level `other` objects
 
-## Daemon client
+`object`: Data transfert objects (DTO) definition between
+- Never technology dependant
 
-To install daemon client:
-```bash
-cd qall-daemon-client/
-
-pip install .
-```
-
-## Scaleway HCaaS client
-TODO
-
-## qall (SDK)
-
-To install qall sdk:
-```bash
-cd qall/
-
-pip install .
-```
-
-To push a project to the registry:
-```bash
-cd qall/
-
-pip install .
-
-qall registry push examples/basic_hierarchy/my_worflow.py
-
-qall daemon start
-
-qall daemon run <root hash>
-```
+others (`codec`, `daemon`, `provider`, `registry`, `specification`...):
+- Provide mid and low level implementation to be used by `core`
+- Mid level must use `object` object as possible
+- Can be technology dependant (`qall-registry-client`, `qall-daemon-client`, `lmdb`, `pip`...)

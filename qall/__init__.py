@@ -30,6 +30,6 @@ logger.addHandler(console_handler)
 # to avoid duplicate logs if the end-user also configures logging.
 logger.propagate = False
 
-from qorus.sdk import task, workflow, run
+from qall.sdk import task, workflow, run
 
 __all__ = ["task", "workflow", "run"]

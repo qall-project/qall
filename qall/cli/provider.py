@@ -13,7 +13,7 @@
 # limitations under the License.
 import typer
 
-import qorus.core as core
+import qall.core as core
 
 from .utils import parse_extra_args
 

@@ -14,11 +14,11 @@
 import typer
 import os
 
-import qorus.core as core
+import qall.core as core
 
 from pathlib import Path
 
-from qorus.specification import WorkflowSpec, WorkerSpec
+from qall.specification import WorkflowSpec, WorkerSpec
 
 from .utils import parse_extra_args
 

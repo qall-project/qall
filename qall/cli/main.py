@@ -17,7 +17,7 @@ import os
 
 from typing import Optional
 
-import qorus.core as core
+import qall.core as core
 
 from .artifact import artifact_cli
 from .provider import provider_cli
@@ -35,7 +35,7 @@ from .utils import parse_extra_args
 _DEFAULT_LOGGING_LEVEL = logging.INFO
 
 cli = typer.Typer(
-    name="qorus",
+    name="qall",
     help="A python tool for modern hybrid and quantum workflows.",
     no_args_is_help=True,
 )
@@ -54,7 +54,7 @@ cli.add_typer(checkpoint_cli)
 
 
 def _setup_logging():
-    logging_level_str = os.getenv("QORUS_LOGGING_LEVEL")
+    logging_level_str = os.getenv("QALL_LOGGING_LEVEL")
 
     if not logging_level_str and not _DEFAULT_LOGGING_LEVEL:
         return

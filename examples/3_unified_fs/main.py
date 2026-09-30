@@ -5,7 +5,7 @@ import random
 import time
 import uuid
 
-from qorus import task, workflow
+from qall import task, workflow
 
 
 def append_text(path: str, text: str) -> int:
