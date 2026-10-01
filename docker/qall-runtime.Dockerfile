@@ -8,5 +8,3 @@ ADD https://astral.sh/uv/install.sh /uv-install.sh
 RUN sh /uv-install.sh && rm /uv-install.sh
 
 COPY ./qall /qall-workspace/qall
-COPY ./qall-daemon-client /qall-workspace/qall-daemon-client
-COPY ./qall-registry-client /qall-workspace/qall-registry-client

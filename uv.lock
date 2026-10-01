@@ -1870,20 +1870,6 @@ wheels = [
 ]
 
 [[package]]
-name = "qio"
-version = "0.2.7"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "dataclasses-json" },
-    { name = "openqasm3", extra = ["parser"] },
-    { name = "pyqasm" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/99/f6/ae7ca1ced2d6d5ee466c83487647be27a2c51d114e9a0f24eaed08e1464b/qio-0.2.7.tar.gz", hash = "sha256:2cdd3d9220ff400f0efb11c935e0cf1b51f70d3693da965abab09725b8dd9348", size = 27145, upload-time = "2026-06-08T15:49:22.622Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/13/f4/ef29fb285cc7cac3d39b45f06e65055de0f97b74b1a3b12bad357b5e3b47/qio-0.2.7-py3-none-any.whl", hash = "sha256:300431f825292ef3e4dd5c5a29f70399f22313ee37512c59f08f7e15fbc74df3", size = 54386, upload-time = "2026-06-08T15:49:21.587Z" },
-]
-
-[[package]]
 name = "qall"
 version = "0.1.0"
 source = { editable = "." }
@@ -1897,9 +1883,9 @@ dependencies = [
     { name = "matplotlib" },
     { name = "pyan3" },
     { name = "pyyaml" },
-    { name = "qio" },
     { name = "qall-daemon-client" },
     { name = "qall-registry-client" },
+    { name = "qio" },
     { name = "retry" },
     { name = "rustworkx" },
     { name = "typer" },
@@ -1925,9 +1911,9 @@ requires-dist = [
     { name = "matplotlib", specifier = ">=3.11.0" },
     { name = "pyan3", specifier = ">=2.5.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
+    { name = "qall-daemon-client", specifier = ">=0.1.0" },
+    { name = "qall-registry-client", specifier = ">=0.1.0" },
     { name = "qio", specifier = ">=0.2.2" },
-    { name = "qall-daemon-client", editable = "../qall-daemon-client" },
-    { name = "qall-registry-client", editable = "../qall-registry-client" },
     { name = "retry", specifier = "==0.9.2" },
     { name = "rustworkx", specifier = "==0.17.1" },
     { name = "typer", specifier = ">=0.26.7" },
@@ -1943,39 +1929,45 @@ test = [
 [[package]]
 name = "qall-daemon-client"
 version = "0.1.1"
-source = { editable = "../qall-daemon-client" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dataclasses" },
     { name = "googleapis-common-protos" },
     { name = "grpcio" },
     { name = "protobuf" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "dataclasses" },
-    { name = "googleapis-common-protos", specifier = ">=1.75.0" },
-    { name = "grpcio", specifier = ">=1.81.1" },
-    { name = "protobuf", specifier = ">=7.35.1" },
+sdist = { url = "https://files.pythonhosted.org/packages/d4/60/a452d7a32529b60ebe9a8bb5a81ab9777bf9ee122212f2cae531b58830b7/qall_daemon_client-0.1.1.tar.gz", hash = "sha256:5b0145ff24d4ca0d7ea32edb4f99f3f46ee83d00dce448527c3173595bc711b9", size = 12565, upload-time = "2026-10-01T15:08:17.126Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dc/73/5687ef4080561046c74adb8df9064139b6c9b37731cb66ee3ec6082861d4/qall_daemon_client-0.1.1-py3-none-any.whl", hash = "sha256:3f17759001fce170f1d83c4736728e016ce3c95c68ac3090c978160112939ccf", size = 19320, upload-time = "2026-10-01T15:08:15.838Z" },
 ]
 
 [[package]]
 name = "qall-registry-client"
 version = "0.1.1"
-source = { editable = "../qall-registry-client" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dataclasses" },
     { name = "google-api-python-client" },
     { name = "protobuf" },
     { name = "py-ipld-dag" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/a3/12/0f2cf5babd4bb0fb6da9cf45ede02b2edebb3359184e7d0b1b3f8816fcc0/qall_registry_client-0.1.1.tar.gz", hash = "sha256:e2318573915e95984c48b0279276853afe3c0b4a115748c624733083530d1c93", size = 17645, upload-time = "2026-10-01T15:05:08.679Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4c/fe/5b83891088c5c2a7eb7fef716e843621a0c75d495120c0cf21ac8ba4e953/qall_registry_client-0.1.1-py3-none-any.whl", hash = "sha256:1a09f70dff7d1d0165d103d538e15420027aa80317f236bba0661d731d0b8aaa", size = 23873, upload-time = "2026-10-01T15:05:07.66Z" },
+]
 
-[package.metadata]
-requires-dist = [
-    { name = "dataclasses" },
-    { name = "google-api-python-client" },
-    { name = "protobuf", specifier = ">=7.35.1" },
-    { name = "py-ipld-dag" },
+[[package]]
+name = "qio"
+version = "0.2.7"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "dataclasses-json" },
+    { name = "openqasm3", extra = ["parser"] },
+    { name = "pyqasm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/99/f6/ae7ca1ced2d6d5ee466c83487647be27a2c51d114e9a0f24eaed08e1464b/qio-0.2.7.tar.gz", hash = "sha256:2cdd3d9220ff400f0efb11c935e0cf1b51f70d3693da965abab09725b8dd9348", size = 27145, upload-time = "2026-06-08T15:49:22.622Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/13/f4/ef29fb285cc7cac3d39b45f06e65055de0f97b74b1a3b12bad357b5e3b47/qio-0.2.7-py3-none-any.whl", hash = "sha256:300431f825292ef3e4dd5c5a29f70399f22313ee37512c59f08f7e15fbc74df3", size = 54386, upload-time = "2026-06-08T15:49:21.587Z" },
 ]
 
 [[package]]
