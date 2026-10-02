@@ -35,15 +35,6 @@ jobs:
         echo "VERSION=$version" >> $GITHUB_ENV
         echo "Version : $version"
 
-    - name: Build package
-      run: python -m build
-
-    - name: Publish package
-      uses: pypa/gh-action-pypi-publish@v1.5.0
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN }}
-
     - name: Log in to Scaleway container registry
       uses: docker/login-action@v3
       with:
@@ -61,13 +52,22 @@ jobs:
           file: docker/qall-runtime.Dockerfile
           push: true
           tags: |
-            rg.fr-par.scw.cloud/qall-project/qall-base:"v${{ env.VERSION }}"
+            rg.fr-par.scw.cloud/qall-project/qall-base:v${{ env.VERSION }}
             rg.fr-par.scw.cloud/qall-project/qall-base:latest
           labels: |
             org.opencontainers.image.version="v${{ env.VERSION }}"
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+    - name: Build package
+      run: python -m build
+
+    - name: Publish package
+      uses: pypa/gh-action-pypi-publish@v1.5.0
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_API_TOKEN }}
 
     - name: Create and push tag
       run: |
