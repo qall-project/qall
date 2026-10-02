@@ -31,7 +31,7 @@ Qall provides a common execution model:
 - **Tasks** & **Workflows**: define computations and compose them into graphs
 - **Resource Profiles**: map abstract requirements to available infrastructure
 - **Artifacts** & **Checkpoints**: persist intermediate state and enable partial recomputation
-- **Workers**: connect computations to execution backends
+- **Workers**: ad-hoc adataper to connect computations to execution backends
 - **Registry**: version and distribute computation objects
 
 ## Quickstart
@@ -84,7 +84,7 @@ Qall can execute quantum circuits from within a classical workflow.
 from qall import task, workflow, run
 import qiskit
 
-@task(min_qubit=2, requirements=["qiskit"])
+@task(min_qubit=5, qpu_type="gate-based", requirements=["qiskit"])
 def execute_quantum(size):
     qc = qiskit.QuantumCircuit(size)
     qc.h(0)
@@ -109,24 +109,24 @@ The same workflow can combine classical computation and quantum execution withou
 
 ## What Qall takes care of
 
-Qall separates application logic from execution infrastructure.
+Qall is designed for developers who want to stay hands-on with their workloads without having to build and maintain the infrastructure required to execute them:
 
 | Developers focus on | Qall takes care of |
 |---|---|
 | **What to compute** | **Where and how it runs** |
-| Writing Python business flow | Packaging, executing the workload and manage result storage |
-| Defining resource requirements | Matching requirements to available resources |
+| Writing and evolving Python code | Packaging, executing the workload and manage result storage |
+| Defining what each step needs | Matching and installing requirements to available resources |
 | Calling a quantum circuit | Handling the backend-specific execution |
 | Combining CPU, GPU and QPU steps | Orchestrating the different resources |
 | Controlling resource usage | Managing the execution infrastructure |
 
-For example, instead of embedding provider-specific session, backend and execution logic into a workflow, a developer can simply write:
+For example, instead of embedding provider-specific backend and execution logic into a workflow, a developer can simply write:
 
 ```python
 result = qall.run(circuit, shots=100)
 ```
 
-Qall can then handle the execution details required by the selected backend while keeping the workflow independent from a specific infrastructure.
+Qall handles the execution details required by the selected backend while keeping the workflow independent from a specific infrastructure.
 
 For infrastructure providers, the same abstraction works in the other direction: a provider integrates its resource once with Qall, rather than exposing its execution model directly to every application.
 
@@ -172,14 +172,6 @@ The same workflow model can combine:
 - other specialized execution backends
 
 Quantum computing is one of the first use cases driving this model.
-
-## Who is Qall for?
-
-Qall is designed for developers who want to stay hands-on with their workloads without having to build and maintain the infrastructure required to execute them.
-
-You define the computation, its dependencies and its resource requirements. Qall takes care of packaging and execution across the available infrastructure.
-
-At the same time, Qall keeps infrastructure decisions explicit and controllable through resource profiles, so users can control which resources their workloads can use rather than relying on opaque infrastructure decisions.
 
 ## Project status
 
