@@ -76,6 +76,11 @@ qall run my_workflow.py
 
 The same execution model is designed to extend from local development to managed heterogeneous infrastructure.
 
+| Qall-compliant provider | Integration status | CPU? | GPU? | QPU? |
+|---|---|---|---|---|
+|Local | ✅ | ✅ | ❌ | Qsim, Aer, CUDA-Q
+|[Scaleway](https://www.scaleway.com/en/)| ⚙️ | ✅ | ✅ | ✅ Quandela, Pasqal, IQM, AQT, CUDA-Q, Aer
+
 ## Quantum / hybrid example
 
 Qall can execute quantum circuits from within a classical workflow.
