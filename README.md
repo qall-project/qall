@@ -31,7 +31,7 @@ Qall provides a common execution model:
 - **Tasks** & **Workflows**: define computations and compose them into graphs
 - **Resource Profiles**: map abstract requirements to available infrastructure
 - **Artifacts** & **Checkpoints**: persist intermediate state and enable partial recomputation
-- **Workers**: ad-hoc adataper to connect computations to execution backends
+- **Workers**: ad-hoc adapter to connect quantum circuit to execution backends
 - **Registry**: version and distribute computation objects
 
 ## Quickstart
