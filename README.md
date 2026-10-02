@@ -76,10 +76,10 @@ qall run my_workflow.py
 
 The same execution model is designed to extend from local development to managed heterogeneous infrastructure.
 
-| Qall-compliant provider | Integration status | CPU? | GPU? | QPU? |
-|---|---|---|---|---|
-|Local | ✅ | ✅ | ❌ | Qsim, Aer <br> ⚙️ CUDA-Q
-|Scaleway ([website](https://www.scaleway.com/en/)) | ⚙️ | ✅ | ✅ | Quandela, Pasqal, IQM, AQT, CUDA-Q, Aer
+| Qall-compliant provider | Integration status | CPU | GPU | QPU | emulated QPU
+|---|---|---|---|---|---|
+|Local | ✅ | ✅ | ❌ | ❌| Qsim, Aer <br> ⚙️ CUDA-Q
+|Scaleway ([website](https://www.scaleway.com/en/)) | ⚙️ | ✅ | ✅ | Quandela, Pasqal, IQM, AQT | CUDA-Q, Aer, Qsim
 
 ## Quantum / hybrid example
 

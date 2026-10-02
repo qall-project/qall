@@ -61,10 +61,10 @@ jobs:
           file: docker/qall-runtime.Dockerfile
           push: true
           tags: |
-            rg.fr-par.scw.cloud/qall-project/qall-base:${{ env.VERSION }}
+            rg.fr-par.scw.cloud/qall-project/qall-base:"v${{ env.VERSION }}"
             rg.fr-par.scw.cloud/qall-project/qall-base:latest
           labels: |
-            org.opencontainers.image.version=${{ env.VERSION }}
+            org.opencontainers.image.version="v${{ env.VERSION }}"
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
