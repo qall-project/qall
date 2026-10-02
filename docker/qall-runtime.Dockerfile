@@ -13,11 +13,9 @@ FROM python:3.13-slim
 
 WORKDIR /qall-workspace
 
-COPY --from=builder /build/dist/*.whl /tmp/qall.whl
+COPY --from=builder /build/dist/*.whl /tmp/
 
-RUN pip install --no-cache-dir /tmp/qall.whl \
-    && rm /tmp/qall.whl
+RUN pip install --no-cache-dir /tmp/*.whl \
+    && rm /tmp/*.whl
 
 ENV PYTHONUNBUFFERED=1
-
-CMD ["python"]
