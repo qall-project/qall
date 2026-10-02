@@ -80,16 +80,15 @@ The same execution model is designed to extend from local development to managed
 
 ```python
 from qall import task, workflow, run
-
-import qall
 import qiskit
+import random
 
 @task(min_cpu=2)
 def prepare(size):
-    return size
+    return random.randomint(3) * size
 
 @task(min_qubit=2, requirements=["qiskit"])
-def run_quantum(size):
+def execute_fully_entangled(size):
     qc = qiskit.QuantumCircuit(size)
     qc.h(0)
 
@@ -105,7 +104,7 @@ def run_quantum(size):
 @workflow()
 def main():
     size = prepare(3)
-    result = run_quantum(size)
+    result = execute_fully_entangled(size)
     return result
 ```
 
