@@ -107,6 +107,29 @@ The same workflow can combine classical computation and quantum execution withou
 
 `qall.run()`: hide the execution plumbing. Calling a quantum backend typically involves more than submitting a circuit: provider and SDK compatibility; authentication and credentials; backend discovery and selection; session or execution context creation; circuit submission and job management; queues and asynchronous execution provider-specific result formats; connection and execution state.
 
+## What Qall takes care of
+
+Qall separates application logic from execution infrastructure.
+
+| Developers focus on | Qall takes care of |
+|---|---|
+| **What to compute** | **Where and how it runs** |
+| Writing Python business flow | Packaging, executing the workload and manage result storage |
+| Defining resource requirements | Matching requirements to available resources |
+| Calling a quantum circuit | Handling the backend-specific execution |
+| Combining CPU, GPU and QPU steps | Orchestrating the different resources |
+| Controlling resource usage | Managing the execution infrastructure |
+
+For example, instead of embedding provider-specific session, backend and execution logic into a workflow, a developer can simply write:
+
+```python
+result = qall.run(circuit, shots=100)
+```
+
+Qall can then handle the execution details required by the selected backend while keeping the workflow independent from a specific infrastructure.
+
+For infrastructure providers, the same abstraction works in the other direction: a provider integrates its resource once with Qall, rather than exposing its execution model directly to every application.
+
 ## Design principles
 
 ### Separate computation from infrastructure
