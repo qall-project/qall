@@ -30,7 +30,8 @@ from .base_manager import BaseDaemonManager
 
 logger = logging.getLogger(__name__)
 
-__DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project//qall-daemon-server:latest"
+__DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project/qall-daemon:latest"
+
 
 class DockerDaemonManager(BaseDaemonManager):
     """
