@@ -3,6 +3,7 @@ name = "qall"
 version = "0.1.6"
 description = "A python tool for modern hybrid and quantum workflows."
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.12"
 dependencies = [
     "cloudpickle==3.1.2",

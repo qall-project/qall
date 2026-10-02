@@ -4,7 +4,7 @@ WORKDIR /build
 
 COPY --from=docker.io/astral/uv:0.11.29 /uv /uvx /bin/
 
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock README.md LICENSE ./
 COPY qall ./qall
 
 RUN uv build --wheel
