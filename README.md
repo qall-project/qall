@@ -123,13 +123,16 @@ Qall is an **early-stage open-source project** under active development.
 
 The APIs and execution model are evolving. The project is currently intended primarily for experimentation, development and feedback from the hybrid computing community.
 
+Qall is developed by **Scaleway's Quantum R&D team** as an open-source exploration of infrastructure for heterogeneous and hybrid computing.
 
-## Folder hierarchy
-`sdk`: SDK API used for workflow development
+The project is designed around open interfaces and infrastructure-agnostic abstractions, with the goal of making hybrid workloads easier to build, execute and share.
+
+## Package hierarchy
+`sdk`: SDK API used for workflow execution
 - Must call `core` as possible
 - Never technology dependant
 
-`cli`: CLI implementation for workflow deployment:
+`cli`: CLI implementation for workflow execution and registry manipulation:
 - Mostly CLI commodities and display
 - Must call `core` as possible
 - Never technology dependant
@@ -141,6 +144,9 @@ The APIs and execution model are evolving. The project is currently intended pri
 - Only manipulate `object`, `core` and mid level `other` objects
 
 `object`: Data transfert objects (DTO) definition between
+- Never technology dependant
+
+`data`: Contains worker adapter definition inventory
 - Never technology dependant
 
 others (`codec`, `daemon`, `provider`, `registry`, `specification`...):
