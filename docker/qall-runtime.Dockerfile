@@ -1,10 +1,22 @@
-FROM docker-proxy.internal.scaleway.com/python:3.13-slim
+FROM python:3.13-slim AS builder
+
+WORKDIR /build
+
+COPY --from=docker.io/astral/uv:0.8.17 /uv /uvx /bin/
+
+COPY pyproject.toml uv.lock ./
+COPY qall ./qall
+
+RUN uv sync --locked --no-dev
+
+FROM python:3.13-slim
 
 WORKDIR /qall-workspace
 
-RUN apt-get update && apt-get install -y curl ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /build/.venv /qall-workspace/.venv
+COPY --from=builder /build/qall /qall-workspace/qall
 
-ADD https://astral.sh/uv/install.sh /uv-install.sh
-RUN sh /uv-install.sh && rm /uv-install.sh
+ENV PATH="/qall-workspace/.venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
 
-COPY ./qall /qall-workspace/qall
+CMD ["python"]

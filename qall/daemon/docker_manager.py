@@ -30,6 +30,7 @@ from .base_manager import BaseDaemonManager
 
 logger = logging.getLogger(__name__)
 
+__DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project//qall-daemon-server:latest"
 
 class DockerDaemonManager(BaseDaemonManager):
     """
@@ -38,7 +39,7 @@ class DockerDaemonManager(BaseDaemonManager):
 
     def __init__(
         self,
-        image: str,
+        image: str = None,
         grpc_port: int = 50053,
         http_port: int = 8080,
         local: bool = True,
@@ -48,7 +49,7 @@ class DockerDaemonManager(BaseDaemonManager):
         / ".cache/qall/artifact-registry",
         worker_provider: Optional[str] = None,
     ):
-        self.__image = image
+        self.__image = image or __DEFAULT_IMAGE
         self.__container_name = "qalld"
         self.__grpc_port = grpc_port
         self.__http_port = http_port

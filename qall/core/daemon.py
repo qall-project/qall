@@ -40,7 +40,6 @@ def start_daemon(
     artifact_registry_path = (
         artifact_registry_path or Path().home() / ".cache/qall/artifact-registry"
     )
-    image = image or "scw/qall-daemon-server:latest"
     worker_provider = worker_provider or "local"
 
     block_path = Path(block_registry_path).resolve()
@@ -50,7 +49,6 @@ def start_daemon(
     artifact_path.mkdir(parents=True, exist_ok=True)
 
     daemon_mgr = DockerDaemonManager(
-        image=image,
         local=True,
         grpc_port=port,
         host_block_registry_path=str(block_path),
@@ -62,7 +60,6 @@ def start_daemon(
         raise RuntimeError(f"Daemon already running locally on port {port}")
 
     with DockerDaemonManager(
-        image=image,
         local=True,
         grpc_port=port,
         host_block_registry_path=str(block_path),
@@ -141,7 +138,6 @@ def restart_daemon(
 
 
 def get_daemon_status(
-    daemon_image: Optional[str] = None,
     daemon_address: Optional[str] = None,
     block_registry: Optional[str] = None,
     artifact_registry: Optional[str] = None,
@@ -153,7 +149,6 @@ def get_daemon_status(
     artifact_registry = (
         artifact_registry or Path().home() / ".cache/qall/artifact-registry"
     )
-    daemon_image = daemon_image or "scw/qall-daemon-server:latest"
 
     daemon_address = daemon_address or os.getenv(
         "QALL_DAEMON_ADDRESS", "127.0.0.1:50053"
@@ -171,7 +166,6 @@ def get_daemon_status(
 
     try:
         daemon_mgr = DockerDaemonManager(
-            image=daemon_image,
             local=True,
             grpc_port=port,
             host_block_registry_path=str(block_registry),
@@ -193,7 +187,6 @@ def run_task(
     daemon_address: Optional[str] = None,
     block_registry: Optional[str] = None,
     artifact_registry: Optional[str] = None,
-    daemon_image: Optional[str] = None,
     worker_provider: Optional[str] = None,
     timeout: int = 300,
 ) -> list[Artifact]:
@@ -204,7 +197,6 @@ def run_task(
     artifact_registry = artifact_registry or str(
         Path().home() / ".cache/qall/artifact-registry"
     )
-    daemon_image = daemon_image or "scw/qall-daemon-server:latest"
 
     daemon_address = daemon_address or os.getenv(
         "QALL_DAEMON_ADDRESS", "127.0.0.1:50053"
@@ -225,7 +217,6 @@ def run_task(
         artifact_registry = Path(artifact_registry).resolve()
 
         daemon_mgr = DockerDaemonManager(
-            image=daemon_image,
             local=True,
             grpc_port=port,
             host_block_registry_path=str(block_registry),
