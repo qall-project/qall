@@ -1,7 +1,6 @@
 # Qall: Composable execution for hybrid computing
 
 [![PyPI version](https://badge.fury.io/py/qall.svg)](https://badge.fury.io/py/qall)
-[![CI](https://github.com/qall-project/qall/actions/workflows/ci.yml/badge.svg)](https://github.com/qall-project/qall/actions)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 Qall is an open-source framework for defining, packaging and executing hybrid workflows across heterogeneous compute resources, from CPUs and GPUs to quantum processors (QPU) and emulators.
@@ -43,22 +42,21 @@ Install Qall SDK & CLI:
 pip install qall
 ```
 
-Write a hybrid workflow:
+Write your pythonic workflow:
 
 ```Python
-from qall import task, workflow, run
+from qall import task, workflow
+
+def _get_value(val):
+    return 0.5 * val
 
 @task(resource={"min_cpu": 2})
-def prepare_data():
-    return [0.1, 0.2, 0.3]
-
-@task(resource={"min_qubit": 3}, retry=2)
-def prepare_data():
-    return [0.1, 0.2, 0.3]
+def prepare_data(val : float):
+    return [0.1, 0.2, 0.3] * _get_value(val)
 
 @workflow
 def main():
-    data = prepare_data()
+    data = prepare_data(0.5)
     print(f"Prepared data: {data}")
 ```
 
@@ -77,6 +75,39 @@ qall run my_workflow.py
 ```
 
 The same execution model is designed to extend from local development to managed heterogeneous infrastructure.
+
+## Quantum / hybrid example
+
+```python
+from qall import task, workflow, run
+
+import qall
+import qiskit
+
+@task(min_cpu=2)
+def prepare(size):
+    return size
+
+@task(min_qubit=2, requirements=["qiskit"])
+def run_quantum(size):
+    qc = qiskit.QuantumCircuit(size)
+    qc.h(0)
+
+    for i in range(1, size):
+        qc.cx(i - 1, i)
+
+    qc.measure_all()
+
+    result = qall.run(qc, shots=100)
+
+    return result.get_counts()
+
+@workflow()
+def main():
+    size = prepare(3)
+    result = run_quantum(size)
+    return result
+```
 
 ## Design principles
 
@@ -103,23 +134,31 @@ Qall represents workflows as content-addressed computation graphs.
 
 This enables:
 
-- deterministic versioning;
-- deduplication;
-- workflow sharing;
-- partial recomputation;
-- reusable computation components.
+- deterministic versioning
+- deduplication
+- workflow sharing
+- partial recomputation
+- reusable computation components
 
 ### Heterogeneous execution
 
 The same workflow model can combine:
 
-- CPU workloads;
-- GPU workloads;
-- quantum emulators;
-- QPUs;
-- other specialized execution backends.
+- CPU workloads
+- GPU workloads
+- quantum emulators
+- QPUs
+- other specialized execution backends
 
 Quantum computing is one of the first use cases driving this model.
+
+## Who is Qall for?
+
+Qall is designed for developers who want to stay hands-on with their workloads without having to build and maintain the infrastructure required to execute them.
+
+You define the computation, its dependencies and its resource requirements. Qall takes care of packaging and execution across the available infrastructure.
+
+At the same time, Qall keeps infrastructure decisions explicit and controllable through resource profiles, so users can control which resources their workloads can use rather than relying on opaque infrastructure decisions.
 
 ## Project status
 

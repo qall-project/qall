@@ -10,6 +10,20 @@ Qall is composed of a few independent building blocks:
 
 The SDK and CLI provide the user-facing interface, while the registry and daemon provide the infrastructure required to distribute and execute computations.
 
+# Resource Profiles
+
+Resource Profiles define the infrastructure available to Qall and how abstract
+resource requirements are mapped to physical resources.
+
+A workflow describes what a task needs:
+
+@task(resource={"min_cpu": 2, "min_memory_gb": 16})
+
+The Resource Profile determines where that task can run.
+
+This keeps workflow definitions independent from a specific infrastructure
+while allowing users or platform operators to control which resources are used.
+
 # Package hierarchy
 
 `sdk`: SDK API used for workflow execution
