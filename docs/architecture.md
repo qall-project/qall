@@ -17,7 +17,9 @@ resource requirements are mapped to physical resources.
 
 A workflow describes what a task needs:
 
-@task(resource={"min_cpu": 2, "min_memory_gb": 16})
+```python
+@task(min_cpu=2, min_memory_gb=16)
+```
 
 The Resource Profile determines where that task can run.
 
