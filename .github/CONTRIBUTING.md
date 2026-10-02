@@ -1,83 +1,119 @@
-# Contribute to `qiskit-scaleway`
+# Contribute to Qall
 
-`qiskit-scaleway` is Apache 2.0 licensed and accepts contributions via GitHub.
-This document will cover how to contribute to the project and report issues.
+Qall is an open-source project backed by Scaleway's Quantum team and released under the Apache 2.0 license.
 
-<p align="center"><img width="50%" src="docs/static_files/sdk-artwork.png" /></p>
+Contributions are welcome through GitHub, whether you want to report a bug, suggest an improvement, improve documentation, or contribute code.
 
 ## Topics
 
 - [Reporting Security Issues](#reporting-security-issues)
 - [Reporting Issues](#reporting-issues)
-- [Suggesting feature](#suggesting-feature)
+- [Suggesting a Feature](#suggesting-a-feature)
 - [Contributing Code](#contributing-code)
+- [Pull Request Guidelines](#pull-request-guidelines)
 - [Community Guidelines](#community-guidelines)
 
-## Reporting security issues
+## Reporting Security Issues
 
-At Scaleway we take security seriously.
-If you have any issue regarding security, please notify us by sending an email to [security@scaleway.com](mailto:security@scaleway.com).
+At Scaleway, we take security seriously.
 
-Please _DO NOT_ create a GitHub issue.
+If you find a security issue in Qall, please notify us by sending an email to [qall-project@scaleway.com](mailto:security@scaleway.com).
+
+Please **do not create a GitHub issue** for security vulnerabilities.
 
 We will follow up with you promptly with more information and a plan for remediation.
-We currently do not offer a paid security bounty program, but we would love to send some Scaleway swag your way along with our deepest gratitude for your assistance in making Scaleway a more secure Cloud ecosystem.
 
-## Reporting issues
+We currently do not offer a paid security bounty program, but we greatly appreciate your help in making Qall and the surrounding ecosystem more secure.
 
-A great way to contribute to the project is to send a detailed report when you encounter a bug.
-We always appreciate a well-written, thorough bug report, and will thank you for it!
-Before opening a new issue, we appreciate you reviewing open issues to see if there are any similar requests.
-If there is a match, thumbs up the issue with a 👍 and leave a comment if you have additional information.
+## Reporting Issues
 
-When reporting an issue, include the following:
+Bug reports and detailed issue reports are valuable contributions to Qall.
 
-- The version of `qiskit-scaleway` you are using
+Before opening a new issue, please check the existing issues to see whether a similar report already exists. If it does, add a 👍 reaction and provide any additional information that may help us investigate.
+
+When reporting an issue, please include as much relevant information as possible, such as:
+
+- Qall version or commit
 - Python version
-- The target backend is applicable
+- Operating system
+- How Qall was executed (for example, local or remote execution)
+- Relevant workflow or task definition
+- Steps to reproduce the issue
+- Expected and actual behavior
+- Relevant logs or error messages
 
-## Suggesting a feature
+For issues involving a specific execution backend or resource, please also provide the relevant resource and configuration when possible.
 
-When requesting a feature, some of the questions we want to answer are:
+## Suggesting a Feature
 
-- What value does this feature bring to end users?
-- How urgent is the need (nice to have feature or need to have)?
-- Does this align with the goals of `qiskit-scaleway`?
+We welcome ideas that can make Qall more useful for heterogeneous and hybrid computing.
 
-## Contributing code
+When suggesting a feature, please consider:
 
-### Submit code
+- **What problem does it solve?**
+- **Who benefits from it?**
+- **What would the expected user experience look like?**
+- **Could the feature be implemented in a provider- and infrastructure-agnostic way?**
+- **How does it fit with Qall's execution model and goals?**
 
-To submit code:
+For larger changes, opening an issue first can be useful to discuss the design before starting implementation.
 
-- Create a fork of the project
-- Create a topic branch from where you want to base your work (usually master)
-- Add tests to cover contributed code
-- Push your commit(s) to your topic branch on your fork
-- Open a pull request against `qiskit-scaleway` master branch that follows [PR guidelines](#pull-request-guidelines)
+## Contributing Code
 
-The maintainers of `qiskit-scaleway` use a "Let's Get This Merged" (LGTM) message in the pull request to note that the commits are ready to merge.
-After one or more maintainer states LGTM, we will merge.
-If you have questions or comments on your code, feel free to correct these in your branch through new commits.
+### Submit Code
+
+To contribute code:
+
+1. Fork the project.
+2. Create a topic branch from the current `main` branch.
+3. Make your changes.
+4. Add or update tests covering the changes.
+5. Update the documentation when relevant.
+6. Run the relevant checks locally.
+7. Push your commits to your fork.
+8. Open a pull request against the `main` branch.
+
+Keep changes focused and avoid combining unrelated changes in the same pull request.
+
+For larger architectural changes, we recommend discussing the approach in an issue before implementation.
 
 ### Pull Request Guidelines
 
-The goal of the following guidelines is to have Pull Requests (PRs) that are fairly easy to review and comprehend, and code that is easy to maintain in the future.
+The goal of the pull request process is to make changes easy to review, understand and maintain.
 
-- **Pull Request title should be clear** on what is being fixed or added to the code base.
-  If you are addressing an open issue, please start the title with "fix: #XXX" or "feature: #XXX"
-- **Keep it readable for human reviewers** and prefer a subset of functionality (code) with tests and documentation over delivering them separately
-- **Don't forget commenting code** to help reviewers understand
-- **Notify Work In Progress PRs** by prefixing the title with `[WIP]`
-- **Please, keep us updated.**
-  We will try our best to merge your PR, but please notice that PRs may be closed after 30 days of inactivity.
+Please:
 
-Your pull request should be rebased against the current master branch. Please do not merge
-the current master branch in with your topic branch, nor use the Update Branch button provided
-by GitHub on the pull request page.
+- **Use a clear pull request title** describing what is being changed.
+- **Keep pull requests focused** on a specific change or problem.
+- **Include tests** for new or modified behavior.
+- **Update documentation** when the change affects user-facing behavior or architecture.
+- **Keep the implementation readable** and avoid unnecessary complexity.
+- **Explain design decisions** when they are not obvious from the code.
+- **Mark work-in-progress pull requests** with `[WIP]` when they are not ready for review.
+- **Keep the pull request up to date** with the current `main` branch.
 
-Keep in mind only the **Pull Request Title** will be used as commit message as we stash all commits on merge.
+If you are addressing an existing issue, reference it from the pull request description.
 
-## Community guidelines
+Please do not merge `main` into your topic branch. Rebase your branch when necessary to keep it up to date.
 
-Thank you for reading through all of this, if you have any question feel free to [reach us](README.md#reach-us)!
+Maintainers may request changes, ask for additional tests or documentation, or suggest alternative approaches before merging.
+
+## Development Principles
+
+Qall is designed around a few principles that are particularly relevant when contributing:
+
+- **Infrastructure agnostic**: avoid coupling the core execution model to a specific provider or infrastructure.
+- **Clear separation of concerns**: keep the SDK, execution logic, registry, daemon and backend integrations separated.
+- **Composable execution**: changes should preserve the ability to combine heterogeneous compute resources in a single workflow.
+- **Developer experience**: Qall should make hybrid workloads easier to define, evolve and execute.
+- **Open interfaces**: prefer well-defined interfaces and abstractions that can be implemented by different infrastructure providers.
+
+When adding a new capability, consider whether it belongs in the core execution model or in a provider-, backend- or infrastructure-specific component.
+
+## Community Guidelines
+
+Please be respectful and constructive when participating in the Qall community.
+
+Questions, discussions, ideas and constructive criticism are welcome. When proposing changes, focus on the problem being solved and help maintain a collaborative environment.
+
+Thank you for contributing to **Qall**!
