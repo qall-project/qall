@@ -65,7 +65,7 @@ def run_workflow(
     workflow: Workflow = None,
     provider_client: Optional[WorkflowProviderClient] = None,
     provider_credentials: Optional[ProviderCredentials] = None,
-    **kwargs
+    **kwargs,
 ) -> WorkflowRun:
     if not workflow_id and not workflow:
         raise ValueError("At least workflow_id or workflow must be provided")

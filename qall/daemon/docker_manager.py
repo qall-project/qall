@@ -271,9 +271,7 @@ class DockerDaemonManager(BaseDaemonManager):
 
             time.sleep(interval)
 
-        raise TimeoutError(
-            "The Qall daemon did not respond within the allocated time."
-        )
+        raise TimeoutError("The Qall daemon did not respond within the allocated time.")
 
     def service_info(self) -> bool:
         """

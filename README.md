@@ -1,23 +1,37 @@
-# Qall
+# Qall: Composable Computation for Hybrid Quantum Workflows
 
-A python tool for modern hybrid and quantum workflows.
+[![PyPI version](https://badge.fury.io/py/qall.svg)](https://badge.fury.io/py/qall)
+[![CI](https://github.com/qall-project/qall/actions/workflows/ci.yml/badge.svg)](https://github.com/qall-project/qall/actions)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-## Install
+Qall is an open-source framework designed to package, orchestrate, and execute hybrid quantum-classical workflows using content-addressed computation graphs.
 
-This project is managed using uv.
+## Quickstart
 
-If you simply want to use it, install it with pip:
+### 1. Install Qall SDK & CLI
 ```bash
-uv pip install .
-# Or the slower but pip-only option
-pip install .
-qall --help
+pip install qall
 ```
 
-In order to contribute, you shall sync dependencies:
+### 2. Write a hybrid workflow
+
+```Python
+from qall import task, workflow, run
+
+@task(resource={"min_cpu": 2})
+def prepare_data():
+    return [0.1, 0.2, 0.3]
+
+@workflow
+def main():
+    data = prepare_data()
+    print(f"Prepared data: {data}")
+```
+
+### 3. Write a hybrid workflow
+
 ```bash
-uv sync
-uv run qall --help
+qall run my_workflow.py --local
 ```
 
 ## Folder hierarchy

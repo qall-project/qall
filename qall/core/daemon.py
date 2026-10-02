@@ -200,9 +200,7 @@ def run_task(
     """
     Orders a local Daemon instance to start and execute a given task.
     """
-    block_registry = block_registry or str(
-        Path().home() / ".cache/qall/block-registry"
-    )
+    block_registry = block_registry or str(Path().home() / ".cache/qall/block-registry")
     artifact_registry = artifact_registry or str(
         Path().home() / ".cache/qall/artifact-registry"
     )
