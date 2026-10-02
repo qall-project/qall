@@ -78,8 +78,8 @@ The same execution model is designed to extend from local development to managed
 
 | Qall-compliant provider | Integration status | CPU? | GPU? | QPU? |
 |---|---|---|---|---|
-|Local | ✅ | ✅ | ❌ | Qsim, Aer, CUDA-Q
-|[Scaleway](https://www.scaleway.com/en/)| ⚙️ | ✅ | ✅ | ✅ Quandela, Pasqal, IQM, AQT, CUDA-Q, Aer
+|Local | ✅ | ✅ | ❌ | Qsim, Aer <br> ⚙️ CUDA-Q
+|[Scaleway](https://www.scaleway.com/en/)| ⚙️ | ✅ | ✅ | Quandela, Pasqal, IQM, AQT, CUDA-Q, Aer
 
 ## Quantum / hybrid example
 
