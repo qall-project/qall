@@ -10,7 +10,7 @@ Qall separates what a computation needs from where it runs, making workflows **p
 Qall was initially developed around hybrid quantum-classical workloads, where classical and quantum resources must work together as part of a single computation.
 
 ## Why Qall?
-Hybrid workloads increasingly combine different types of compute -CPU, GPU, QPU- alongside storage, network and infrastructure management.
+Hybrid workloads increasingly combine different types of compute (CPU, GPU, QPU) alongside storage, network and infrastructure management.
 
 ```text
 CPU loading
@@ -78,17 +78,14 @@ The same execution model is designed to extend from local development to managed
 
 ## Quantum / hybrid example
 
+Qall can execute quantum circuits from within a classical workflow.
+
 ```python
 from qall import task, workflow, run
 import qiskit
-import random
-
-@task(min_cpu=2)
-def prepare(size):
-    return random.randomint(3) * size
 
 @task(min_qubit=2, requirements=["qiskit"])
-def execute_fully_entangled(size):
+def execute_quantum(size):
     qc = qiskit.QuantumCircuit(size)
     qc.h(0)
 
@@ -97,16 +94,18 @@ def execute_fully_entangled(size):
 
     qc.measure_all()
 
-    result = qall.run(qc, shots=100)
-
+    result = run(qc, shots=100)
     return result.get_counts()
 
-@workflow()
+@workflow
 def main():
-    size = prepare(3)
-    result = execute_fully_entangled(size)
+    result = execute_quantum(3)
     return result
 ```
+
+The same workflow can combine classical computation and quantum execution without exposing provider-specific infrastructure in the workflow code.
+
+`qall.run()`: hide the execution plumbing. Calling a quantum backend typically involves more than submitting a circuit: provider and SDK compatibility; authentication and credentials; backend discovery and selection; session or execution context creation; circuit submission and job management; queues and asynchronous execution provider-specific result formats; connection and execution state.
 
 ## Design principles
 
