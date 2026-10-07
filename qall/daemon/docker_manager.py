@@ -26,6 +26,9 @@ from qall_daemon_client import GrpcDaemonClient
 from qall.provider.qc import WorkerCatalog
 from qall.provider.qc.local import register_local_workers
 
+ # Temporary import to avoid remote registry to be setup
+from qall.provider.qc.scaleway import register_scaleway_workers
+
 from .base_manager import BaseDaemonManager
 
 logger = logging.getLogger(__name__)
@@ -202,6 +205,12 @@ class DockerDaemonManager(BaseDaemonManager):
 
         if self.__worker_provider == "local":
             catalog = register_local_workers(catalog)
+        elif self.__worker_provider == "scaleway":
+            catalog = register_scaleway_workers(catalog)
+        else:
+            raise RuntimeError(
+                f"Worker provider {self.__worker_provider} is not supported."
+            )
 
         if not catalog:
             raise RuntimeError("could not load catalog properly")
