@@ -26,7 +26,7 @@ from qall_daemon_client import GrpcDaemonClient
 from qall.provider.qc import WorkerCatalog
 from qall.provider.qc.local import register_local_workers
 
- # Temporary import to avoid remote registry to be setup
+# Temporary import to avoid remote registry to be setup
 from qall.provider.qc.scaleway import register_scaleway_workers
 
 from .base_manager import BaseDaemonManager

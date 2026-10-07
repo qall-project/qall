@@ -11,7 +11,31 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
+
+from typing import Tuple
+
 from qorus.provider.qc import QuantumContext
+
+
+def get_credentials(context: QuantumContext, kwargs: dict) -> Tuple[str, str, str]:
+    project_id = (
+        kwargs.get("project_id")
+        or context.configuration.get("project_id")
+        or os.getenv("SCW_PROJECT_ID")
+    )
+    secret_key = (
+        kwargs.get("secret_key")
+        or context.configuration.get("secret_key")
+        or os.getenv("SCW_SECRET_KEY")
+    )
+    url = (
+        kwargs.get("url")
+        or context.configuration.get("url")
+        or "https://api.scaleway.com/qaas/v1alpha1"
+    )
+
+    return project_id, secret_key, url
 
 
 def get_session_dedup_from_context(context: QuantumContext):

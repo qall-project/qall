@@ -17,7 +17,7 @@ from qiskit import QuantumCircuit
 from qiskit.result import Result
 from qiskit_scaleway import ScalewayProvider
 
-from qorus.provider.qc import (
+from qall.provider.qc import (
     QuantumWorker,
     QuantumContext,
     quantum_worker,
@@ -28,11 +28,12 @@ from .utils import (
     list_session_ids_from_context,
     set_session_dedup_in_context,
     add_session_id_in_context,
+    get_credentials,
 )
 
 
 @quantum_worker(
-    requirements=["qiskit-scaleway"],
+    requirements=["qiskit-scaleway", "qiskit-qasm3-import"],
     input_format="qiskit",
     output_format="qiskit",
 )
@@ -55,21 +56,24 @@ class QiskitScalewayQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> QuantumContext:
+        project_id, secret_key, url = get_credentials(context, kwargs)
+
         provider = ScalewayProvider(
-            project_id=kwargs.get("scaleway_project_id"),
-            secret_key=kwargs.get("scaleway_secret_key"),
-            url=kwargs.get("scaleway_url"),
+            project_id=project_id,
+            secret_key=secret_key,
+            url=url,
         )
 
         self.__backend = provider.get_backend(resource)
 
         deduplication_id = get_session_dedup_from_context(context)
+
         if not deduplication_id:
             deduplication_id = uuid4()
             set_session_dedup_in_context(context, deduplication_id)
 
         session_id = self.__backend.start_session(
-            name=f"{resource}-qorus-session",
+            name=f"{resource}-qall-session",
             deduplication_id=deduplication_id,
         )
 

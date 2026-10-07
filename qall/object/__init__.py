@@ -17,7 +17,18 @@ from .task_run import TaskRun, TaskRunStatus, TaskRunOutput
 from .workflow_run import WorkflowRun, WorkflowRunStatus
 from .tag import Tag
 from .workflow import Workflow
-from .resource import Resource
+from .resource import (
+    Resource,
+    QpuSpec,
+    CpuSpec,
+    GpuSpec,
+    ResourcePrice,
+    ResourceAvailability,
+    QpuModality,
+    QpuTopology,
+    QpuTechnology,
+    QpuType,
+)
 from .log import Log
 from .task import (
     TaskEnvironment,
