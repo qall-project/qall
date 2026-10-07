@@ -52,7 +52,7 @@ class ScalewayWorkflowProviderClient(WorkflowProviderClient):
     def login(self, credentials: dict) -> bool:
         project_id = credentials.get("project_id")
         secret_key = credentials.get("secret_key")
-        url = credentials.get("url", "https://api.scaleway.com/qaas/v1alpha1")
+        url = credentials.get("url", "https://api.scaleway.com")
 
         print(
             f"Logging in with project_id: {project_id}, secret_key: {secret_key}, url: {url}"
@@ -126,7 +126,7 @@ class ScalewayWorkflowProviderClient(WorkflowProviderClient):
         raise NotImplementedError
 
     def list_resources(self, filters: dict) -> list[Resource]:
-
+        platforms = self.__client.list_platforms()
         resources: list[Resource] = []
 
         for p in platforms:

@@ -127,10 +127,19 @@ def login(
         ...,
         help="Name of the cloud provider (e.g., scaleway, braket, qbraid, azure...).",
     ),
-    registry_domain: Optional[str] = typer.Argument(
-        None, help="Domain URI of the content-addressed registry server."
+    registry_domain: Optional[str] = typer.Option(
+        None,
+        "--registry",
+        "-r",
+        help="Domain URI of the content-addressed registry server.",
     ),
 ):
+    """
+    Authenticate against a provider and optionally a Qall registry.
+    Examples:
+        qall login scaleway --project-id=XXX --secret-key=YYY
+        qall login scaleway --registry=https://registry.qall.dev --project-id=XXX --secret-key=YYY
+    """
     creds = parse_extra_args(ctx.args)
 
     if not creds:
