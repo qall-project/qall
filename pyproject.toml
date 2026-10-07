@@ -1,7 +1,7 @@
 [project]
 name = "qall"
 version = "0.1.7"
-description = "A python tool for modern hybrid and quantum workflows."
+description = "A pythonic tool for modern hybrid and quantum workflows."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.12"

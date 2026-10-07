@@ -18,6 +18,7 @@ import inspect
 import textwrap
 import types
 import sys
+import importlib
 
 from pathlib import Path
 from types import ModuleType
@@ -62,6 +63,7 @@ class WorkerSpec:
     input_format: str = field(default="")
     output_format: str = field(default="")
     provider: str = field(default="")
+    runtime_qall_version: str = field(default="")
     # resources: list[str] = field(default_factory=list)
 
     # Captured class information
@@ -82,6 +84,7 @@ class WorkerSpec:
         self.input_format = ""
         self.output_format = ""
         self.provider = ""
+        self.runtime_qall_version = importlib.metadata.version("qall")
         # self.resources = []
 
         self.name = None

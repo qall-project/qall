@@ -86,6 +86,7 @@ def _get_task_spec_payload(spec: TaskSpec) -> TaskPayload:
             image=spec.image, requirements=spec.requirements
         ).to_dict(),
         metadata={"quantum_runs": spec.quantum_runs},
+        runtime={"qall_version": spec.runtime_qall_version},
     )
 
 
@@ -225,6 +226,7 @@ class BlockRegistry:
                 "image": spec.image,
                 "requirements": sorted(spec.requirements),
             },
+            runtime={"qall_version": spec.runtime_qall_version},
         )
 
         metadata = {

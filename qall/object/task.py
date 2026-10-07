@@ -33,6 +33,7 @@ class TaskPayload:
     code: str = field(default="")
     code_format: str = field(default="")
     environment: dict = field(default_factory=dict)
+    runtime: dict = field(default_factory=dict)
     metadata: dict = field(default_factory=dict)
     type: str = field(default=__TYPE)
 
@@ -41,6 +42,7 @@ class TaskPayload:
             "code": self.code,
             "code_format": self.code_format,
             "environment": self.environment,
+            "runtime": self.runtime,
             "metadata": self.metadata,
             "type": self.__TYPE,
         }
@@ -63,6 +65,7 @@ class TaskPayload:
             code=data.get("code", ""),
             code_format=data.get("code_format", ""),
             environment=data.get("environment", {}),
+            runtime=data.get("runtime", {}),
             metadata=data.get("metadata", {}),
         )
 

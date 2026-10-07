@@ -68,6 +68,7 @@ class WorkerPayload:
     code: str = field(default="")
     code_format: str = field(default="")
     environment: dict = field(default_factory=dict)
+    runtime: dict = field(default_factory=dict)
     type: str = field(default=__TYPE)
 
     def to_dict(self) -> dict:
@@ -75,6 +76,7 @@ class WorkerPayload:
             "code": self.code,
             "code_format": self.code_format,
             "environment": self.environment,
+            "runtime": self.runtime,
             "type": self.__TYPE,
         }
 
@@ -98,6 +100,7 @@ class WorkerPayload:
         return WorkerPayload(
             code=data.get("code", ""),
             code_format=data.get("code_format", ""),
+            runtime=data.get("runtime", {}),
             environment=data.get("environment", {}),
         )
 

@@ -57,6 +57,7 @@ class TaskSpec:
     local_dependencies: dict[str, str] = field(default_factory=dict)
     quantum_resources: dict[str, Any] = field(default_factory=dict)
     classical_resources: dict[str, Any] = field(default_factory=dict)
+    runtime_qall_version: str = field(default=importlib.metadata.version("qall"))
 
     name: Optional[str] = None
     source: Optional[str] = None
