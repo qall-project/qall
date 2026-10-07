@@ -38,16 +38,16 @@ def provider_login(
 
     if not creds:
         typer.echo(
-            "Warning: No dynamic credentials flags passed (e.g. --api-key=XYZ).",
+            "Warning: No credentials flags passed (e.g. --api-key=XYZ).",
             err=True,
         )
 
-    core.login_provider(
-        provider_name=provider_name,
-        credentials=creds,
-    )
-
-    typer.echo(f"Provider session initialized for: {provider_name}")
+    try:
+        core.login_provider(provider_name=provider_name, credentials=creds)
+        typer.echo(f" Successfully authenticated on {provider_name}.")
+    except Exception as e:
+        typer.echo(f" Failed to login to {provider_name} : {e}", err=True)
+        raise typer.Exit(code=1)
 
 
 @provider_cli.command("logout")

@@ -16,44 +16,39 @@ from typing import List
 from qall.object import Resource, QuantumResourceConstraints, ResourceProfile
 
 
-class ResourceResolver:
-    @staticmethod
-    def resolve_qpu(
-        constraints: QuantumResourceConstraints,
-        profile: ResourceProfile,
-        available_resources: List[Resource],
-    ) -> Resource:
-        allowed_names = profile.allowed.qpu
+def resolve_qpu(
+    constraints: QuantumResourceConstraints,
+    profile: ResourceProfile,
+    available_resources: List[Resource],
+) -> Resource:
+    allowed_names = profile.allowed.qpu
 
-        candidates = []
+    candidates = []
 
-        for res in available_resources:
-            if not res.qpu:
-                continue
+    for res in available_resources:
+        if not res.qpu:
+            continue
 
-            if "*" not in allowed_names and res.name not in allowed_names:
-                continue
+        if "*" not in allowed_names and res.name not in allowed_names:
+            continue
 
-            if (
-                constraints.min_qubits
-                and res.qpu.available_qubits < constraints.min_qubits
-            ):
-                continue
+        if constraints.min_qubits and res.qpu.available_qubits < constraints.min_qubits:
+            continue
 
-            if constraints.modality and res.qpu.modality != constraints.modality:
-                continue
+        if constraints.modality and res.qpu.modality != constraints.modality:
+            continue
 
-            candidates.append(res)
+        candidates.append(res)
 
-        if not candidates:
-            raise RuntimeError(
-                f"No QPU available satisfies the constraints (min_qubits={constraints.min_qubits}) "
-                f"among the authorized resources : {allowed_names}"
-            )
+    if not candidates:
+        raise RuntimeError(
+            f"No QPU available satisfies the constraints (min_qubits={constraints.min_qubits}) "
+            f"among the authorized resources : {allowed_names}"
+        )
 
-        if profile.match_strategy == "cheapest":
-            candidates.sort(key=lambda r: r.price_per_shot)
-        elif profile.match_strategy == "performance":
-            candidates.sort(key=lambda r: r.qpu.available_qubits, reverse=True)
+    if profile.match_strategy == "cheapest":
+        candidates.sort(key=lambda r: r.pricing.price_per_shot)
+    elif profile.match_strategy == "performance":
+        candidates.sort(key=lambda r: r.qpu.available_qubits, reverse=True)
 
-        return candidates[0]
+    return candidates[0]

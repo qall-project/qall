@@ -124,22 +124,36 @@ def fix(
 def login(
     ctx: typer.Context,  # Typer Context is mandatory to capture extra unkown arguments
     provider_name: str = typer.Argument(
-        ..., help="Name of the cloud provider (e.g., scaleway)."
+        ...,
+        help="Name of the cloud provider (e.g., scaleway, braket, qbraid, azure...).",
     ),
-    registry_domain: str = typer.Argument(
-        ..., help="Domain URI of the content-addressed registry server."
+    registry_domain: Optional[str] = typer.Argument(
+        None, help="Domain URI of the content-addressed registry server."
     ),
 ):
     creds = parse_extra_args(ctx.args)
 
     if not creds:
         typer.echo(
-            "Warning: No dynamic credentials flags passed (e.g. --api-key=XYZ).",
+            "Warning: No credentials flags passed (e.g. --api-key=XYZ).",
             err=True,
         )
 
-    core.login_provider(provider_name=provider_name, credentials=creds)
-    core.login_registry(registry_domain=registry_domain, credentials=creds)
+    try:
+        core.login_provider(provider_name=provider_name, credentials=creds)
+        typer.echo(f" Successfully authenticated on {provider_name}.")
+    except Exception as e:
+        typer.echo(f" Failed to login to {provider_name} : {e}", err=True)
+        raise typer.Exit(code=1)
+
+    if registry_domain:
+        try:
+            core.login_registry(registry_domain=registry_domain, credentials=creds)
+            typer.echo(f" Successfully authenticated on {registry_domain}.")
+        except Exception as e:
+            typer.echo(f" Failed to login to {registry_domain} : {e}", err=True)
+            raise typer.Exit(code=1)
+
     typer.echo("Successfully authenticated against both endpoints.")
 
 

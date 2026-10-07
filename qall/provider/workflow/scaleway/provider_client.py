@@ -33,22 +33,40 @@ from qall.object import (
     ResourceAvailability,
 )
 
-from qall.provider.workflow import WorkflowProviderClient
+from qall.provider.workflow import WorkflowProviderClient, workflow_provider
 
 from scaleway_qaas_client.v1alpha1 import QaaSClient, QaaSPlatform
 
 
+@workflow_provider("scaleway")
 class ScalewayWorkflowProviderClient(WorkflowProviderClient):
-    def __init__(self, credentials: dict[str, Any]):
-        self.__project_id = credentials.get("project_id")
-        self.__secret_key = credentials.get("secret_key")
-        self.__url = credentials.get("url", "https://api.scaleway.com/qaas/v1alpha1")
+    def __init__(self):
+        self.__client = None
 
     def __enter__(self):
         raise NotImplementedError
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         raise NotImplementedError
+
+    def login(self, credentials: dict) -> bool:
+        project_id = credentials.get("project_id")
+        secret_key = credentials.get("secret_key")
+        url = credentials.get("url", "https://api.scaleway.com/qaas/v1alpha1")
+
+        print(
+            f"Logging in with project_id: {project_id}, secret_key: {secret_key}, url: {url}"
+        )
+
+        self.__client = QaaSClient(
+            project_id=project_id,
+            secret_key=secret_key,
+            url=url,
+        )
+
+        platforms = self.__client.list_platforms()
+
+        return platforms is not None and len(platforms) > 0
 
     def create_workflow(
         tag: Tag,
@@ -108,13 +126,7 @@ class ScalewayWorkflowProviderClient(WorkflowProviderClient):
         raise NotImplementedError
 
     def list_resources(self, filters: dict) -> list[Resource]:
-        client = QaaSClient(
-            project_id=self.__project_id,
-            secret_key=self.__secret_key,
-            api_url=self.__url,
-        )
 
-        platforms = client.list_platforms()
         resources: list[Resource] = []
 
         for p in platforms:

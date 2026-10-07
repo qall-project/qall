@@ -14,32 +14,27 @@
 from typing import List
 
 
-def parse_extra_args(args: List[str]) -> dict:
+def parse_extra_args(args: list[str]) -> dict[str, str]:
     """
-    Parses unkown arbitrary extra CLI options flags into a clean Python dictionary.
-    Handles both '--key=value' and '--key value' parameter syntaxes.
+    Parse les arguments supplémentaires de la CLI.
+    Exemple: ['--project-id=123', '--secret-key', 'abc'] -> {'project_id': '123', 'secret_key': 'abc'}
     """
-    extra_dict = {}
+    creds = {}
     i = 0
     while i < len(args):
         arg = args[i]
         if arg.startswith("--"):
-            # Case A: Syntax option is '--key=value'
-            if "=" in arg:
-                key, val = arg.split("=", 1)
-                extra_dict[key.lstrip("-")] = val
+            key_val = arg[2:].split("=", 1)
+            key = key_val[0].replace(
+                "-", "_"
+            )  # Normalisation: project-id -> project_id
+
+            if len(key_val) > 1:
+                creds[key] = key_val[1]
+            elif i + 1 < len(args) and not args[i + 1].startswith("-"):
+                creds[key] = args[i + 1]
                 i += 1
-            # Case B: Syntax option is '--key value'
             else:
-                key = arg.lstrip("-")
-                if i + 1 < len(args) and not args[i + 1].startswith("-"):
-                    extra_dict[key] = args[i + 1]
-                    i += 2
-                else:
-                    # Fallback flag default value if standalone
-                    extra_dict[key] = "True"
-                    i += 1
-        else:
-            # Skip invalid positions or unformatted extra strings
-            i += 1
-    return extra_dict
+                creds[key] = "true"
+        i += 1
+    return creds

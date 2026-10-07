@@ -13,12 +13,17 @@
 # limitations under the License.
 from __future__ import annotations
 
-from typing import Optional
-
-from qall.provider import login, logout
+from qall.provider import get_provider_client_by_name, login, logout
 
 
 def login_provider(provider_name: str, **kwargs) -> bool:
+    provider_client = get_provider_client_by_name(provider_name)
+
+    login_successful = provider_client.login(**kwargs)
+
+    if not login_successful:
+        return False
+
     return login(provider_name.lower(), **kwargs)
 
 

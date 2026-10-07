@@ -33,6 +33,9 @@ class WorkflowProviderClient(ABC):
     def __exit__(self, exc_type, exc_val, exc_tb):
         raise NotImplementedError
 
+    def login(self, credentials: dict) -> bool:
+        raise NotImplementedError
+
     def create_workflow(
         tag: Tag,
         registry: str,

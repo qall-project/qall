@@ -11,7 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .workflow import WorkflowProviderClient, provider, get_provider_client_by_name
+from .workflow import (
+    WorkflowProviderClient,
+    workflow_provider,
+    get_provider_client_by_name,
+)
 from .login import (
     login,
     logout,
