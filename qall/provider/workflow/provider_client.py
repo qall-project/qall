@@ -36,6 +36,9 @@ class WorkflowProviderClient(ABC):
     def login(self, credentials: dict) -> bool:
         raise NotImplementedError
 
+    def get_credential_fields(self) -> list[dict]:
+        return NotImplementedError
+
     def create_workflow(
         tag: Tag,
         registry: str,

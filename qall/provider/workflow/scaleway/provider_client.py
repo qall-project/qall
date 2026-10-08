@@ -49,6 +49,20 @@ class ScalewayWorkflowProviderClient(WorkflowProviderClient):
     def __exit__(self, exc_type, exc_val, exc_tb):
         raise NotImplementedError
 
+    def get_credential_fields(self) -> list[dict]:
+        return [
+            {
+                "name": "project_id",
+                "prompt": "Scaleway Project ID",
+                "hide_input": False,
+            },
+            {
+                "name": "secret_key",
+                "prompt": "Scaleway Secret Key",
+                "hide_input": True,
+            },
+        ]
+
     def login(self, credentials: dict) -> bool:
         project_id = credentials.get("project_id")
         secret_key = credentials.get("secret_key")

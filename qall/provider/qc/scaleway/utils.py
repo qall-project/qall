@@ -19,21 +19,9 @@ from qorus.provider.qc import QuantumContext
 
 
 def get_credentials(context: QuantumContext, kwargs: dict) -> Tuple[str, str, str]:
-    project_id = (
-        kwargs.get("project_id")
-        or context.configuration.get("project_id")
-        or os.getenv("SCW_PROJECT_ID")
-    )
-    secret_key = (
-        kwargs.get("secret_key")
-        or context.configuration.get("secret_key")
-        or os.getenv("SCW_SECRET_KEY")
-    )
-    url = (
-        kwargs.get("url")
-        or context.configuration.get("url")
-        or "https://api.scaleway.com/qaas/v1alpha1"
-    )
+    project_id = os.getenv("SCALEWAY_PROJECT_ID")
+    secret_key = os.getenv("SCALEWAY_SECRET_KEY")
+    url = os.getenv("SCALEWAY_URL", "https://api.scaleway.com")
 
     return project_id, secret_key, url
 

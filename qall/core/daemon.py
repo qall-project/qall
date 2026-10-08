@@ -25,7 +25,6 @@ logger = logging.getLogger(__name__)
 
 def start_daemon(
     port: int = 50053,
-    image: Optional[str] = None,
     block_registry_path: Optional[str | Path] = None,
     artifact_registry_path: Optional[str | Path] = None,
     worker_provider: Optional[str] = None,
@@ -75,49 +74,34 @@ def start_daemon(
             logger.info(logs.next())
 
 
-def stop_daemon(
-    port: int = 50053,
-    image: Optional[str] = None,
-):
+def stop_daemon():
     """
     Stops an already running local Qall daemon.
     """
 
-    image = image or "scw/qall-daemon-server:latest"
-
     try:
-        daemon_mgr = DockerDaemonManager(
-            image=image,
-            grpc_port=port,
-            local=True,
-        )
+        daemon_mgr = DockerDaemonManager(local=True)
+
         if not daemon_mgr.attach():
             logger.warning("No running daemon to stop.")
             return
 
         daemon_mgr.stop()
-        logger.info(f"Daemon stopped on port {port}")
 
     except Exception as e:
         logger.error(f"Could not stop local daemon.")
-        logger.error(f"Daemon address: localhost:{port}")
-        logger.error(f"Daemon image: {image})")
         logger.error(f"Reason: {e}")
 
 
 def restart_daemon(
     port: int = 50053,
-    image: Optional[str] = None,
 ):
     """
     Restarts an already running local Qall daemon.
     """
 
-    image = image or "scw/qall-daemon-server:latest"
-
     try:
         daemon_mgr = DockerDaemonManager(
-            image=image,
             grpc_port=port,
             local=True,
         )
@@ -133,7 +117,6 @@ def restart_daemon(
     except Exception as e:
         logger.error(f"Could not restart local daemon.")
         logger.error(f"Daemon address: localhost:{port}")
-        logger.error(f"Daemon image: {image})")
         logger.error(f"Reason: {e}")
 
 

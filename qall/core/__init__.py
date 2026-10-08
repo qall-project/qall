@@ -29,7 +29,7 @@ from .registry import (
     logout_registry,
     clear_registry,
 )
-from .provider import login_provider, logout_provider
+from .provider import login_provider, logout_provider, get_provider_client_by_name
 from .runtime import execute_task
 from .daemon import (
     start_daemon,

@@ -9,7 +9,7 @@ def prepare(x):
     return randint(1, x)
 
 
-@qall.task(min_qubits=2, piprequirements=["qiskit"])
+@qall.task(min_qubits=2, requirements=["qiskit"])
 def do_quantum_stuff(size, repeat):
     qc = qiskit.QuantumCircuit(size)
     qc.h(0)

@@ -137,10 +137,30 @@ def login(
     """
     Authenticate against a provider and optionally a Qall registry.
     Examples:
-        qall login scaleway --project-id=XXX --secret-key=YYY
-        qall login scaleway --registry=https://registry.qall.dev --project-id=XXX --secret-key=YYY
+        qall login scaleway --project-id=XYZ --secret-key=ABC
+        or
+        qall login scaleway
+        This will prompt for the required credentials interactively.
     """
     creds = parse_extra_args(ctx.args)
+
+    try:
+        client = core.get_provider_client_by_name(provider_name)
+    except Exception as e:
+        typer.echo(f"Error : {e}", err=True)
+        raise typer.Exit(code=1)
+
+    if hasattr(client, "get_credential_fields"):
+        fields = client.get_credential_fields()
+
+        for field in fields:
+            key_name = field["name"]
+
+            if key_name not in creds or not creds[key_name]:
+                creds[key_name] = typer.prompt(
+                    field["prompt"],
+                    hide_input=field.get("hide_input", False),
+                )
 
     if not creds:
         typer.echo(
