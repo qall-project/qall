@@ -13,6 +13,7 @@
 # limitations under the License.
 import ast
 import textwrap
+
 from pathlib import Path
 from typing import Optional
 
@@ -27,6 +28,7 @@ from qall.object import (
 from qall.registry import BlockRegistry
 from qall.runtime import ArtifactBackend
 from qall.runtime.subprocessor import run_task_in_subprocess
+from qall.provider.workflow import resolve_qpu
 
 
 class TaskRuntimeExecutor:
@@ -137,7 +139,6 @@ class TaskRuntimeExecutor:
                 child_hash=child_hash,
                 parent_task_id=task_run_id,
                 is_async=is_async,
-                worker_addresses=self.__worker_addresses,
             )
             proxy_functions.append(proxy_code)
 
@@ -179,7 +180,6 @@ class TaskRuntimeExecutor:
         child_hash: str,
         parent_task_id: str,
         is_async: bool = False,
-        worker_addresses: Optional[list] = None,
     ) -> str:
         """
         Generate the source code of a proxy that delegates execution to the Daemon.
@@ -227,8 +227,6 @@ class TaskRuntimeExecutor:
 
 
 def _get_source(payload: TaskPayload) -> str:
-    print("payload", payload)
-
     if payload.code_format == "raw":
         return payload.code
     elif payload.code_format == "qio.program":
