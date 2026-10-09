@@ -23,12 +23,13 @@ from qall.provider.qc import (
     quantum_worker,
 )
 
+from qall.provider.login import get_credentials_from_env
+
 from .utils import (
     get_session_dedup_from_context,
     list_session_ids_from_context,
     set_session_dedup_in_context,
     add_session_id_in_context,
-    get_credentials,
 )
 
 
@@ -56,12 +57,12 @@ class QiskitScalewayQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> QuantumContext:
-        project_id, secret_key, url = get_credentials(context, kwargs)
+        credentials = get_credentials_from_env()
 
         provider = ScalewayProvider(
-            project_id=project_id,
-            secret_key=secret_key,
-            url=url,
+            project_id=credentials.get("project_id"),
+            secret_key=credentials.get("secret_key"),
+            url=credentials.get("url"),
         )
 
         self.__backend = provider.get_backend(resource)

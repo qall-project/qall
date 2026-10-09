@@ -154,7 +154,7 @@ class TaskEnvironment:
     __TYPE = "task_environment"
 
     image: str
-    requirements: list[str, ...] = field(default_factory=list)
+    requirements: list[str] = field(default_factory=list)
     type: str = field(default=__TYPE)
 
     def to_dict(self) -> dict:

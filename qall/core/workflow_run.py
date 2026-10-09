@@ -33,6 +33,7 @@ from qall.core.registry import push_workflow_on_registry
 from qall.core.workflow import create_workflow, run_workflow, stop_workflow
 from qall.core.daemon import get_daemon_status, run_task, start_daemon, stop_daemon
 from qall.config import get_local_configuration, create_default_configuration
+from qall.resolver import resolve_workflow_resources
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +77,21 @@ def create_workflow_run(
             registry_client.remote_domain if registry_client else "local",
             "\nReason:",
             e,
+        )
+
+    provider_credentials = provider_credentials or get_provider_login_credentials()
+
+    if provider_credentials:
+        provider_client = provider_client or get_provider_client_by_name(
+            provider_credentials.provider
+        )
+
+        available_resources = provider_client.list_resources()
+
+        assignments = resolve_workflow_resources(
+            dag=dag,
+            profile=profile,
+            available_resources=available_resources,
         )
 
     if local_only:

@@ -24,6 +24,7 @@ from .resource import (
     GpuSpec,
     ResourcePrice,
     ResourceAvailability,
+    TaskResourceAssignment,
     QpuModality,
     QpuTopology,
     QpuTechnology,

@@ -11,13 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from pathlib import Path
 import subprocess
 import sys
 import textwrap
 import threading
 
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Optional
 
@@ -39,6 +38,7 @@ def run_task_in_subprocess(
             interpreter = sys.executable
 
         init_workers_code = ""
+
         if worker_addresses:
             print("[Executor] Add quantum worker manager link...")
             init_workers_code = textwrap.dedent(

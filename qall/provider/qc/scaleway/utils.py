@@ -13,17 +13,7 @@
 # limitations under the License.
 import os
 
-from typing import Tuple
-
 from qorus.provider.qc import QuantumContext
-
-
-def get_credentials(context: QuantumContext, kwargs: dict) -> Tuple[str, str, str]:
-    project_id = os.getenv("SCALEWAY_PROJECT_ID")
-    secret_key = os.getenv("SCALEWAY_SECRET_KEY")
-    url = os.getenv("SCALEWAY_URL", "https://api.scaleway.com")
-
-    return project_id, secret_key, url
 
 
 def get_session_dedup_from_context(context: QuantumContext):

@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Any
+from typing import Any, Optional
 
 from qall.object import (
     Workflow,
@@ -34,6 +34,8 @@ from qall.object import (
 )
 
 from qall.provider.workflow import WorkflowProviderClient, workflow_provider
+from qall.provider.login import get_credentials_from_env
+
 
 from scaleway_qaas_client.v1alpha1 import QaaSClient, QaaSPlatform
 
@@ -63,7 +65,10 @@ class ScalewayWorkflowProviderClient(WorkflowProviderClient):
             },
         ]
 
-    def login(self, credentials: dict) -> bool:
+    def login(self, credentials: Optional[dict] = None) -> bool:
+        if credentials is None:
+            credentials = get_credentials_from_env()
+
         project_id = credentials.get("project_id")
         secret_key = credentials.get("secret_key")
         url = credentials.get("url", "https://api.scaleway.com")

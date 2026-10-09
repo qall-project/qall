@@ -26,6 +26,7 @@ from qall.object import (
 from qall.registry import BlockRegistry
 from qall.runtime.artifact_backend import ArtifactBackend
 from qall.runtime.task_executor import TaskRuntimeExecutor
+from qall.credential import extract_credentials_from_env
 
 
 class SubtaskExecutor(ABC):
@@ -129,6 +130,7 @@ class DaemonSubtaskExecutor(SubtaskExecutor):
         task_run = daemon_client.create_task_run(
             task_hash=self.__task_hash,
             artifact_hash=input_artifact_hash,
+            provider_credentials=extract_credentials_from_env(),
         )
 
         completed_task_run = daemon_client.wait_for_task_run(
