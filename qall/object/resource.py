@@ -137,9 +137,6 @@ class TaskResourceAssignment:
         return self.gpu.name if self.gpu else None
 
     def to_execution_context(self) -> dict[str, str]:
-        """
-        Exports assignment into a flat execution_context dictionary for gRPC.
-        """
         context = {"provider": self.provider}
         if self.qpu_name:
             context["target_qpu"] = self.qpu_name

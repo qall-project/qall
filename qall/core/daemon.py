@@ -27,7 +27,6 @@ def start_daemon(
     port: int = 50053,
     block_registry_path: Optional[str | Path] = None,
     artifact_registry_path: Optional[str | Path] = None,
-    worker_provider: Optional[str] = None,
 ):
     """
     Start a local Qall daemon in a docker container.
@@ -72,6 +71,25 @@ def start_daemon(
 
         while logs:
             logger.info(logs.next())
+
+
+def apply_resource_assignments(
+    worker_definitions: Optional[list] = None,
+    resource_assignments: Optional[dict] = None,
+):
+    try:
+        daemon_mgr = DockerDaemonManager(local=True)
+
+        if worker_definitions:
+            daemon_mgr.register_workers(worker_definitions)
+
+        if resource_assignments:
+            daemon_mgr.register_resource_assignments(resource_assignments)
+
+    except Exception as e:
+        logger.error(f"Could not connect to local daemon.")
+        logger.error(f"Reason: {e}")
+        return
 
 
 def stop_daemon():

@@ -23,12 +23,6 @@ from docker.models.containers import Container
 
 from qall_daemon_client import GrpcDaemonClient
 
-from qall.provider.qc import WorkerCatalog
-from qall.provider.qc.local import register_local_workers
-
-# Temporary import to avoid remote registry to be setup
-from qall.provider.qc.scaleway import register_scaleway_workers
-
 from .base_manager import BaseDaemonManager
 
 logger = logging.getLogger(__name__)
@@ -60,7 +54,6 @@ class DockerDaemonManager(BaseDaemonManager):
         self.__local = local
         self.__host_block_registry_path = str(host_block_registry_path)
         self.__host_artifact_registry_path = str(host_artifact_registry_path)
-        self.__worker_provider = worker_provider if worker_provider else "local"
 
         try:
             self.__docker_client = docker.from_env()
@@ -109,7 +102,6 @@ class DockerDaemonManager(BaseDaemonManager):
     def start(self):
         self._start_daemon()
         self._wait_for_health()
-        self._register_provider_workers()
 
         return self
 
@@ -195,31 +187,12 @@ class DockerDaemonManager(BaseDaemonManager):
         except APIError as e:
             raise RuntimeError(f"Error launching the daemon: {e}")
 
-    def _register_provider_workers(self):
-        if not self.__worker_provider:
-            logger.info("No worker provider defined.")
-            return
+    def register_resource_assignments(self, resource_asigments: dict):
+        with self.client as client:
+            for hash, res_assignement in resource_asigments:
+                pass
 
-        catalog = WorkerCatalog()
-
-        if self.__worker_provider == "local":
-            catalog = register_local_workers(catalog)
-        elif self.__worker_provider == "scaleway":
-            catalog = register_scaleway_workers(catalog)
-        else:
-            raise RuntimeError(
-                f"Worker provider {self.__worker_provider} is not supported."
-            )
-
-        if not catalog:
-            raise RuntimeError("could not load catalog properly")
-
-        worker_definitions = catalog.get_by_provider(self.__worker_provider)
-
-        if not worker_definitions:
-            logger.info(f"No worker definition for provider {self.__worker_provider}.")
-            return
-
+    def register_workers(self, worker_definitions: list):
         with self.client as client:
             for wd in worker_definitions:
                 if len(wd.input_formats) == 0:

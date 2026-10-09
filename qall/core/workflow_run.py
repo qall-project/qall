@@ -31,9 +31,19 @@ from qall.provider import (
 )
 from qall.core.registry import push_workflow_on_registry
 from qall.core.workflow import create_workflow, run_workflow, stop_workflow
-from qall.core.daemon import get_daemon_status, run_task, start_daemon, stop_daemon
+from qall.core.daemon import (
+    get_daemon_status,
+    run_task,
+    start_daemon,
+    stop_daemon,
+    apply_resource_assignments,
+)
 from qall.config import get_local_configuration, create_default_configuration
 from qall.resolver import resolve_workflow_resources
+
+from qall.provider.qc import WorkerCatalog
+from qall.provider.qc.local import register_local_workers
+from qall.provider.qc.scaleway import register_scaleway_workers
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +90,7 @@ def create_workflow_run(
         )
 
     provider_credentials = provider_credentials or get_provider_login_credentials()
+    resource_assignments = None
 
     if provider_credentials:
         provider_client = provider_client or get_provider_client_by_name(
@@ -88,11 +99,13 @@ def create_workflow_run(
 
         available_resources = provider_client.list_resources()
 
-        assignments = resolve_workflow_resources(
+        resource_assignments = resolve_workflow_resources(
             dag=dag,
             profile=profile,
             available_resources=available_resources,
         )
+
+    worker_definitions = _get_provider_workers(provider_credentials.provider)
 
     if local_only:
         daemon_is_already_running = get_daemon_status()
@@ -100,7 +113,14 @@ def create_workflow_run(
             logger.info(
                 "Daemon not running. `auto_start_daemon` set to True, starting daemon..."
             )
+
             start_daemon()
+
+            if worker_definitions or resource_assignments:
+                apply_resource_assignments(
+                    worker_definitions=worker_definitions,
+                    resource_assignments=resource_assignments,
+                )
         elif not daemon_is_already_running and not auto_start_daemon:
             raise RuntimeError(
                 "No qall daemon running. Start it first, or set auto_start_daemon to True."
@@ -210,3 +230,27 @@ def fix_workflow_run(
     provider_credentials: Optional[ProviderCredentials] = None,
 ) -> WorkflowRun:
     pass
+
+
+def _get_provider_workers(provider: str):
+    if not provider:
+        logger.info("No worker provider defined.")
+        return
+
+    catalog = WorkerCatalog()
+
+    if provider == "local":
+        catalog = register_local_workers(catalog)
+    elif provider == "scaleway":
+        catalog = register_scaleway_workers(catalog)
+    else:
+        raise RuntimeError(f"Worker provider {provider} is not supported.")
+
+    if not catalog:
+        raise RuntimeError("could not load catalog properly")
+
+    worker_definitions = catalog.get_by_provider(provider)
+
+    if not worker_definitions:
+        logger.info(f"No worker definition for provider {provider}.")
+        return
