@@ -38,7 +38,6 @@ def start_daemon(
     artifact_registry_path = (
         artifact_registry_path or Path().home() / ".cache/qall/artifact-registry"
     )
-    worker_provider = worker_provider or "local"
 
     block_path = Path(block_registry_path).resolve()
     artifact_path = Path(artifact_registry_path).resolve()
@@ -51,7 +50,6 @@ def start_daemon(
         grpc_port=port,
         host_block_registry_path=str(block_path),
         host_artifact_registry_path=str(artifact_path),
-        worker_provider=worker_provider,
     )
 
     if daemon_mgr.service_info():
@@ -62,7 +60,6 @@ def start_daemon(
         grpc_port=port,
         host_block_registry_path=str(block_path),
         host_artifact_registry_path=str(artifact_path),
-        worker_provider=worker_provider,
     ) as daemon_mgr:
 
         logs = daemon_mgr.logs()

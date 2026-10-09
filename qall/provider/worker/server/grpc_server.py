@@ -28,6 +28,7 @@ from qall.interop.mapping import (
     qio_program_to_native_program,
     native_result_to_qio_result,
 )
+from qall.provider.login import get_credentials_from_env
 
 from ..context import QuantumContext
 from .qc_worker import QuantumWorker
@@ -69,15 +70,16 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
     ) -> pb2.QuantumContext:
 
         try:
+            creds = get_credentials_from_env()
+            resource = creds.pop("QALL_PROVIDER_TARGET_RESOURCE", None)
+
             context = QuantumContext(
-                resource=request.resource,
                 configuration=dict(request.configuration),
                 metadata=dict(request.metadata),
             )
 
             context = self.__worker.create_context(
-                resource=request.resource,
-                context=context,
+                resource=resource, context=context, **creds
             )
 
             return context_to_proto(context)

@@ -44,7 +44,6 @@ class DockerDaemonManager(BaseDaemonManager):
         / ".cache/qall/block-registry",
         host_artifact_registry_path: str | Path = Path().home()
         / ".cache/qall/artifact-registry",
-        worker_provider: Optional[str] = None,
     ):
         self.__image = __DEFAULT_IMAGE
         self.__container_name = "qalld"
@@ -141,9 +140,6 @@ class DockerDaemonManager(BaseDaemonManager):
         try:
             command = [f"--host-task-dir={self.__host_block_registry_path}"]
 
-            if self.__worker_provider:
-                command.append(f"--worker-provider={self.__worker_provider}")
-
             if self.__local:
                 command.append("--local")
 
@@ -187,10 +183,26 @@ class DockerDaemonManager(BaseDaemonManager):
         except APIError as e:
             raise RuntimeError(f"Error launching the daemon: {e}")
 
-    def register_resource_assignments(self, resource_asigments: dict):
+    def register_resource_assignments(self, resource_assigments: dict):
         with self.client as client:
-            for hash, res_assignement in resource_asigments:
-                pass
+            for task_hash, assignment in resource_assigments.items():
+                resource_name = (
+                    assignment.qpu_name
+                    or assignment.gpu_name
+                    or assignment.cpu_name
+                    or ""
+                )
+
+                res_entry = client.create_resource_assignment(
+                    task_hash=task_hash,
+                    resource_provider=assignment.provider,
+                    resource_name=resource_name,
+                )
+
+                if not res_entry:
+                    raise RuntimeError(
+                        f"Failed to create resource assignment entry into daemon for task_hash '{task_hash}'"
+                    )
 
     def register_workers(self, worker_definitions: list):
         with self.client as client:
