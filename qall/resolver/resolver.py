@@ -24,7 +24,6 @@ from qall.object import (
     QpuModality,
     TaskResourceAssignment,
     TaskDag,
-    TaskNode,
 )
 
 
@@ -245,11 +244,13 @@ def _match_modality(req_modality: Any, res_modality: Any) -> bool:
         if isinstance(req_modality, QpuModality)
         else str(req_modality)
     )
+
     res_str = (
         res_modality.value
         if isinstance(res_modality, QpuModality)
         else str(res_modality)
     )
+
     return req_str.lower() == res_str.lower()
 
 

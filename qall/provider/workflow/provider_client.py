@@ -39,6 +39,9 @@ class WorkflowProviderClient(ABC):
     def get_credential_fields(self) -> list[dict]:
         return NotImplementedError
 
+    def get_default_config_template(self) -> str:
+        return NotImplementedError
+
     def create_workflow(
         tag: Tag,
         registry: str,

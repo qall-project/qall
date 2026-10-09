@@ -28,7 +28,6 @@ class AllowedResourceCollection:
 @dataclass_json
 @dataclass(frozen=True)
 class ResourceProfile:
-    name: str
     provider: str
     match_strategy: str
     allowed: AllowedResourceCollection

@@ -51,6 +51,26 @@ class ScalewayWorkflowProviderClient(WorkflowProviderClient):
     def __exit__(self, exc_type, exc_val, exc_tb):
         raise NotImplementedError
 
+    def get_default_config_template(self) -> str:
+        """
+        Returns the default YAML configuration template for this provider.
+        """
+        return f"""# Qall Configuration File (.qall.yml)
+profiles:
+  scaleway-config:
+    provider: "scaleway"
+    default: True
+    match_strategy: "cheapest" # Resolution strategy: "cheapest" or "performance"
+
+    allowed:
+      qpu:
+        - "*" # Allow all QPUs, or restrict to specific names (e.g., "QPU-EMERALD-54PQ")
+      cpu:
+        - "*" # Allow all classical CPU instances
+      gpu:
+        - "*" # Allow all GPU instances
+"""
+
     def get_credential_fields(self) -> list[dict]:
         return [
             {

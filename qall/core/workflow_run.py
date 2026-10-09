@@ -40,7 +40,6 @@ from qall.core.daemon import (
 )
 from qall.config import get_local_configuration, create_default_configuration
 from qall.resolver import resolve_workflow_resources
-
 from qall.provider.qc import WorkerCatalog
 from qall.provider.qc.local import register_local_workers
 from qall.provider.qc.scaleway import register_scaleway_workers
@@ -60,6 +59,9 @@ def create_workflow_run(
     provider_credentials: Optional[ProviderCredentials] = None,
     local_only: bool = False,
     auto_start_daemon: bool = False,
+    allowed_qpu: Optional[list[str]] = None,
+    allowed_cpu: Optional[list[str]] = None,
+    allowed_gpu: Optional[list[str]] = None,
     **kwargs,
 ) -> WorkflowRun:
     """
@@ -91,6 +93,20 @@ def create_workflow_run(
 
     provider_credentials = provider_credentials or get_provider_login_credentials()
     resource_assignments = None
+
+    local_config = get_local_configuration() or create_default_configuration()
+
+    profile = (
+        local_config.get_profile(profile_name)
+        if profile_name
+        else local_config.get_default_profile()
+    )
+
+    if not profile and not allowed_cpu and not allowed_cpu:
+        if profile_name:
+            raise Exception(f"cannot find default profile {profile_name}")
+
+        raise Exception("")
 
     if provider_credentials:
         provider_client = provider_client or get_provider_client_by_name(
@@ -167,14 +183,6 @@ def create_workflow_run(
                 stop_daemon()
 
     else:
-        local_config = get_local_configuration() or create_default_configuration()
-
-        profile = (
-            local_config.get_profile(profile_name)
-            if profile_name
-            else local_config.get_default_profile()
-        )
-
         workflow = create_workflow(
             workflow_name=workflow_name,
             workflow_version=workflow_version,
@@ -249,8 +257,4 @@ def _get_provider_workers(provider: str):
     if not catalog:
         raise RuntimeError("could not load catalog properly")
 
-    worker_definitions = catalog.get_by_provider(provider)
-
-    if not worker_definitions:
-        logger.info(f"No worker definition for provider {provider}.")
-        return
+    return catalog.get_by_provider(provider)

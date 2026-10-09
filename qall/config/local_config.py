@@ -37,7 +37,6 @@ class LocalConfiguration:
         config = LocalConfiguration(
             profiles={
                 "default": ResourceProfile(
-                    name="default",
                     provider=provider_name,
                     match_strategy="cheapest",
                     default=True,
@@ -90,7 +89,12 @@ class LocalConfiguration:
     def get_default_profile(self) -> ResourceProfile:
         default_profile = list(filter(lambda p: p.default, self.profiles.values()))
 
-        if len(default_profile) != 1:
+        nb_profiles = len(default_profile)
+
+        if nb_profiles == 0:
+            return None
+
+        if nb_profiles > 1:
             raise ValueError("Should have only one default profile")
 
         return default_profile[0]
