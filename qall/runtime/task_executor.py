@@ -28,7 +28,6 @@ from qall.object import (
 from qall.registry import BlockRegistry
 from qall.runtime import ArtifactBackend
 from qall.runtime.subprocessor import run_task_in_subprocess
-from qall.provider.workflow import resolve_qpu
 
 
 class TaskRuntimeExecutor:

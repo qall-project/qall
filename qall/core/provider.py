@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 from qall.provider import get_provider_client_by_name, login, logout
+from qall.core.config import init_config
 
 
 def login_provider(provider_name: str, **kwargs) -> bool:

@@ -29,6 +29,7 @@ class LocalConfiguration:
     """
 
     profiles: Dict[str, ResourceProfile] = field(default_factory=dict)
+    version: str = "1.0"
 
     @classmethod
     def create_default_configuration(
@@ -48,6 +49,38 @@ class LocalConfiguration:
         config.to_yaml_file(filepath=filepath)
 
         return config
+
+    @classmethod
+    def from_yaml(cls, data: str) -> "LocalConfiguration":
+        """
+        Parses raw YAML string content into a LocalConfiguration object.
+
+        Args:
+            data: Raw string content from a .qall.yml configuration file.
+
+        Returns:
+            LocalConfiguration: Parsed configuration instance with safe fallbacks.
+
+        Raises:
+            ValueError: If the YAML content is invalid or does not deserialize into a dict.
+        """
+        if not data or not data.strip():
+            return cls()
+
+        try:
+            parsed_dict = yaml.safe_load(data)
+        except yaml.YAMLError as e:
+            raise ValueError(f"Failed to parse configuration YAML: {e}") from e
+
+        if parsed_dict is None:
+            return cls()
+
+        if not isinstance(parsed_dict, dict):
+            raise ValueError(
+                "Invalid configuration format: root document must be a YAML dictionary."
+            )
+
+        return cls.from_dict(parsed_dict)
 
     @classmethod
     def from_yaml_file(cls, filepath: Path | str) -> "LocalConfiguration":

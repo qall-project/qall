@@ -93,10 +93,6 @@ profiles:
         secret_key = credentials.get("secret_key")
         url = credentials.get("url", "https://api.scaleway.com")
 
-        print(
-            f"Logging in with project_id: {project_id}, secret_key: {secret_key}, url: {url}"
-        )
-
         self.__client = QaaSClient(
             project_id=project_id,
             secret_key=secret_key,

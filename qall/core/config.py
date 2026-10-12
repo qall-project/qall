@@ -18,18 +18,30 @@ from qall.config import (
     get_local_configuration,
     create_default_configuration,
     config_exists,
+    create_configuration,
 )
+from qall.provider import get_provider_client_by_name
 
 
 def init_config(
-    provider_name: Optional[str] = None, erase_exists: bool = False
+    provider_name: Optional[str] = None,
+    erase_exists: bool = False,
+    generate_default_config: bool = True,
 ) -> LocalConfiguration:
     if not erase_exists and config_exists():
-        return None
+        return get_local_configuration()
 
-    config = create_default_configuration(provider_name=provider_name)
+    if generate_default_config:
+        if provider_name is None or provider_name == "local":
+            return create_default_configuration(provider_name=provider_name)
+        else:
+            provider_client = get_provider_client_by_name(provider_name)
 
-    return config
+            if not config_exists() or erase_exists:
+                config_template = provider_client.get_default_config_template()
+                return create_configuration(config_template)
+
+    return None
 
 
 def freeze_config():

@@ -28,6 +28,15 @@ def create_default_configuration(provider_name: str) -> LocalConfiguration:
     )
 
 
+def create_configuration(config: str | LocalConfiguration) -> LocalConfiguration:
+    if isinstance(config, str):
+        config = LocalConfiguration.from_yaml(config)
+
+    config.to_yaml_file(_DEFAULT_CONFIG_FILENAME)
+
+    return config
+
+
 def config_exists() -> bool:
     path = Path(_DEFAULT_CONFIG_FILENAME)
     return path.exists()

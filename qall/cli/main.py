@@ -150,9 +150,9 @@ def login(
         typer.echo(f"Error : {e}", err=True)
         raise typer.Exit(code=1)
 
-    if hasattr(client, "get_credential_fields"):
-        fields = client.get_credential_fields()
+    fields = client.get_credential_fields()
 
+    if fields and len(fields) > 0:
         for field in fields:
             key_name = field["name"]
 
@@ -169,7 +169,12 @@ def login(
         )
 
     try:
-        core.login_provider(provider_name=provider_name, credentials=creds)
+        if core.login_provider(provider_name=provider_name, credentials=creds):
+            core.init_config(
+                provider_name=provider_name,
+                erase_exists=False,
+                generate_default_config=True,
+            )
         typer.echo(f" Successfully authenticated on {provider_name}.")
     except Exception as e:
         typer.echo(f" Failed to login to {provider_name} : {e}", err=True)
@@ -182,8 +187,6 @@ def login(
         except Exception as e:
             typer.echo(f" Failed to login to {registry_domain} : {e}", err=True)
             raise typer.Exit(code=1)
-
-    typer.echo("Successfully authenticated against both endpoints.")
 
 
 @cli.command("logout")
