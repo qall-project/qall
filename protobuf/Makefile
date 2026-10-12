@@ -33,7 +33,7 @@ endef
 
 .PHONY: qc
 qc:
-	$(call generate_openapi,${PROTOBUF_DIR},${QC_WORKER_FILENAME}) # openapi
+# 	$(call generate_openapi,${PROTOBUF_DIR},${QC_WORKER_FILENAME}) # openapi
 	$(call generate_python,${PROTOBUF_DIR},${QC_WORKER_FILENAME},${QC_WORKER_CLIENT_PATH})
 	sed -i "s/import qc_worker_api_v1_pb2/import qall.provider.worker.protobuf.qc_worker_api_v1.qc_worker_api_v1_pb2/" ${QC_WORKER_CLIENT_PATH}/qc_worker_api_v1_pb2_grpc.py
 	black ${QC_WORKER_CLIENT_PATH}/

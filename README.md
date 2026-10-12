@@ -80,8 +80,8 @@ The same execution model is designed to extend from local development to managed
 
 | Qall-compliant provider | Integration status | CPU | GPU | QPU | emulated QPU
 |---|---|---|---|---|---|
-|Local | ✅ | ✅ | ❌ | ❌| Qsim, Aer <br> ⚙️ CUDA-Q
-|Scaleway ([website](https://www.scaleway.com/en/)) | ⚙️ | ✅ | ✅ | Quandela, Pasqal, IQM, AQT | CUDA-Q, Aer, Qsim
+|Local | ⚙️ | ⚙️ | ❌ | ❌| Qsim, Aer <br> ⚙️ CUDA-Q
+|Scaleway ([website](scaleway.com/unified-computing-service/)) | ⚙️ | ⚙️ | ⚙️ | Quandela, Pasqal, IQM, AQT | CUDA-Q, Aer, Qsim
 
 ## Quantum / hybrid example
 
@@ -91,7 +91,7 @@ Qall can execute quantum circuits from within a classical workflow.
 from qall import task, workflow, run
 import qiskit
 
-@task(min_qubit=5, qpu_type="gate-based", requirements=["qiskit"])
+@task(min_qubit=5, qpu_modality="gate_based", requirements=["qiskit"])
 def execute_quantum(size):
     qc = qiskit.QuantumCircuit(size)
     qc.h(0)

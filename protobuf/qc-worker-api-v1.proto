@@ -7,19 +7,15 @@ import "google/api/annotations.proto";
 option go_package = "internal/server/protobuf/qc_worker_api_v1";
 
 service Api {
-  // Initialize a quantum execution context.
   rpc CreateContext(CreateContextRequest)
       returns (QuantumContext);
 
-  // Execute a quantum program.
   rpc Run(RunRequest)
       returns (RunResponse);
 
-  // Close an execution context and release associated resources.
   rpc CloseContext(CloseContextRequest)
       returns (QuantumContext);
 
-  // Optional health/capability discovery.
   rpc GetCapabilities(GetCapabilitiesRequest)
       returns (Capabilities);
 }
