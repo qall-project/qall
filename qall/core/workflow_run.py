@@ -102,7 +102,7 @@ def create_workflow_run(
         else local_config.get_default_profile()
     )
 
-    if not profile and not allowed_cpu and not allowed_cpu:
+    if not profile and not allowed_cpu and not allowed_gpu and not allowed_qpu:
         if profile_name:
             raise Exception(f"cannot find default profile {profile_name}")
 
@@ -122,6 +122,9 @@ def create_workflow_run(
         )
 
     worker_definitions = _get_provider_workers(provider_credentials.provider)
+
+    print("WORKER", worker_definitions)
+    print("resource assignmenet", resource_assignments)
 
     if local_only:
         daemon_is_already_running = get_daemon_status()

@@ -9,6 +9,8 @@ Qall separates what a computation needs from where it runs, making workflows **p
 
 Qall was initially developed around hybrid quantum-classical workloads, where classical and quantum resources must work together as part of a single computation.
 
+/!\ Qall is still in Alpha phase and under active development.
+
 ## Why Qall?
 Hybrid workloads increasingly combine different types of compute (CPU, GPU, QPU) alongside storage, network and infrastructure management.
 

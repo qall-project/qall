@@ -1,6 +1,5 @@
-.registry-server/
 .tmp/
-.qorus.yml
+.qall.yml
 
 # User-defined Directories
 resources/
