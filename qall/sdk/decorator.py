@@ -34,16 +34,36 @@ def task(
         @task()
         def b(): ...
 
-        @task(entrypoint=True, piprequirements=[...])
+        @task(entrypoint=True, requirements=[...])
         def c(): ...
     """
 
     def decorator_task(func):
-        min_qubits = kwargs.pop("min_qubits", None)
-        min_cpu = kwargs.pop("min_cpu", None)
+        quantum_resources = {
+            "min_qubits": kwargs.pop("min_qubits", 0),
+            "min_shots": kwargs.pop("min_shots", 0),
+            "min_ops": kwargs.pop("min_ops", 0),
+            "qpu_modality": kwargs.pop("qpu_modality", kwargs.pop("modality", None)),
+            "qpu_provider": kwargs.pop("qpu_provider", kwargs.pop("provider", None)),
+            "qpu_technology": kwargs.pop(
+                "qpu_technology", kwargs.pop("technology", None)
+            ),
+            "qpu_gateset": kwargs.pop("qpu_gateset", kwargs.pop("gateset", None)),
+            "qpu_mcm_support": kwargs.pop(
+                "qpu_mcm_support", kwargs.pop("mcm_support", False)
+            ),
+            "qpu_reset_support": kwargs.pop(
+                "qpu_reset_support", kwargs.pop("reset_support", False)
+            ),
+            "qpu_topology": kwargs.pop("qpu_topology", kwargs.pop("topology", None)),
+        }
 
-        quantum_resources = {"min_qubits": min_qubits} if min_qubits else {}
-        classical_resources = {"min_cpu": min_cpu} if min_cpu else {}
+        classical_resources = {
+            "min_cpu": kwargs.pop("min_cpu", 0),
+            "min_gpu": kwargs.pop("min_gpu", 0),
+            "min_ram_gb": kwargs.pop("min_ram_gb", 1),
+            "min_vram_gb": kwargs.pop("min_vram_gb", 0),
+        }
 
         return TaskSpec(
             func,

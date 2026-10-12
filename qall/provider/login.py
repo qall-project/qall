@@ -13,7 +13,7 @@
 # limitations under the License.
 import os
 
-from typing import Optional
+from typing import Optional, Any
 from dataclasses import dataclass
 
 from qall.credential import set_token, delete_token, get_token
@@ -26,6 +26,12 @@ ACTIVE_SESSION_KEY = "_active_session"
 class ProviderCredentials:
     provider: str
     credentials: dict
+
+    def get(self, key: str, default: Optional[Any] = None):
+        if not self.credentials:
+            return None
+
+        return self.credentials.get(key, default)
 
 
 def get_provider_from_env() -> Optional[str]:

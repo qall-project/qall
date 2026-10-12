@@ -160,48 +160,34 @@ profiles:
     def list_logs(self, workflow_run_id: str) -> list[Log]:
         raise NotImplementedError
 
-    def list_resources(self, filters: dict) -> list[Resource]:
+    def list_resources(self, filters: Optional[dict] = None) -> list[Resource]:
         platforms = self.__client.list_platforms()
         resources: list[Resource] = []
 
         for p in platforms:
             resource = self._map_platform_to_resource(p)
 
-            if filters:
-                if (
-                    filters.get("qpu_type")
-                    and resource.qpu
-                    and resource.qpu.type != filters["qpu_type"]
-                ):
-                    continue
-                if (
-                    filters.get("min_qubits")
-                    and resource.qpu
-                    and resource.qpu.available_qubits < filters["min_qubits"]
-                ):
-                    continue
-
             resources.append(resource)
 
         return resources
 
     def _map_platform_to_resource(self, p: QaaSPlatform) -> Resource:
-        platform_id = self._get_attr(p, "id", "")
-        name = self._get_attr(p, "name", platform_id)
-        provider_name = self._get_attr(p, "provider_name", "unknown").lower()
-        technology_raw = self._get_attr(p, "technology", "unknown").lower()
-        type_raw = str(self._get_attr(p, "type", "unknown")).lower()
-        status_raw = str(self._get_attr(p, "availability", "unknown")).lower()
+        platform_id = p.id
+        name = p.name
+        provider_name = p.provider_name.lower()
+        technology_raw = str(p.technology).lower()
+        type_raw = str(p.type_).lower()
+        status_raw = str(p.availability).lower()
 
-        max_qubits = int(self._get_attr(p, "max_qubit_count", 0))
-        max_shots = int(self._get_attr(p, "max_shot_count", 0))
-        is_bookable = bool(self._get_attr(p, "is_bookable", False))
+        max_qubits = p.max_qubit_count
+        max_shots = p.max_shot_count
+        is_bookable = p.is_bookable
 
-        price_per_hour = float(self._get_attr(p, "price_per_hour", 0.0) or 0.0)
-        price_per_shot = float(self._get_attr(p, "price_per_shot", 0.0) or 0.0)
-        price_per_circuit = float(self._get_attr(p, "price_per_circuit", 0.0) or 0.0)
+        price_per_hour, _ = self._parse_grpc_money(p.price_per_hour)
+        price_per_shot = self._parse_grpc_money(p.price_per_shot)
+        price_per_circuit = self._parse_grpc_money(p.price_per_circuit)
 
-        qpu_type = self._resolve_qpu_type(type_raw, name)
+        qpu_type = self._resolve_qpu_type(type_raw)
         technology = self._resolve_technology(technology_raw)
         modality = self._resolve_modality(provider_name)
         availability = self._resolve_availability(status_raw)
@@ -209,11 +195,16 @@ profiles:
         qpu_spec = QpuSpec(
             available_qubits=max_qubits,
             max_shots=max_shots,
+            topology=QpuTopology.unknown,
+            max_ops=9999,
             modality=modality,
             technology=technology,
-            model_name=self._get_attr(p, "title", name),
+            model_name=name,
             type=qpu_type,
             bookable=is_bookable,
+            provider=provider_name,
+            mcm_support=False,
+            reset_support=False,
         )
 
         price = ResourcePrice(
@@ -272,7 +263,8 @@ profiles:
             "aqt": QpuModality.digital,
             "iqm": QpuModality.digital,
             "quobly": QpuModality.digital,
-            "quobly": QpuModality.digital,
+            "qiskit": QpuModality.digital,
+            "quantumlib": QpuModality.digital,
             "qperfect": QpuModality.digital,
             "nvidia": QpuModality.digital,
         }
@@ -293,3 +285,23 @@ profiles:
         }
 
         return availability_map.get(status_str.lower(), ResourceAvailability.unknown)
+
+    @staticmethod
+    def _parse_grpc_money(money_obj: Any) -> tuple[float, str]:
+        """
+        Converts a gRPC Money object (units + nanos) into a float price and currency string.
+        """
+        if not money_obj:
+            return 0.0, "EUR"
+
+        if isinstance(money_obj, dict):
+            units = money_obj.get("units") or 0
+            nanos = money_obj.get("nanos") or 0
+            currency = money_obj.get("currency_code") or "EUR"
+        else:
+            units = getattr(money_obj, "units", 0) or 0
+            nanos = getattr(money_obj, "nanos", 0) or 0
+            currency = getattr(money_obj, "currency_code", "EUR") or "EUR"
+
+        price = float(units) + (float(nanos) / 1e9)
+        return price, currency

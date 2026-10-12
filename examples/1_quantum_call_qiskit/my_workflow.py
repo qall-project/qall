@@ -1,6 +1,4 @@
 import qall
-import qiskit
-
 from random import randint
 
 
@@ -11,6 +9,8 @@ def prepare(x):
 
 @qall.task(min_qubits=2, requirements=["qiskit"])
 def do_quantum_stuff(size, repeat):
+    import qiskit
+
     qc = qiskit.QuantumCircuit(size)
     qc.h(0)
 

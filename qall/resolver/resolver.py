@@ -15,10 +15,13 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+from .local import get_local_resource
+
 from qall.object import (
     Resource,
     ResourceProfile,
     ResourceAvailability,
+    ResourcePrice,
     ClassicalResourceConstraints,
     QuantumResourceConstraints,
     TaskResourceAssignment,
@@ -30,6 +33,7 @@ def resolve_workflow_resources(
     task_dag: TaskDag,
     profile: ResourceProfile,
     available_resources: List[Resource],
+    replace_to_local: bool = False,
 ) -> Dict[str, TaskResourceAssignment]:
     """
     Resolves hardware assignments for every TaskNode in a compiled TaskDag.
@@ -51,23 +55,31 @@ def resolve_workflow_resources(
         c_constraints = node.resources.classical
 
         qpu_res = resolve_task_qpu(q_constraints, profile, available_resources)
-        cpu_res = resolve_task_cpu(c_constraints, profile, available_resources)
-        gpu_res = resolve_task_gpu(c_constraints, profile, available_resources)
+
+        if not replace_to_local:
+            cpu_res = resolve_task_cpu(c_constraints, profile, available_resources)
+            gpu_res = resolve_task_gpu(c_constraints, profile, available_resources)
+        else:
+            cpu_res = get_local_resource()
+            gpu_res = None
 
         provider = profile.provider
+
         if not provider or provider == "*":
             active = qpu_res or cpu_res or gpu_res
             provider = active.provider if active else "local"
 
-        task_name = node.name or task_hash[:8]
+        merged_resource = _merge_task_resource(
+            qpu_res=qpu_res,
+            cpu_res=cpu_res,
+            gpu_res=gpu_res,
+            provider=provider,
+        )
 
         assignments[task_hash] = TaskResourceAssignment(
             task_hash=task_hash,
-            task_name=task_name,
             provider=provider,
-            qpu=qpu_res,
-            cpu=cpu_res,
-            gpu=gpu_res,
+            resource=merged_resource,
         )
 
     return assignments
@@ -316,3 +328,53 @@ def _apply_matching_strategy(
             )
 
     return candidates[0]
+
+
+def _merge_task_resource(
+    qpu_res: Optional[Resource],
+    cpu_res: Optional[Resource],
+    gpu_res: Optional[Resource],
+    provider: str,
+) -> Resource:
+    """
+    Merges resolved QPU, CPU, and GPU candidates into a single unified Resource.
+    """
+    primary = qpu_res or cpu_res or gpu_res
+    resource_name = primary.name if primary else "default-resource"
+
+    # Extract specs from individual resolution results
+    qpu_spec = qpu_res.qpu if qpu_res else None
+    cpu_spec = cpu_res.cpu if cpu_res else (qpu_res.cpu if qpu_res else None)
+    gpu_spec = gpu_res.gpu if gpu_res else (qpu_res.gpu if qpu_res else None)
+
+    # Accumulate price (QPU shot pricing + classical hourly pricing)
+    price_per_shot = (
+        qpu_res.price.price_per_shot if (qpu_res and qpu_res.price) else 0.0
+    )
+    price_per_circuit = (
+        qpu_res.price.price_per_circuit if (qpu_res and qpu_res.price) else 0.0
+    )
+    price_per_hour = 0.0
+
+    if cpu_res and cpu_res.price:
+        price_per_hour += cpu_res.price.price_per_hour
+
+    if gpu_res and gpu_res.price:
+        price_per_hour += gpu_res.price.price_per_hour
+
+    currency = primary.price.currency if (primary and primary.price) else "EUR"
+
+    return Resource(
+        name=resource_name,
+        provider=provider,
+        availability=ResourceAvailability.available,
+        qpu=qpu_spec,
+        cpu=cpu_spec,
+        gpu=gpu_spec,
+        price=ResourcePrice(
+            price_per_shot=price_per_shot,
+            price_per_circuit=price_per_circuit,
+            price_per_hour=price_per_hour,
+            currency=currency,
+        ),
+    )

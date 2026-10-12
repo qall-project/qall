@@ -21,133 +21,6 @@ from .resource_contraint import ClassicalResourceConstraints, QuantumResourceCon
 
 
 @dataclass(frozen=True)
-class TaskPayload:
-    """
-    The smallest executable unit of computation.
-    Stores normalized source code and its execution environment.
-    Immutable once created — any change produces a new hash.
-    """
-
-    __TYPE = "task_payload"
-
-    code: str = field(default="")
-    code_format: str = field(default="")
-    environment: dict = field(default_factory=dict)
-    runtime: dict = field(default_factory=dict)
-    metadata: dict = field(default_factory=dict)
-    type: str = field(default=__TYPE)
-
-    def to_dict(self) -> dict:
-        return {
-            "code": self.code,
-            "code_format": self.code_format,
-            "environment": self.environment,
-            "runtime": self.runtime,
-            "metadata": self.metadata,
-            "type": self.__TYPE,
-        }
-
-    def to_block(self, codec: Codec = DEFAULT_CODEC) -> Block:
-        h, d = self._encode(codec)
-        return Block(hash=h, data=d)
-
-    @staticmethod
-    def from_block(block: Block, codec: Codec = DEFAULT_CODEC) -> "TaskPayload":
-        data = codec.decode(block.data)
-
-        block_type = data.get("type", "")
-        if TaskPayload.__TYPE != block_type:
-            raise RuntimeError(
-                f"payload.from_block failed due to different type of raw block data {block_type}"
-            )
-
-        return TaskPayload(
-            code=data.get("code", ""),
-            code_format=data.get("code_format", ""),
-            environment=data.get("environment", {}),
-            runtime=data.get("runtime", {}),
-            metadata=data.get("metadata", {}),
-        )
-
-    @property
-    def hash(self) -> str:
-        h, _ = self._encode()
-        return h
-
-    @property
-    def data(self) -> bytes:
-        _, d = self._encode()
-        return d
-
-    def _encode(self, codec: Codec = DEFAULT_CODEC):
-        return codec.encode(self.to_dict())
-
-
-@dataclass(frozen=True)
-class TaskNode:
-    """
-    Placement of a TaskPayload within a computation graph.
-
-    node_hash = Hash(task_payload_hash, children, metadata, resources)
-
-    Merkle property: any change in a child node propagates upward
-    through the graph via hash changes. Two nodes are identical if and
-    only if their payload, constraints, and full dependency subgraph are identical.
-    """
-
-    __TYPE = "task_node"
-
-    payload_hash: str = field(default="")
-    resources: dict = field(default_factory=dict)
-    children: dict[str, str] = field(default_factory=dict)
-    metadata: dict = field(default_factory=dict)
-    type: str = field(default=__TYPE)
-
-    def to_dict(self) -> dict:
-        return {
-            "payload_hash": self.payload_hash,
-            "resources": self.resources,
-            "children": self.children,
-            "metadata": self.metadata,
-            "type": self.__TYPE,
-        }
-
-    def to_block(self, codec: Codec = DEFAULT_CODEC) -> Block:
-        h, d = self._encode(codec)
-        return Block(hash=h, data=d)
-
-    @staticmethod
-    def from_block(block: Block, codec: Codec = DEFAULT_CODEC) -> "TaskNode":
-        data = codec.decode(block.data)
-
-        block_type = data.get("type", "")
-        if TaskNode.__TYPE != block_type:
-            raise RuntimeError(
-                f"node.from_block failed due to different type of raw block data {block_type}"
-            )
-
-        return TaskNode(
-            payload_hash=data.get("payload_hash", ""),
-            resources=data.get("resources", {}),
-            children=data.get("children", {}),
-            metadata=data.get("metadata", {}),
-        )
-
-    @property
-    def hash(self) -> str:
-        h, _ = self._encode()
-        return h
-
-    @property
-    def data(self) -> bytes:
-        _, d = self._encode()
-        return d
-
-    def _encode(self, codec: Codec = DEFAULT_CODEC):
-        return codec.encode(self.to_dict())
-
-
-@dataclass(frozen=True)
 class TaskEnvironment:
     """OCI execution environment for a task."""
 
@@ -201,6 +74,150 @@ class TaskResource:
             "quantum": self.quantum.to_dict() if self.quantum else None,
             "type": self.__TYPE,
         }
+
+
+@dataclass(frozen=True)
+class TaskPayload:
+    """
+    The smallest executable unit of computation.
+    Stores normalized source code and its execution environment.
+    Immutable once created — any change produces a new hash.
+    """
+
+    __TYPE = "task_payload"
+
+    code: str = field(default="")
+    code_format: str = field(default="")
+    environment: TaskEnvironment = field(default_factory=TaskEnvironment)
+    runtime: dict = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)
+    type: str = field(default=__TYPE)
+
+    def to_dict(self) -> dict:
+        return {
+            "code": self.code,
+            "code_format": self.code_format,
+            "environment": (
+                self.environment.to_dict()
+                if isinstance(self.environment, TaskEnvironment)
+                else self.environment
+            ),
+            "runtime": self.runtime,
+            "metadata": self.metadata,
+            "type": self.__TYPE,
+        }
+
+    def to_block(self, codec: Codec = DEFAULT_CODEC) -> Block:
+        h, d = self._encode(codec)
+        return Block(hash=h, data=d)
+
+    @staticmethod
+    def from_block(block: Block, codec: Codec = DEFAULT_CODEC) -> "TaskPayload":
+        data = codec.decode(block.data)
+
+        block_type = data.get("type", "")
+        if TaskPayload.__TYPE != block_type:
+            raise RuntimeError(
+                f"payload.from_block failed due to different type of raw block data {block_type}"
+            )
+
+        env = data.get("environment", {})
+
+        return TaskPayload(
+            code=data.get("code", ""),
+            code_format=data.get("code_format", ""),
+            environment=TaskEnvironment(
+                image=env.get("image"),
+                requirements=env.get("requirements"),
+            ),
+            runtime=data.get("runtime", {}),
+            metadata=data.get("metadata", {}),
+        )
+
+    @property
+    def hash(self) -> str:
+        h, _ = self._encode()
+        return h
+
+    @property
+    def data(self) -> bytes:
+        _, d = self._encode()
+        return d
+
+    def _encode(self, codec: Codec = DEFAULT_CODEC):
+        return codec.encode(self.to_dict())
+
+
+@dataclass(frozen=True)
+class TaskNode:
+    """
+    Placement of a TaskPayload within a computation graph.
+
+    node_hash = Hash(task_payload_hash, children, metadata, resources)
+
+    Merkle property: any change in a child node propagates upward
+    through the graph via hash changes. Two nodes are identical if and
+    only if their payload, constraints, and full dependency subgraph are identical.
+    """
+
+    __TYPE = "task_node"
+
+    payload_hash: str = field(default="")
+    resources: TaskResource = field(default_factory=TaskResource)
+    children: dict[str, str] = field(default_factory=dict)
+    metadata: TaskMetadata = field(default_factory=TaskMetadata)
+    type: str = field(default=__TYPE)
+
+    def to_dict(self) -> dict:
+        return {
+            "payload_hash": self.payload_hash,
+            "resources": (
+                self.resources.to_dict()
+                if isinstance(self.resources, TaskResource)
+                else self.resources
+            ),
+            "children": self.children,
+            "metadata": (
+                self.metadata.to_dict()
+                if isinstance(self.metadata, TaskMetadata)
+                else self.metadata
+            ),
+            "type": self.__TYPE,
+        }
+
+    def to_block(self, codec: Codec = DEFAULT_CODEC) -> Block:
+        h, d = self._encode(codec)
+        return Block(hash=h, data=d)
+
+    @staticmethod
+    def from_block(block: Block, codec: Codec = DEFAULT_CODEC) -> "TaskNode":
+        data = codec.decode(block.data)
+
+        block_type = data.get("type", "")
+        if TaskNode.__TYPE != block_type:
+            raise RuntimeError(
+                f"node.from_block failed due to different type of raw block data {block_type}"
+            )
+
+        return TaskNode(
+            payload_hash=data.get("payload_hash", ""),
+            resources=data.get("resources", None),
+            children=data.get("children", {}),
+            metadata=data.get("metadata", None),
+        )
+
+    @property
+    def hash(self) -> str:
+        h, _ = self._encode()
+        return h
+
+    @property
+    def data(self) -> bytes:
+        _, d = self._encode()
+        return d
+
+    def _encode(self, codec: Codec = DEFAULT_CODEC):
+        return codec.encode(self.to_dict())
 
 
 @dataclass(frozen=True)

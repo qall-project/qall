@@ -178,8 +178,8 @@ class BlockRegistry:
             reg_node = TaskNode(
                 payload_hash=task_to_p_hash[task_name],
                 children=children_mapping,
-                resources=_get_task_spec_resource(spec=task).to_dict(),
-                metadata=_get_task_spec_metadata(spec=task).to_dict(),
+                resources=_get_task_spec_resource(spec=task),
+                metadata=_get_task_spec_metadata(spec=task),
             )
 
             node_block = reg_node.to_block(self.__codec)
@@ -189,7 +189,9 @@ class BlockRegistry:
         # The global workflow tracker root hash maps onto the entrypoint element
         root_hash = node_name_to_node_hash[spec.entrypoint_task.name]
 
-        return TaskDag(registry_payloads, registry_nodes, root_hash)
+        return TaskDag(
+            payloads=registry_payloads, nodes=registry_nodes, root_hash=root_hash
+        )
 
     def create_worker_dag(self, spec: WorkerSpec) -> WorkerDag:
         """
@@ -234,7 +236,6 @@ class BlockRegistry:
             "provider": spec.provider,
             "input_format": spec.input_format,
             "output_format": spec.output_format,
-            # "resources": sorted(spec.resources),
         }
 
         node = WorkerNode(

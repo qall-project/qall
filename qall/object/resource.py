@@ -118,34 +118,18 @@ class Resource:
 
 @dataclass(frozen=True)
 class TaskResourceAssignment:
-    """
-    Resolved hardware assignment mapped directly to a unique IPLD task_hash.
-    """
-
     task_hash: str
     provider: str
-    qpu: Optional[Resource] = None
-    cpu: Optional[Resource] = None
-    gpu: Optional[Resource] = None
+    resource: Resource
 
     @property
     def qpu_name(self) -> Optional[str]:
-        return self.qpu.name if self.qpu else None
+        return self.resource.qpu.model_name if self.resource.qpu else None
 
     @property
     def cpu_name(self) -> Optional[str]:
-        return self.cpu.name if self.cpu else None
+        return self.resource.cpu.model_name if self.resource.cpu else None
 
     @property
     def gpu_name(self) -> Optional[str]:
-        return self.gpu.name if self.gpu else None
-
-    def to_execution_context(self) -> dict[str, str]:
-        context = {"provider": self.provider}
-        if self.qpu_name:
-            context["target_qpu"] = self.qpu_name
-        if self.cpu_name:
-            context["target_cpu"] = self.cpu_name
-        if self.gpu_name:
-            context["target_gpu"] = self.gpu_name
-        return context
+        return self.resource.gpu.model_name if self.resource.gpu else None

@@ -106,17 +106,20 @@ def create_workflow_run(
         if profile_name:
             raise Exception(f"cannot find default profile {profile_name}")
 
-        raise Exception("")
+        raise Exception("provide profile or at least allowed_[cpu,gpu,qpu] option")
 
     if provider_credentials:
         provider_client = provider_client or get_provider_client_by_name(
             provider_credentials.provider
         )
 
+        if not provider_client.login(provider_credentials):
+            raise Exception(f"cannot loggin to {provider_credentials.provider}")
+
         available_resources = provider_client.list_resources()
 
         resource_assignments = resolve_workflow_resources(
-            dag=dag,
+            task_dag=dag,
             profile=profile,
             available_resources=available_resources,
         )

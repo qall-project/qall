@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from abc import ABC
+from typing import Optional
 
 from qall.object import (
     Workflow,
@@ -96,7 +97,7 @@ class WorkflowProviderClient(ABC):
     def list_checkpoints(self, workflow_run_id: str) -> list[Checkpoint]:
         raise NotImplementedError
 
-    def list_resources(self, filters: dict) -> list[Resource]:
+    def list_resources(self, filters: Optional[dict] = None) -> list[Resource]:
         raise NotImplementedError
 
     def list_logs(self, workflow_run_id: str) -> list[Log]:
