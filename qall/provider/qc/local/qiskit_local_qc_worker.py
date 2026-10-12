@@ -11,9 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from qiskit import QuantumCircuit
-from qiskit.result import Result
-from qiskit_aer import AerSimulator
+from typing import Any
 
 from qall.provider.qc import (
     QuantumWorker,
@@ -45,6 +43,8 @@ class QiskitLocalQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> QuantumContext:
+        from qiskit_aer import AerSimulator
+
         self.__backend = AerSimulator()
 
         return context
@@ -57,11 +57,11 @@ class QiskitLocalQuantumWorker(QuantumWorker):
 
     def run(
         self,
-        program: QuantumCircuit,
+        program: Any,
         shots: int,
         context: QuantumContext,
         **kwargs,
-    ) -> Result:
+    ) -> Any:
         result = self.__backend.run(program, shots=shots).result()
 
         return result

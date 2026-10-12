@@ -71,7 +71,7 @@ qall run my_workflow.py --local
 Run it remotely :
 
 ```bash
-qall login scaleway --project-id=Y
+qall login scaleway --project-id=YYYY
 
 qall run my_workflow.py
 ```
@@ -144,12 +144,7 @@ For infrastructure providers, the same abstraction works in the other direction:
 Workflows describe **requirements**, not necessarily physical resources.
 
 ```python
-@task(
-    resource={
-        "min_cpu": 2,
-        "min_memory_gb": 16,
-    }
-)
+@task(min_cpu=2, min_memory_gb=16)
 def preprocess():
     ...
 ```

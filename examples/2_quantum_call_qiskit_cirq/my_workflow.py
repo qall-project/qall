@@ -13,7 +13,7 @@ def prepare(x):
     return randint(1, x)
 
 
-@qall.task(min_qubits=2, requirements=["qiskit", "cirq"])
+@qall.task(min_qubits=2, qpu_modality="gate_based", requirements=["qiskit", "cirq"])
 def do_quantum_stuff(x, y):
     qc_qiskit = qiskit.QuantumCircuit(x)
     qc_qiskit.h(0)

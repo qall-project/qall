@@ -11,11 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from typing import Any
 from uuid import uuid4
-
-from qiskit import QuantumCircuit
-from qiskit.result import Result
-from qiskit_scaleway import ScalewayProvider
 
 from qall.provider.qc import (
     QuantumWorker,
@@ -23,12 +20,46 @@ from qall.provider.qc import (
     quantum_worker,
 )
 
-from qall.provider.qc.scaleway.utils import (
-    get_session_dedup_from_context,
-    list_session_ids_from_context,
-    set_session_dedup_in_context,
-    add_session_id_in_context,
-)
+
+def get_session_dedup_from_context(context: QuantumContext):
+    if not context.metadata:
+        return None
+
+    return context.metadata.get("deduplication_id", None)
+
+
+def set_session_dedup_in_context(
+    context: QuantumContext, deduplication_id: str
+) -> QuantumContext:
+    if not context.metadata:
+        context.metadata = {}
+
+    context.metadata["deduplication_id"] = deduplication_id
+
+    return context
+
+
+def add_session_id_in_context(context: QuantumContext, id: str) -> QuantumContext:
+    if not context.metadata:
+        context.metadata = {}
+
+    sessions = context.metadata.get("sessions", None)
+
+    if not sessions:
+        sessions = [id]
+    elif not id in sessions:
+        sessions.append(id)
+
+    context.metadata["sessions"] = sessions
+
+    return context
+
+
+def list_session_ids_from_context(context: QuantumContext) -> list[str]:
+    if not context.metadata:
+        return None
+
+    return context.metadata.get("sessions", None)
 
 
 @quantum_worker(
@@ -55,6 +86,8 @@ class QiskitScalewayQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> QuantumContext:
+        from qiskit_scaleway import ScalewayProvider
+
         provider = ScalewayProvider(
             project_id=kwargs.get("project_id"),
             secret_key=kwargs.get("secret_key"),
@@ -86,11 +119,11 @@ class QiskitScalewayQuantumWorker(QuantumWorker):
 
     def run(
         self,
-        program: QuantumCircuit,
+        program: Any,
         shots: int,
         context: QuantumContext,
         **kwargs,
-    ) -> Result:
+    ) -> Any:
         session_ids = list_session_ids_from_context(context)
 
         if not session_ids:

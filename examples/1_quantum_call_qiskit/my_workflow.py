@@ -7,7 +7,7 @@ def prepare(x):
     return randint(1, x)
 
 
-@qall.task(min_qubits=2, requirements=["qiskit"])
+@qall.task(min_qubits=2, qpu_modality="gate_based", requirements=["qiskit"])
 def do_quantum_stuff(size, repeat):
     import qiskit
 

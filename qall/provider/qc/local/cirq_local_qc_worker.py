@@ -11,8 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from qsimcirq import QSimSimulator
-from cirq import Circuit, Result
+from typing import Any
 
 from qall.provider.qc import (
     QuantumWorker,
@@ -35,6 +34,7 @@ class CirqLocalQuantumWorker(QuantumWorker):
         self,
     ) -> None:
         super().__init__()
+
         self.__backend = None
 
     def create_context(
@@ -43,6 +43,8 @@ class CirqLocalQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> QuantumContext:
+        from qsimcirq import QSimSimulator
+
         self.__backend = QSimSimulator()
 
         return context
@@ -55,11 +57,11 @@ class CirqLocalQuantumWorker(QuantumWorker):
 
     def run(
         self,
-        program: Circuit,
+        program: Any,
         shots: int,
         context: QuantumContext,
         **kwargs,
-    ) -> Result:
+    ) -> Any:
         result = self.__backend.run(program, repetitions=shots)
         result._params = None
 

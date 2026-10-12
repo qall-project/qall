@@ -26,7 +26,7 @@ from .base_manager import BaseDaemonManager
 
 logger = logging.getLogger(__name__)
 
-__DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project/qall-daemon:latest"
+_DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project/qall-daemon:latest"
 
 
 class DockerDaemonManager(BaseDaemonManager):
@@ -44,7 +44,7 @@ class DockerDaemonManager(BaseDaemonManager):
         host_artifact_registry_path: str | Path = Path().home()
         / ".cache/qall/artifact-registry",
     ):
-        self.__image = __DEFAULT_IMAGE
+        self.__image = _DEFAULT_IMAGE
         self.__container_name = "qalld"
         self.__grpc_port = grpc_port
         self.__http_port = http_port

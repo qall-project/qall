@@ -125,7 +125,9 @@ def create_workflow_run(
             replace_to_local=local_only,
         )
 
-    worker_definitions = _get_provider_workers(provider_credentials.provider)
+    worker_definitions = _get_provider_workers(
+        provider_credentials.provider if provider_credentials else "local"
+    )
 
     print("WORKER", worker_definitions)
     print("resource assignmenet", resource_assignments)

@@ -185,7 +185,6 @@ def run_task(
     daemon_address: Optional[str] = None,
     block_registry: Optional[str] = None,
     artifact_registry: Optional[str] = None,
-    worker_provider: Optional[str] = None,
     timeout: int = 300,
 ) -> list[Artifact]:
     """
@@ -219,7 +218,6 @@ def run_task(
             grpc_port=port,
             host_block_registry_path=str(block_registry),
             host_artifact_registry_path=str(artifact_registry),
-            worker_provider=worker_provider,
         )
 
         if not daemon_mgr.service_info():

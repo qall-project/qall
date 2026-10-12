@@ -216,10 +216,6 @@ profiles:
 
         description = self._get_attr(p, "description", "")
 
-        metadata = {
-            "vendor": provider_name,
-        }
-
         return Resource(
             name=name,
             id=platform_id,
@@ -228,7 +224,6 @@ profiles:
             qpu=qpu_spec,
             price=price,
             availability=availability,
-            metadata=metadata,
             description=description,
         )
 
@@ -259,14 +254,14 @@ profiles:
     def _resolve_modality(provider_name: str) -> QpuModality:
         provider_map = {
             "pasqal": QpuModality.analog,
-            "quandela": QpuModality.digital,
-            "aqt": QpuModality.digital,
-            "iqm": QpuModality.digital,
-            "quobly": QpuModality.digital,
-            "qiskit": QpuModality.digital,
-            "quantumlib": QpuModality.digital,
-            "qperfect": QpuModality.digital,
-            "nvidia": QpuModality.digital,
+            "quandela": QpuModality.linear_optic,
+            "aqt": QpuModality.gate_based,
+            "iqm": QpuModality.gate_based,
+            "quobly": QpuModality.gate_based,
+            "qiskit": QpuModality.gate_based,
+            "quantumlib": QpuModality.gate_based,
+            "qperfect": QpuModality.gate_based,
+            "nvidia": QpuModality.gate_based,
         }
 
         return provider_map.get(provider_name.lower(), QpuModality.unknown)

@@ -45,6 +45,8 @@ class QpuTechnology(Enum):
 class QpuModality(Enum):
     unknown = "unknown"
     digital = "digital"
+    gate_based = "gate_based"
+    linear_optic = "linear_optic"
     analog = "analog"
     digital_analog = "digital_analog"
     annealing = "annealing"
