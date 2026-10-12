@@ -341,6 +341,7 @@ def _merge_task_resource(
     """
     primary = qpu_res or cpu_res or gpu_res
     resource_name = primary.name if primary else "default-resource"
+    resource_id = primary.id
 
     # Extract specs from individual resolution results
     qpu_spec = qpu_res.qpu if qpu_res else None
@@ -365,6 +366,7 @@ def _merge_task_resource(
     currency = primary.price.currency if (primary and primary.price) else "EUR"
 
     return Resource(
+        id=resource_id,
         name=resource_name,
         provider=provider,
         availability=ResourceAvailability.available,

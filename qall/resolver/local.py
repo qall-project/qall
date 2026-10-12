@@ -25,8 +25,9 @@ def get_local_resource() -> Resource:
     processor_name = platform.processor() or "local-cpu"
 
     return Resource(
+        id="localhost",
         name="localhost",
-        provider="local",
+        provider="localhost",
         availability=ResourceAvailability.available,
         cpu=CpuSpec(
             model_name=processor_name,

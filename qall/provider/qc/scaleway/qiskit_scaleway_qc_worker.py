@@ -23,7 +23,7 @@ from qall.provider.qc import (
     quantum_worker,
 )
 
-from .utils import (
+from qall.provider.qc.scaleway.utils import (
     get_session_dedup_from_context,
     list_session_ids_from_context,
     set_session_dedup_in_context,

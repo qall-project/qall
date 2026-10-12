@@ -122,6 +122,7 @@ def create_workflow_run(
             task_dag=dag,
             profile=profile,
             available_resources=available_resources,
+            replace_to_local=local_only,
         )
 
     worker_definitions = _get_provider_workers(provider_credentials.provider)

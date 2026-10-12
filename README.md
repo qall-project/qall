@@ -9,7 +9,7 @@ Qall separates what a computation needs from where it runs, making workflows **p
 
 Qall was initially developed around hybrid quantum-classical workloads, where classical and quantum resources must work together as part of a single computation.
 
-/!\ Qall is still in Alpha phase and under active development.
+**/!\ Qall is still in Alpha phase and under active development.**
 
 ## Why Qall?
 Hybrid workloads increasingly combine different types of compute (CPU, GPU, QPU) alongside storage, network and infrastructure management.
@@ -52,7 +52,7 @@ from qall import task, workflow
 def _get_value(val):
     return 0.5 * val
 
-@task(resource={"min_cpu": 2})
+@task(min_cpu=2)
 def prepare_data(val : float):
     return [0.1, 0.2, 0.3] * _get_value(val)
 
@@ -71,7 +71,7 @@ qall run my_workflow.py --local
 Run it remotely :
 
 ```bash
-qall login scaleway --secret-key=X --project-id=Y
+qall login scaleway --project-id=Y
 
 qall run my_workflow.py
 ```
@@ -176,7 +176,7 @@ The same workflow model can combine:
 - GPU workloads
 - quantum emulators
 - QPUs
-- other specialized execution backends
+- any other specialized execution hardware
 
 Quantum computing is one of the first use cases driving this model.
 
@@ -184,8 +184,8 @@ Quantum computing is one of the first use cases driving this model.
 
 Qall is an **early-stage open-source project** under active development.
 
-The APIs and execution model are evolving. The project is currently intended primarily for experimentation, development and feedback from the hybrid computing community.
+The APIs and execution model are evolving. The project is currently intended primarily for experimentation, development and feedback from the quantum computing community.
 
-Qall is developed by **Scaleway's Quantum R&D team** as an open-source exploration of infrastructure for heterogeneous and hybrid computing.
+Qall is maintained by **Scaleway's Quantum team** as an open-source project for heterogeneous and hybrid computing.
 
 The project is designed around open interfaces and infrastructure-agnostic abstractions, with the goal of making hybrid workloads easier to build, execute and share.

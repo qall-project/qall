@@ -211,7 +211,7 @@ profiles:
             price_per_hour=price_per_hour,
             price_per_shot=price_per_shot,
             price_per_circuit=price_per_circuit,
-            price_currency="EUR",
+            currency="EUR",
         )
 
         description = self._get_attr(p, "description", "")

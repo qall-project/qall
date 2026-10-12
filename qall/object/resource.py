@@ -98,7 +98,7 @@ class ResourcePrice:
     price_per_hour: float = 0.0
     price_per_shot: float = 0.0
     price_per_circuit: float = 0.0
-    price_currency: str = "EUR"
+    currency: str = "EUR"
 
 
 @dataclass(frozen=True)

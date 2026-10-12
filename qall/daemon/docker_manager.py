@@ -16,7 +16,6 @@ import docker
 import time
 
 from pathlib import Path
-from typing import Optional
 
 from docker.errors import DockerException, APIError, ImageNotFound, NotFound
 from docker.models.containers import Container
