@@ -80,13 +80,17 @@ class CpuSpec:
 class QpuSpec:
     available_qubits: int
     max_shots: int = 10000
+    max_ops: int = 10000
+    provider: Optional[str] = None
     modality: QpuModality = QpuModality.unknown
     topology: QpuTopology = QpuTopology.unknown
     technology: QpuTechnology = QpuTechnology.unknown
-    native_gate_set: list[str] = field(default_factory=list)
+    gateset: list[str] = field(default_factory=list)
     model_name: str = ""
     type: QpuType = QpuType.unknown
     bookable: bool = False
+    mcm_support: bool = False
+    reset_support: bool = False
 
 
 @dataclass(frozen=True)
@@ -100,8 +104,8 @@ class ResourcePrice:
 @dataclass(frozen=True)
 class Resource:
     name: str
-    provider: str
     id: str
+    provider: Optional[str] = ""
     metadata: dict[str, Any] = field(default_factory=dict)
     description: Optional[str] = ""
     region: Optional[str] = ""

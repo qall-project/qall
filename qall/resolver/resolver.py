@@ -21,7 +21,6 @@ from qall.object import (
     ResourceAvailability,
     ClassicalResourceConstraints,
     QuantumResourceConstraints,
-    QpuModality,
     TaskResourceAssignment,
     TaskDag,
 )
@@ -60,7 +59,7 @@ def resolve_workflow_resources(
             active = qpu_res or cpu_res or gpu_res
             provider = active.provider if active else "local"
 
-        task_name = getattr(node, "name", None) or task_hash[:8]
+        task_name = node.name or task_hash[:8]
 
         assignments[task_hash] = TaskResourceAssignment(
             task_hash=task_hash,
@@ -101,23 +100,57 @@ def resolve_task_qpu(
         if "*" not in allowed_names and res.name not in allowed_names:
             continue
 
+        qpu_spec = res.qpu
+
         if (
             constraints.min_qubits > 0
-            and res.qpu.available_qubits < constraints.min_qubits
+            and qpu_spec.available_qubits < constraints.min_qubits
         ):
             continue
 
-        if constraints.modality and not _match_modality(
-            constraints.modality, res.qpu.modality
+        if constraints.min_shots > 0 and qpu_spec.max_shots < constraints.min_shots:
+            continue
+
+        if constraints.qpu_mcm_support and not qpu_spec.mcm_support:
+            continue
+
+        if constraints.qpu_reset_support and not qpu_spec.reset_support:
+            continue
+
+        if constraints.qpu_provider and not _compare_str_or_enum(
+            constraints.qpu_provider, qpu_spec.provider
         ):
             continue
+
+        if constraints.qpu_modality and not _compare_str_or_enum(
+            constraints.qpu_modality, qpu_spec.modality
+        ):
+            continue
+
+        if constraints.qpu_technology and not _compare_str_or_enum(
+            constraints.qpu_technology, qpu_spec.technology
+        ):
+            continue
+
+        if constraints.qpu_topology and not _compare_str_or_enum(
+            constraints.qpu_topology, qpu_spec.topology
+        ):
+            continue
+
+        if constraints.qpu_gateset:
+            required_gates = {g.lower() for g in constraints.qpu_gateset}
+            supported_gates = {g.lower() for g in qpu_spec.gateset}
+            if not required_gates.issubset(supported_gates):
+                continue
 
         candidates.append(res)
 
-    if not candidates:
+    if len(candidates) == 0:
         raise RuntimeError(
-            f"No QPU available satisfying quantum constraints "
-            f"(min_qubits={constraints.min_qubits}, modality={constraints.modality}) "
+            f"No QPU available satisfying constraints "
+            f"(min_qubits={constraints.min_qubits}, min_shots={constraints.min_shots}, "
+            f"provider={constraints.qpu_provider}, modality={constraints.qpu_modality}, "
+            f"mcm={constraints.qpu_mcm_support}, reset={constraints.qpu_reset_support}) "
             f"among authorized profile resources: {allowed_names}"
         )
 
@@ -226,8 +259,24 @@ def resolve_task_gpu(
     )
 
 
-def _has_quantum_requirements(c: QuantumResourceConstraints) -> bool:
-    return bool(c and (c.min_qubits > 0 or c.modality is not None))
+def _has_quantum_requirements(c: Optional[QuantumResourceConstraints]) -> bool:
+    if not c:
+        return False
+
+    return any(
+        [
+            c.min_qubits > 0,
+            c.min_shots > 0,
+            c.min_ops > 0,
+            c.qpu_modality is not None,
+            c.qpu_provider is not None,
+            c.qpu_technology is not None,
+            c.qpu_topology is not None,
+            bool(c.qpu_gateset),
+            c.qpu_mcm_support,
+            c.qpu_reset_support,
+        ]
+    )
 
 
 def _has_cpu_requirements(c: ClassicalResourceConstraints) -> bool:
@@ -238,20 +287,14 @@ def _has_gpu_requirements(c: ClassicalResourceConstraints) -> bool:
     return bool(c and (c.min_gpu > 0 or c.min_vram_gb > 0))
 
 
-def _match_modality(req_modality: Any, res_modality: Any) -> bool:
-    req_str = (
-        req_modality.value
-        if isinstance(req_modality, QpuModality)
-        else str(req_modality)
-    )
+def _compare_str_or_enum(val1: Any, val2: Any) -> bool:
+    if val1 is None or val2 is None:
+        return False
 
-    res_str = (
-        res_modality.value
-        if isinstance(res_modality, QpuModality)
-        else str(res_modality)
-    )
+    str1 = val1.value if hasattr(val1, "value") else str(val1)
+    str2 = val2.value if hasattr(val2, "value") else str(val2)
 
-    return req_str.lower() == res_str.lower()
+    return str1.lower() == str2.lower()
 
 
 def _apply_matching_strategy(

@@ -36,6 +36,7 @@ class LocalConfiguration:
         cls, filepath: Path | str, provider_name: str
     ) -> "LocalConfiguration":
         config = LocalConfiguration(
+            version="1.0",
             profiles={
                 "default": ResourceProfile(
                     provider=provider_name,
@@ -43,7 +44,7 @@ class LocalConfiguration:
                     default=True,
                     allowed=AllowedResourceCollection(cpu=["*"], gpu=["*"], qpu=["*"]),
                 )
-            }
+            },
         )
 
         config.to_yaml_file(filepath=filepath)
