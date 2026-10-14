@@ -1,0 +1,23 @@
+{
+  "dataloaders": {
+    "mnist": {
+      "src": "file:///tmp/qall-dataloader-demo/mnist",
+      "dst": "./mnist_dataset/",
+      "creds": {}
+    },
+    "my_holiday_pics": {
+      "src": "file:///tmp/qall-dataloader-demo/pics",
+      "dst": "pics",
+      "creds": {}
+    },
+    "remote-s3-example": {
+      "src": "s3://my/storage/",
+      "dst": "remote_data",
+      "creds": {
+        "endpoint": "https://s3.example.com",
+        "api_key": "keyring://qall_dataloader/remote-s3-example/api_key",
+        "project_id": "my-project"
+      }
+    }
+  }
+}
