@@ -19,21 +19,21 @@ def parse_extra_args(args: list[str]) -> dict[str, str]:
     Parses arbitrary extra CLI option flags into a clean Python dictionary.
     Handles '--key=value', '--key value', and standalone boolean flags.
     Normalizes keys by removing leading dashes and replacing hyphens with underscores.
-    
-    Example: 
-        ['--project-id=123', '--secret-key', 'abc', '--verbose'] 
+
+    Example:
+        ['--project-id=123', '--secret-key', 'abc', '--verbose']
         -> {'project_id': '123', 'secret_key': 'abc', 'verbose': 'true'}
     """
     extra_dict = {}
     i = 0
-    
+
     while i < len(args):
         arg = args[i]
-        
+
         if arg.startswith("--"):
             # Clean the prefix and prepare the key
             clean_arg = arg.lstrip("-")
-            
+
             if "=" in clean_arg:
                 # Case A: Syntax option is '--key=value'
                 key, val = clean_arg.split("=", 1)
@@ -42,7 +42,7 @@ def parse_extra_args(args: list[str]) -> dict[str, str]:
             else:
                 # Case B: Syntax option is '--key value' or standalone flag
                 key = clean_arg.replace("-", "_")
-                
+
                 # Check if the next argument exists and is a value (not another flag)
                 if i + 1 < len(args) and not args[i + 1].startswith("-"):
                     extra_dict[key] = args[i + 1]
@@ -54,5 +54,5 @@ def parse_extra_args(args: list[str]) -> dict[str, str]:
         else:
             # Skip invalid positions or unformatted extra strings
             i += 1
-            
+
     return extra_dict

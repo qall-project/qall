@@ -243,8 +243,7 @@ def test_workflow_prototype_third_party_type_captured():
 
         # Prototype-only imports are captured (not just body imports).
         assert (
-            "import qall_test_missing_numpy as np"
-            in task_a.imports["external_imports"]
+            "import qall_test_missing_numpy as np" in task_a.imports["external_imports"]
         )
         assert "from pathlib import Path" in task_a.imports["external_imports"]
         # The third-party package is auto-added to requirements.

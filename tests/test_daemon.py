@@ -23,7 +23,10 @@ from qall.core.daemon import DockerDaemonManager
 
 @pytest.fixture
 def create_daemon_registry_paths():
-    with tempfile.TemporaryDirectory() as artifacts_dir, tempfile.TemporaryDirectory() as blocks_dir:
+    with (
+        tempfile.TemporaryDirectory() as artifacts_dir,
+        tempfile.TemporaryDirectory() as blocks_dir,
+    ):
         artifacts_path = Path(artifacts_dir)
         blocks_path = Path(blocks_dir)
         (blocks_path / "blocks").mkdir(parents=True, exist_ok=True)

@@ -31,7 +31,13 @@ from qall.provider import (
 )
 from qall.core.registry import push_workflow_on_registry
 from qall.core.workflow import create_workflow, run_workflow, stop_workflow
-from qall.core.daemon import get_daemon_status, run_task, start_daemon, stop_daemon, apply_resource_assignments,
+from qall.core.daemon import (
+    get_daemon_status,
+    run_task,
+    start_daemon,
+    stop_daemon,
+    apply_resource_assignments,
+)
 from qall.core.dataloader import (
     provision_dataloader_files_for_dag,
     cleanup_dataloader_files,
