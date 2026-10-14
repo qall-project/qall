@@ -19,25 +19,58 @@ from pathlib import Path
 
 from qall.object import Artifact, DaemonStatus, Daemon, TaskRunStatus
 from qall.daemon import DockerDaemonManager
+from qall.registry import BlockRegistry
+from qall.core.dataloader import (
+    provision_dataloader_file_for_task,
+    cleanup_dataloader_files,
+)
+from qall.config.paths import (
+    DEFAULT_BLOCK_REGISTRY_PATH,
+    DEFAULT_ARTIFACT_REGISTRY_PATH,
+)
 
 logger = logging.getLogger(__name__)
 
 
+def _format_task_failure(
+    task_hash: str,
+    task_run_id: str,
+    stdout: str,
+    stderr: str,
+) -> str:
+    """
+    Build a clearly formatted failure report for a failing task, including the
+    task's stdout and stderr captured from its container.
+    """
+    header = f"Task {task_hash} (run {task_run_id}) failed."
+
+    lines = [header, "=" * 40]
+
+    lines.append("[stdout]")
+    lines.append(stdout.rstrip("\n") if stdout else "(empty)")
+
+    lines.append("")
+    lines.append("[stderr]")
+    lines.append(stderr.rstrip("\n") if stderr else "(empty)")
+
+    return "\n".join(lines)
+
+
 def start_daemon(
     port: int = 50053,
+    image: Optional[str] = None,
     block_registry_path: Optional[str | Path] = None,
     artifact_registry_path: Optional[str | Path] = None,
+    worker_provider: Optional[str] = None,
 ):
     """
     Start a local Qall daemon in a docker container.
     """
 
-    block_registry_path = (
-        block_registry_path or Path().home() / ".cache/qall/block-registry"
-    )
-    artifact_registry_path = (
-        artifact_registry_path or Path().home() / ".cache/qall/artifact-registry"
-    )
+    block_registry_path = block_registry_path or DEFAULT_BLOCK_REGISTRY_PATH
+    artifact_registry_path = artifact_registry_path or DEFAULT_ARTIFACT_REGISTRY_PATH
+    image = image or "scw/qall-daemon-server:latest"
+    worker_provider = worker_provider or "local"
 
     block_path = Path(block_registry_path).resolve()
     artifact_path = Path(artifact_registry_path).resolve()
@@ -46,20 +79,24 @@ def start_daemon(
     artifact_path.mkdir(parents=True, exist_ok=True)
 
     daemon_mgr = DockerDaemonManager(
+        image=image,
         local=True,
         grpc_port=port,
         host_block_registry_path=str(block_path),
         host_artifact_registry_path=str(artifact_path),
+        worker_provider=worker_provider,
     )
 
     if daemon_mgr.service_info():
         raise RuntimeError(f"Daemon already running locally on port {port}")
 
     with DockerDaemonManager(
+        image=image,
         local=True,
         grpc_port=port,
         host_block_registry_path=str(block_path),
         host_artifact_registry_path=str(artifact_path),
+        worker_provider=worker_provider,
     ) as daemon_mgr:
 
         logs = daemon_mgr.logs()
@@ -89,34 +126,49 @@ def apply_resource_assignments(
         return
 
 
-def stop_daemon():
+def stop_daemon(
+    port: int = 50053,
+    image: Optional[str] = None,
+):
     """
     Stops an already running local Qall daemon.
     """
 
-    try:
-        daemon_mgr = DockerDaemonManager(local=True)
+    image = image or "scw/qall-daemon-server:latest"
 
+    try:
+        daemon_mgr = DockerDaemonManager(
+            image=image,
+            grpc_port=port,
+            local=True,
+        )
         if not daemon_mgr.attach():
             logger.warning("No running daemon to stop.")
             return
 
         daemon_mgr.stop()
+        logger.info(f"Daemon stopped on port {port}")
 
     except Exception as e:
         logger.error(f"Could not stop local daemon.")
+        logger.error(f"Daemon address: localhost:{port}")
+        logger.error(f"Daemon image: {image})")
         logger.error(f"Reason: {e}")
 
 
 def restart_daemon(
     port: int = 50053,
+    image: Optional[str] = None,
 ):
     """
     Restarts an already running local Qall daemon.
     """
 
+    image = image or "scw/qall-daemon-server:latest"
+
     try:
         daemon_mgr = DockerDaemonManager(
+            image=image,
             grpc_port=port,
             local=True,
         )
@@ -132,10 +184,12 @@ def restart_daemon(
     except Exception as e:
         logger.error(f"Could not restart local daemon.")
         logger.error(f"Daemon address: localhost:{port}")
+        logger.error(f"Daemon image: {image})")
         logger.error(f"Reason: {e}")
 
 
 def get_daemon_status(
+    daemon_image: Optional[str] = None,
     daemon_address: Optional[str] = None,
     block_registry: Optional[str] = None,
     artifact_registry: Optional[str] = None,
@@ -143,10 +197,9 @@ def get_daemon_status(
     """
     Retrieve the status of a daemon instance.
     """
-    block_registry = block_registry or Path().home() / ".cache/qall/block-registry"
-    artifact_registry = (
-        artifact_registry or Path().home() / ".cache/qall/artifact-registry"
-    )
+    block_registry = block_registry or DEFAULT_BLOCK_REGISTRY_PATH
+    artifact_registry = artifact_registry or DEFAULT_ARTIFACT_REGISTRY_PATH
+    daemon_image = daemon_image or "scw/qall-daemon-server:latest"
 
     daemon_address = daemon_address or os.getenv(
         "QALL_DAEMON_ADDRESS", "127.0.0.1:50053"
@@ -164,6 +217,7 @@ def get_daemon_status(
 
     try:
         daemon_mgr = DockerDaemonManager(
+            image=daemon_image,
             local=True,
             grpc_port=port,
             host_block_registry_path=str(block_registry),
@@ -185,15 +239,16 @@ def run_task(
     daemon_address: Optional[str] = None,
     block_registry: Optional[str] = None,
     artifact_registry: Optional[str] = None,
+    daemon_image: Optional[str] = None,
+    worker_provider: Optional[str] = None,
     timeout: int = 300,
 ) -> list[Artifact]:
     """
     Orders a local Daemon instance to start and execute a given task.
     """
-    block_registry = block_registry or str(Path().home() / ".cache/qall/block-registry")
-    artifact_registry = artifact_registry or str(
-        Path().home() / ".cache/qall/artifact-registry"
-    )
+    block_registry = block_registry or str(DEFAULT_BLOCK_REGISTRY_PATH)
+    artifact_registry = artifact_registry or str(DEFAULT_ARTIFACT_REGISTRY_PATH)
+    daemon_image = daemon_image or "scw/qall-daemon-server:latest"
 
     daemon_address = daemon_address or os.getenv(
         "QALL_DAEMON_ADDRESS", "127.0.0.1:50053"
@@ -214,10 +269,12 @@ def run_task(
         artifact_registry = Path(artifact_registry).resolve()
 
         daemon_mgr = DockerDaemonManager(
+            image=daemon_image,
             local=True,
             grpc_port=port,
             host_block_registry_path=str(block_registry),
             host_artifact_registry_path=str(artifact_registry),
+            worker_provider=worker_provider,
         )
 
         if not daemon_mgr.service_info():
@@ -225,6 +282,20 @@ def run_task(
             daemon_mgr.start()
 
         logger.info(f"Daemon ready at {daemon_address}")
+
+    # Provision the resolved dataloader secrets for the requested task so its
+    # container finds them at the conventioned /dev/shm mount path. No-op when
+    # the task references no dataloader. Cleaned up once the run completes.
+    dataloader_files = []
+    try:
+        registry = BlockRegistry(block_registry, read_only=True)
+        file = provision_dataloader_file_for_task(task_hash, registry)
+        if file:
+            dataloader_files.append(file)
+    except Exception as e:
+        logger.warning(
+            f"Could not provision dataloader secrets for task {task_hash}: {e}"
+        )
 
     # Contact daemon to execute given task
     try:
@@ -254,7 +325,11 @@ def run_task(
             if task_run.status == TaskRunStatus.DONE:
                 return client.list_artifacts(task_run_id=task_run.id)
             elif task_run.status == TaskRunStatus.ERROR:
-                raise RuntimeError(f"Task failed with ERROR status: {task_run.status}")
+                stdout, stderr = daemon_mgr.task_logs(task_run.id)
+                logger.error(
+                    _format_task_failure(task_hash, task_run.id, stdout, stderr)
+                )
+                raise RuntimeError(f"Task failed with status: {task_run.status.name}")
             else:
                 raise RuntimeError(
                     f"Task ended with unexpected status: {task_run.status.name}"
@@ -264,5 +339,6 @@ def run_task(
     #     logger.error(f"Could not execute task {task_hash}: {e}")
 
     finally:
+        cleanup_dataloader_files(dataloader_files)
         if daemon_mgr:
             daemon_mgr.stop()

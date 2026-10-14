@@ -30,10 +30,15 @@ from dataclasses_json import config, dataclass_json
 from qall.provider.worker import QuantumWorker
 from qall.interop.mapping import normalize_circuit_type, normalize_result_type
 
-from .imports import discover_external_imports, lenient_imports, merge_requirements
+from .imports import (
+    discover_external_imports,
+    discover_file_global_imports,
+    lenient_imports,
+    map_imports_to_packages,
+    merge_requirements,
+)
 from .task import (
     _bundle_local_dependencies,
-    _exec_local_dependency,
     _extract_imports_from_function,
 )
 
@@ -168,7 +173,7 @@ class WorkerSpec:
 
         sys.modules[module_name] = fake_module
 
-        # Statically discover the worker's third-party imports so missing
+        # Statically discover the *project's* third-party imports so missing
         # packages do not crash compilation: they are stubbed during the exec
         # below and merged into the worker's requirements.
         discovered = discover_external_imports(filepath.parent)
@@ -185,7 +190,13 @@ class WorkerSpec:
                 )
 
             self._copy_from(decorated_spec)
-            self.requirements = merge_requirements(self.requirements, discovered)
+            # Auto-add the worker file's *global* third-party imports (mapped
+            # to real package names); imports inside the worker's methods are
+            # the user's explicit requirements responsibility.
+            self.requirements = merge_requirements(
+                self.requirements,
+                map_imports_to_packages(discover_file_global_imports(filepath)),
+            )
             self.source = self._extract_class_source(
                 source,
                 worker_cls.class_name,

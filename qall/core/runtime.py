@@ -26,6 +26,7 @@ from qall.runtime import (
 )
 
 from qall.object import TaskRunOutput
+from qall.config.paths import DEFAULT_BLOCK_REGISTRY_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +50,7 @@ def execute_task(
     """
 
     block_registry: Path = (
-        Path().home() / ".cache/qall/block-registry"
-        if not block_registry
-        else Path(block_registry)
+        DEFAULT_BLOCK_REGISTRY_PATH if not block_registry else Path(block_registry)
     )
 
     if mode == ExecutionMode.DAEMON:
@@ -85,9 +84,7 @@ def execute_worker(
     """
 
     block_registry: Path = (
-        Path().home() / ".cache/qall/block-registry"
-        if not block_registry
-        else Path(block_registry)
+        DEFAULT_BLOCK_REGISTRY_PATH if not block_registry else Path(block_registry)
     )
 
     executor = WorkerRuntimeExecutor(

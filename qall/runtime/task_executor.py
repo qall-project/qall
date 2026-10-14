@@ -13,7 +13,6 @@
 # limitations under the License.
 import ast
 import textwrap
-
 from pathlib import Path
 from typing import Optional
 
@@ -28,6 +27,11 @@ from qall.object import (
 from qall.registry import BlockRegistry
 from qall.runtime import ArtifactBackend
 from qall.runtime.subprocessor import run_task_in_subprocess
+from qall.config.dataloader import (
+    dataloader_secrets_path,
+    read_dataloader_secrets,
+    write_dataloader_secrets,
+)
 
 
 class TaskRuntimeExecutor:
@@ -96,48 +100,32 @@ class TaskRuntimeExecutor:
         print("[Executor] Processing source...")
         source = _get_source(payload)
 
-        try:
-            parsed_ast = ast.parse(source)
-        except SyntaxError:
-            parsed_ast = None
+        dataloaders_file = None
+        dataloaders_provisioned = False
+        if metadata.dataloaders:
+            dataloaders_file, dataloaders_provisioned = self._prepare_dataloaders_file(
+                metadata.dataloaders
+            )
+            print(
+                f"[Executor] Resolved dataloader(s) {metadata.dataloaders} "
+                f"(secrets at {dataloaders_file})."
+            )
 
         proxy_functions = []
 
         for child_name, child_hash in node.children.items():
-            is_async = False
-
-            if parsed_ast:
-
-                class AsyncCallDetector(ast.NodeVisitor):
-                    def __init__(self, target_name):
-                        self.target_name = target_name
-                        self.is_awaited = False
-
-                    def visit_Await(self, ast_node):
-                        if isinstance(ast_node.value, ast.Call):
-                            func = ast_node.value.func
-                            if (
-                                isinstance(func, ast.Name)
-                                and func.id == self.target_name
-                            ):
-                                self.is_awaited = True
-                        self.generic_visit(ast_node)
-
-                    def visit_AsyncFunctionDef(self, ast_node):
-                        # Flag that we are inside an async function definition
-                        self.is_async = True
-                        # Continue traversing the child nodes (the body of the function)
-                        self.generic_visit(ast_node)
-
-                detector = AsyncCallDetector(child_name)
-                detector.visit(parsed_ast)
-                is_async = detector.is_awaited
+            is_async = _child_task_is_async(
+                registry=self.__block_registry,
+                child_hash=child_hash,
+                child_name=child_name,
+            )
 
             proxy_code = self._create_proxy_function(
                 child_name=child_name,
                 child_hash=child_hash,
                 parent_task_id=task_run_id,
                 is_async=is_async,
+                worker_addresses=self.__worker_addresses,
             )
             proxy_functions.append(proxy_code)
 
@@ -147,12 +135,21 @@ class TaskRuntimeExecutor:
         print(f"[Executor] Built source:\n==========\n{source}\n==========")
         print("[Executor] Done processing source! Executing task...")
 
-        task_result: dict = run_task_in_subprocess(
-            source_code=source,
-            entrypoint_name=metadata.name,
-            input_artifact=input_artifact,
-            worker_addresses=self.__worker_addresses,
-        )
+        try:
+            task_result: dict = run_task_in_subprocess(
+                source_code=source,
+                entrypoint_name=metadata.name,
+                input_artifact=input_artifact,
+                worker_addresses=self.__worker_addresses,
+                dataloaders_file=str(dataloaders_file) if dataloaders_file else None,
+            )
+        finally:
+            # In the daemonless path the executor provisioned the secrets file
+            # itself; remove it so nothing sensitive lingers after the run. In
+            # the daemon path the file was provisioned by the host client,
+            # which is responsible for cleaning it up.
+            if dataloaders_file and dataloaders_provisioned:
+                dataloaders_file.unlink(missing_ok=True)
 
         output_artifact_hash = None
         output_artifact_bytes = None
@@ -173,12 +170,46 @@ class TaskRuntimeExecutor:
             output_artifact_bytes=output_artifact_bytes,
         )
 
+    def _prepare_dataloaders_file(
+        self, names: list[str]
+    ) -> tuple[Optional[Path], bool]:
+        """
+        Ensures the resolved-secrets file for this task exists at the
+        conventioned ``/dev/shm/qall-dataloaders/<task_hash>.json`` mount path
+        and returns ``(path, provisioned_here)``.
+
+        In the daemon/container path the file was already provisioned by the
+        host client (``provisioned_here`` is ``False``). In the daemonless path
+        it is resolved from the local config + keyring and written here so the
+        subprocess reads it uniformly. Raises ``ValueError`` when a referenced
+        dataloader is not defined.
+        """
+        path = dataloader_secrets_path(self.__task_hash)
+        secrets = read_dataloader_secrets(self.__task_hash)
+        if secrets is None:
+            from qall.core.dataloader import resolve_dataloader_specs
+
+            write_dataloader_secrets(self.__task_hash, resolve_dataloader_specs(names))
+            secrets = read_dataloader_secrets(self.__task_hash) or {}
+            provisioned_here = True
+        else:
+            provisioned_here = False
+
+        missing = [name for name in names if name not in secrets]
+        if missing:
+            raise ValueError(
+                f"Task references dataloader(s) {missing} but no secrets were "
+                "provisioned for them (see `qall dataloader add`)."
+            )
+        return path, provisioned_here
+
     def _create_proxy_function(
         self,
         child_name: str,
         child_hash: str,
         parent_task_id: str,
         is_async: bool = False,
+        worker_addresses: Optional[list] = None,
     ) -> str:
         """
         Generate the source code of a proxy that delegates execution to the Daemon.
@@ -191,8 +222,7 @@ class TaskRuntimeExecutor:
         else:
             execution_call = f'executor.execute_subtask("{parent_task_id}", input_data)'
 
-        return textwrap.dedent(
-            f"""
+        return textwrap.dedent(f"""
         {func_def} {child_name}(*args, **kwargs):
             {async_import}
             from qall.runtime import DaemonSubtaskExecutor
@@ -218,14 +248,73 @@ class TaskRuntimeExecutor:
                 raise RuntimeError(f"Subtask '{child_name}' failed: {{result.stderr}}")
                 
             return cloudpickle.loads(result.output_artifact_bytes)
-        """
-        )
+        """)
 
 
 ### Helpers ###
 
 
+def _child_task_is_async(
+    registry: BlockRegistry,
+    child_hash: str,
+    child_name: str,
+) -> bool:
+    """
+    Determines whether a child task's entrypoint is an ``async def``.
+
+    The runtime proxy replaces every child call in the parent's source. Whether
+    that proxy must be generated as ``async def`` (the child is awaited or
+    scheduled via ``asyncio.TaskGroup``/``gather``/...) or as plain ``def`` is a
+    property of the child task itself, not of how the parent happens to call
+    it. The child's own payload source is therefore the ground truth.
+
+    Raises ``RuntimeError`` when the child's function kind cannot be determined
+    (missing block, unparsable source, no matching definition, or ambiguous
+    multiple definitions) instead of silently guessing a proxy shape that would
+    diverge from the real task.
+    """
+    try:
+        child_node = registry.get_node_from_local(hash=child_hash)
+        child_payload = registry.get_payload_from_local(hash=child_node.payload_hash)
+        tree = ast.parse(_get_source(child_payload))
+    except Exception as exc:
+        raise RuntimeError(
+            f"Unable to determine whether child task {child_name!r} (hash "
+            f"{child_hash}) is an async function: {exc}"
+        ) from exc
+
+    defs = [
+        node
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == child_name
+    ]
+    if not defs:
+        defs = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == child_name
+        ]
+    if not defs:
+        raise RuntimeError(
+            f"Child task {child_name!r} (hash {child_hash}) does not define a "
+            f"function named {child_name!r} in its payload source; cannot "
+            "determine whether its runtime proxy should be async."
+        )
+    if len(defs) > 1:
+        raise RuntimeError(
+            f"Child task {child_name!r} (hash {child_hash}) has multiple "
+            f"definitions of {child_name!r} in its payload source; cannot "
+            "unambiguously determine whether its runtime proxy should be async."
+        )
+
+    return isinstance(defs[0], ast.AsyncFunctionDef)
+
+
 def _get_source(payload: TaskPayload) -> str:
+    print("payload", payload)
+
     if payload.code_format == "raw":
         return payload.code
     elif payload.code_format == "qio.program":

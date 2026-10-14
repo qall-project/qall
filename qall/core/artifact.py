@@ -15,13 +15,14 @@ from __future__ import annotations
 
 from typing import Optional
 
-from qall.object import Artifact
+from qall.object import Artifact, LocalArtifact
 from qall.provider import (
     WorkflowProviderClient,
     ProviderCredentials,
     get_provider_login_credentials,
     get_provider_client_by_name,
 )
+from qall.registry.local_artifact_registry import LocalArtifactRegistry
 
 
 def get_artifact(
@@ -71,3 +72,57 @@ def list_artifacts(
     )
 
     return provider_client.list_artifacts(workflow_run_id)
+
+
+def _local_registry(artifact_registry: Optional[str]) -> LocalArtifactRegistry:
+    if artifact_registry:
+        return LocalArtifactRegistry(artifact_registry)
+
+    return LocalArtifactRegistry()
+
+
+def list_local_artifacts(
+    artifact_registry: Optional[str] = None,
+) -> list[LocalArtifact]:
+    """
+    List the artifacts present on the host at the local artifact registry.
+    """
+    return _local_registry(artifact_registry).list()
+
+
+def get_local_artifact(
+    artifact_id: str,
+    artifact_registry: Optional[str] = None,
+) -> LocalArtifact:
+    """
+    Show metadata for an artifact stored in the local artifact registry.
+    """
+    return _local_registry(artifact_registry).get(artifact_id)
+
+
+def read_local_artifact_bytes(
+    artifact_id: str,
+    artifact_registry: Optional[str] = None,
+) -> bytes:
+    """
+    Read the raw payload bytes of a local artifact.
+    """
+    return _local_registry(artifact_registry).read_bytes(artifact_id)
+
+
+def deserialize_local_artifact(
+    artifact_id: str,
+    artifact_registry: Optional[str] = None,
+):
+    """
+    Deserialize (cloudpickle) an artifact stored in the local artifact registry.
+    Falls back to the raw bytes when the payload cannot be unpickled.
+    """
+    payload = _local_registry(artifact_registry).read_bytes(artifact_id)
+
+    try:
+        import cloudpickle
+
+        return cloudpickle.loads(payload)
+    except Exception:
+        return payload

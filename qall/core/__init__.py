@@ -31,6 +31,20 @@ from .registry import (
 )
 from .provider import login_provider, logout_provider, get_provider_client_by_name
 from .runtime import execute_task
+from .dataloader import (
+    init_dataloader_config,
+    add_dataloader,
+    update_dataloader,
+    remove_dataloader,
+    list_dataloaders,
+    get_dataloader,
+    get_dataloaders_for_names,
+    validate_dataloader,
+    resolve_dataloader_specs,
+    provision_dataloader_file_for_task,
+    provision_dataloader_files_for_dag,
+    cleanup_dataloader_files,
+)
 from .daemon import (
     start_daemon,
     stop_daemon,

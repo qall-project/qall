@@ -102,12 +102,4 @@ def run(
 
     typer.echo("[Runtime]" + log)
 
-    typer.echo("[Runtime]Task logs:")
-    typer.echo("[Runtime]" + "-" * 20)
-    typer.echo("[Runtime] stdout:")
-    typer.echo(task_output.stdout.replace("\n", "\n[Runtime]\t"))
-    typer.echo("[Runtime]" + "-" * 20)
-    typer.echo("[Runtime] stderr:")
-    typer.echo("[Runtime] " + task_output.stderr.replace("\n", "\n[Runtime]\t"))
-
     raise typer.Exit(code=task_output.return_code)

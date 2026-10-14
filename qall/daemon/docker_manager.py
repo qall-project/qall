@@ -13,20 +13,27 @@
 # limitations under the License.
 import logging
 import docker
+import os
 import time
 
 from pathlib import Path
+from typing import Optional
 
 from docker.errors import DockerException, APIError, ImageNotFound, NotFound
 from docker.models.containers import Container
 
 from qall_daemon_client import GrpcDaemonClient
 
+from qall.provider.qc import WorkerCatalog
+from qall.provider.qc.local import register_local_workers
+from qall.config.paths import (
+    DEFAULT_BLOCK_REGISTRY_PATH,
+    DEFAULT_ARTIFACT_REGISTRY_PATH,
+)
+
 from .base_manager import BaseDaemonManager
 
 logger = logging.getLogger(__name__)
-
-_DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project/qall-daemon:latest"
 
 
 class DockerDaemonManager(BaseDaemonManager):
@@ -36,15 +43,15 @@ class DockerDaemonManager(BaseDaemonManager):
 
     def __init__(
         self,
+        image: str,
         grpc_port: int = 50053,
         http_port: int = 8080,
         local: bool = True,
-        host_block_registry_path: str | Path = Path().home()
-        / ".cache/qall/block-registry",
-        host_artifact_registry_path: str | Path = Path().home()
-        / ".cache/qall/artifact-registry",
+        host_block_registry_path: str | Path = DEFAULT_BLOCK_REGISTRY_PATH,
+        host_artifact_registry_path: str | Path = DEFAULT_ARTIFACT_REGISTRY_PATH,
+        worker_provider: Optional[str] = None,
     ):
-        self.__image = _DEFAULT_IMAGE
+        self.__image = image
         self.__container_name = "qalld"
         self.__grpc_port = grpc_port
         self.__http_port = http_port
@@ -52,6 +59,7 @@ class DockerDaemonManager(BaseDaemonManager):
         self.__local = local
         self.__host_block_registry_path = str(host_block_registry_path)
         self.__host_artifact_registry_path = str(host_artifact_registry_path)
+        self.__worker_provider = worker_provider if worker_provider else "local"
 
         try:
             self.__docker_client = docker.from_env()
@@ -100,6 +108,7 @@ class DockerDaemonManager(BaseDaemonManager):
     def start(self):
         self._start_daemon()
         self._wait_for_health()
+        self._register_provider_workers()
 
         return self
 
@@ -127,6 +136,31 @@ class DockerDaemonManager(BaseDaemonManager):
             except APIError as e:
                 logger.error(f"Failed to retrieve logs: {e}")
 
+    def task_logs(self, task_run_id: str) -> tuple[str, str]:
+        """
+        Retrieve the stdout/stderr of a task container, if it still exists.
+
+        Task containers are named ``qall-task-<task_run_id[:8]>`` and are kept
+        around after execution, so their logs remain available for inspection
+        once a task has finished (successfully or not). Missing containers
+        yield empty strings.
+        """
+        container_name = f"qall-task-{task_run_id[:8]}"
+
+        try:
+            container = self.__docker_client.containers.get(container_name)
+        except NotFound:
+            return "", ""
+
+        try:
+            stdout = container.logs(stdout=True, stderr=False).decode(errors="replace")
+            stderr = container.logs(stdout=False, stderr=True).decode(errors="replace")
+        except APIError as e:
+            logger.warning(f"Failed to retrieve logs for {container_name}: {e}")
+            return "", ""
+
+        return stdout, stderr
+
     def _start_daemon(self):
         """
         Creates and start a container with our local daemon server.
@@ -139,6 +173,9 @@ class DockerDaemonManager(BaseDaemonManager):
         try:
             command = [f"--host-task-dir={self.__host_block_registry_path}"]
 
+            if self.__worker_provider:
+                command.append(f"--worker-provider={self.__worker_provider}")
+
             if self.__local:
                 command.append("--local")
 
@@ -148,6 +185,15 @@ class DockerDaemonManager(BaseDaemonManager):
                     f"Daemon is already running (ID: {self.__container.short_id})."
                 )
                 return
+
+            # Ensure the dataloaders secrets dir is owned by the current
+            # (client) user BEFORE the daemon starts. It is a top-level /dev/shm
+            # path, deliberately separate from the daemon's root-owned token dir
+            # (/dev/shm/qall-secrets), so the client always retains write
+            # access to provision per-task secrets files. The daemon container
+            # mounts it (so its os.Stat guard sees the directory) but never
+            # creates or owns it.
+            os.makedirs("/dev/shm/qall-dataloaders", mode=0o700, exist_ok=True)
 
             # Start it if not already running
             self.__container = self.__docker_client.containers.run(
@@ -173,6 +219,10 @@ class DockerDaemonManager(BaseDaemonManager):
                         "bind": "/dev/shm/qall-secrets",
                         "mode": "rw",
                     },
+                    "/dev/shm/qall-dataloaders": {
+                        "bind": "/dev/shm/qall-dataloaders",
+                        "mode": "rw",
+                    },
                 },
             )
             logger.info(
@@ -182,28 +232,25 @@ class DockerDaemonManager(BaseDaemonManager):
         except APIError as e:
             raise RuntimeError(f"Error launching the daemon: {e}")
 
-    def register_resource_assignments(self, resource_assigments: dict):
-        with self.client as client:
-            for task_hash, assignment in resource_assigments.items():
-                resource_name = (
-                    assignment.qpu_name
-                    or assignment.gpu_name
-                    or assignment.cpu_name
-                    or ""
-                )
+    def _register_provider_workers(self):
+        if not self.__worker_provider:
+            logger.info("No worker provider defined.")
+            return
 
-                res_entry = client.create_resource_assignment(
-                    task_hash=task_hash,
-                    resource_provider=assignment.provider,
-                    resource_name=resource_name,
-                )
+        catalog = WorkerCatalog()
 
-                if not res_entry:
-                    raise RuntimeError(
-                        f"Failed to create resource assignment entry into daemon for task_hash '{task_hash}'"
-                    )
+        if self.__worker_provider == "local":
+            catalog = register_local_workers(catalog)
 
-    def register_workers(self, worker_definitions: list):
+        if not catalog:
+            raise RuntimeError("could not load catalog properly")
+
+        worker_definitions = catalog.get_by_provider(self.__worker_provider)
+
+        if not worker_definitions:
+            logger.info(f"No worker definition for provider {self.__worker_provider}.")
+            return
+
         with self.client as client:
             for wd in worker_definitions:
                 if len(wd.input_formats) == 0:
@@ -265,7 +312,9 @@ class DockerDaemonManager(BaseDaemonManager):
 
             time.sleep(interval)
 
-        raise TimeoutError("The Qall daemon did not respond within the allocated time.")
+        raise TimeoutError(
+            "The Qall daemon did not respond within the allocated time."
+        )
 
     def service_info(self) -> bool:
         """

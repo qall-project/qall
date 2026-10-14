@@ -25,7 +25,12 @@ import rustworkx as rx
 from rustworkx import DAGWouldCycle
 from typing import Any, Literal
 
-from .imports import discover_external_imports, lenient_imports
+from .imports import (
+    discover_external_imports,
+    discover_file_global_imports,
+    lenient_imports,
+    map_imports_to_packages,
+)
 from .task import DECORATORS, TaskSpec
 
 logger = logging.getLogger(__name__)
@@ -255,11 +260,20 @@ def _compile_tasks(filepath: Path):
     # Resolve the absolute path to the directory containing the workflow file
     parent_dir = str(filepath.parent.resolve())
 
-    # Statically discover the project's third-party imports so missing packages
-    # do not crash compilation: they are stubbed during execution below and
-    # merged into each task's piprequirements.
+    # Statically discover the workflow file's *global* third-party imports
+    # (module-body scope only) and map them to pip package names. These become
+    # the workflow's root-scope dependencies, auto-added to every task defined
+    # in the file. Imports made inside task bodies (task-scope) are not
+    # auto-added: they are the user's per-task piprequirements responsibility.
+    TaskSpec._discovered_requirements = map_imports_to_packages(
+        discover_file_global_imports(filepath)
+    )
+
+    # Statically discover the *project's* third-party imports so missing
+    # packages do not crash compilation: they are stubbed during execution
+    # below. Unlike _discovered_requirements, this stays deliberately broad so
+    # task-scope and sibling imports are covered too.
     discovered = discover_external_imports(parent_dir)
-    TaskSpec._discovered_requirements = discovered
 
     # Temporarily add the parent directory to Python's path so sibling imports work
     sys.path.insert(0, parent_dir)

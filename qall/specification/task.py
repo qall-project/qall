@@ -57,17 +57,21 @@ class TaskSpec:
     local_dependencies: dict[str, str] = field(default_factory=dict)
     quantum_resources: dict[str, Any] = field(default_factory=dict)
     classical_resources: dict[str, Any] = field(default_factory=dict)
-    runtime_qall_version: str = field(default=importlib.metadata.version("qall"))
 
     name: Optional[str] = None
     source: Optional[str] = None
     quantum_runs: list[dict[str, Any]] = field(default_factory=list)
+    # Names of dataloaders (see `qall dataloader add`) bound as virtual
+    # POSIX mount points when the task executes.
+    dataloaders: list[str] = field(default_factory=list)
 
     # Class variables for workflow state management
     _mode: ClassVar[Literal["COMPILATION", "EXECUTION"]] = "EXECUTION"
     _parent_workflow: ClassVar[Any] = None
-    # Third-party packages statically discovered for the workflow being
-    # compiled; merged into each task's requirements at creation time.
+    # Pip package names mapped from the workflow file's *global* (module-body
+    # scope) third-party imports; merged into each task's piprequirements at
+    # creation time. Imports made inside task bodies (task-scope) are the
+    # user's per-task piprequirements responsibility.
     _discovered_requirements: ClassVar[Optional[set[str]]] = None
 
     def __post_init__(self):
@@ -222,7 +226,14 @@ class TaskSpec:
         return cloudpickle.loads(data)
 
     def __eq__(self, rhs: "TaskSpec") -> bool:
-        for attr in ["name", "entrypoint", "source", "requirements", "quantum_runs"]:
+        for attr in [
+            "name",
+            "entrypoint",
+            "source",
+            "requirements",
+            "quantum_runs",
+            "dataloaders",
+        ]:
             if getattr(self, attr) != getattr(rhs, attr):
                 return False
         return True
@@ -473,6 +484,69 @@ def _object_is_local(obj: Any) -> bool:
     return not module_name or module_name.split(".")[0] not in sys.builtin_module_names
 
 
+def _collect_annotation_names(expr: ast.AST, names: set[str]) -> None:
+    """Collects every ``Name`` referenced by an annotation/default expression."""
+    # Literal string annotations (e.g. `def f(x: "Path")`) are parsed so their
+    # referenced names are still captured.
+    if isinstance(expr, ast.Constant) and isinstance(expr.value, str):
+        try:
+            expr = ast.parse(expr.value, mode="eval")
+        except (SyntaxError, ValueError):
+            return
+    for sub in ast.walk(expr):
+        if isinstance(sub, ast.Name) and isinstance(sub.ctx, ast.Load):
+            names.add(sub.id)
+
+
+def _signature_referenced_names(tree: ast.AST) -> set[str]:
+    """
+    Names referenced by a function's *signature*: parameter annotations, return
+    annotation, default values and type parameters.
+
+    These expressions are evaluated at definition time in the enclosing module
+    scope, so ``inspect.getclosurevars`` (which only reports the function
+    body's globals/nonlocals) does not see them. Without them, imports used
+    solely for a task's prototype -- e.g. ``def f(path: Path)`` -- are dropped
+    from ``external_imports`` and never shipped to the worker runtime.
+    """
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+
+        args = node.args
+        for arg in [
+            *args.posonlyargs,
+            *args.args,
+            *args.kwonlyargs,
+            args.vararg,
+            args.kwarg,
+        ]:
+            if arg is None:
+                continue
+            if arg.annotation is not None:
+                _collect_annotation_names(arg.annotation, names)
+
+        for default in args.defaults:
+            _collect_annotation_names(default, names)
+        for default in args.kw_defaults:
+            if default is not None:
+                _collect_annotation_names(default, names)
+
+        if node.returns is not None:
+            _collect_annotation_names(node.returns, names)
+
+        for type_param in getattr(node, "type_params", ()):
+            bound = getattr(type_param, "bound", None)
+            if bound is not None:
+                _collect_annotation_names(bound, names)
+            default_value = getattr(type_param, "default_value", None)
+            if default_value is not None:
+                _collect_annotation_names(default_value, names)
+
+    return names
+
+
 def _extract_imports_from_function(func: Callable) -> dict[str, list[str]]:
     """
     Extract import statements required by a function, filtering for actual usage,
@@ -514,6 +588,12 @@ def _extract_imports_from_function(func: Callable) -> dict[str, list[str]]:
                     referenced.add(alias.name.split(".")[0])
                 else:
                     referenced.add(alias.name)
+
+    # Signature expressions (annotations + defaults) are def-time expressions
+    # evaluated in the enclosing module scope, invisible to getclosurevars; add
+    # their names so prototype-only imports are captured and shipped to the
+    # worker runtime alongside the ones used by the body.
+    referenced.update(_signature_referenced_names(func_tree))
 
     local_imports: set[str] = set()
     external_imports: set[str] = set()
@@ -622,7 +702,7 @@ def _serialize_value(name: str, obj: Any) -> str:
         pass
 
     payload = base64.b64encode(cloudpickle.dumps(obj)).decode("ascii")
-    return f"{name} = cloudpickle.loads(base64.b64decode({payload!r}))"
+    return f"import base64\n{name} = cloudpickle.loads(base64.b64decode({payload!r}))"
 
 
 def _is_definition_source(source: str) -> bool:
@@ -676,6 +756,20 @@ def _bundle_object(name: str, obj: Any, bundled: dict[str, str], visited: set) -
     if isinstance(obj, TaskSpec):
         return
 
+    # Never bundle the qall task library itself. Qall SDK callables (task,
+    # workflow, run, create_quantum_run, ...) are always available in the
+    # target runtime, and shipping their bare function source - without the
+    # module-level imports their signatures rely on (e.g. `from typing import
+    # Optional`) - produces payloads that crash with NameError. This is the
+    # per-object guard backing _bundle_module_members, using the same
+    # _is_tl_import filter that already keeps `import qall.*` out of the
+    # transported imports. It covers direct name references too, such as
+    # `from qall import run` used inside a task body.
+    if isinstance(obj, (types.FunctionType, type)) and _is_tl_import(
+        getattr(obj, "__module__", "") or ""
+    ):
+        return
+
     if isinstance(obj, (types.FunctionType, type)):
         # External (pip / stdlib) functions and classes are not re-bundled as
         # source -- the import statements already make them available.
@@ -721,6 +815,16 @@ def _bundle_module_members(
         if not isinstance(module_obj, types.ModuleType):
             continue
         if not _module_is_local(module_obj):
+            continue
+        # The qall task library itself is never bundled. It is available in
+        # the target runtime and is not a user dependency - mirroring
+        # `_is_tl_import`, which already keeps `import qall.*` out of the
+        # transported imports. Without this guard, qall SDK members reached
+        # through `qall.<attr>` chains (e.g. `qall.workflow` referenced by
+        # the `@qall.workflow()` decorator, or `qall.run` called in a task
+        # body) would be shipped as broken "local dependencies": bare function
+        # source without the module imports its signatures need.
+        if _is_tl_import(module_obj.__name__):
             continue
 
         for chain in _find_attribute_chains(tree, name):
@@ -774,6 +878,21 @@ def _bundle_local_dependencies(func: Callable, visited: set = None) -> dict[str,
     return _reorder_dependencies(bundled)
 
 
+def _assignment_targets_dotted_key(source: str, key: str) -> bool:
+    """True if `source` assigns the dotted name itself (e.g. `mylib.P = ...`)."""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return False
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Attribute) and ast.unparse(target) == key:
+                return True
+    return False
+
+
 def _exec_local_dependency(key: str, source: str, namespace: dict) -> None:
     """
     Executes a bundled local dependency into `namespace`. Dotted keys (members of
@@ -791,6 +910,20 @@ def _exec_local_dependency(key: str, source: str, namespace: dict) -> None:
         ):
             container[part] = types.SimpleNamespace()
         container = vars(container[part])
+
+    # Serialized values use a dotted assignment target (`mylib.P = cloudpickle
+    # .loads(...)`), which must run in the namespace that holds the chain
+    # objects so `mylib` resolves to its SimpleNamespace.
+    if _assignment_targets_dotted_key(source, key):
+        exec(source, namespace)
+        return
+
+    # The leaf namespace is a bare dict with no globals: seed the same helpers
+    # used by the reconstruction namespace so cloudpickle-based values can be
+    # decoded inside definitions if needed.
+    container.setdefault("__builtins__", builtins)
+    container.setdefault("cloudpickle", cloudpickle)
+    container.setdefault("base64", base64)
     exec(source, container)
 
 

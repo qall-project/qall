@@ -43,6 +43,7 @@ from qio.core.program import Program
 
 from .login import RegistryCredentials
 from .local_block_registry import LocalBlockRegistryClient
+from qall.config.paths import DEFAULT_BLOCK_REGISTRY_PATH
 
 
 def _get_task_spec_metadata(spec: TaskSpec) -> TaskMetadata:
@@ -51,6 +52,7 @@ def _get_task_spec_metadata(spec: TaskSpec) -> TaskMetadata:
         entrypoint=spec.entrypoint,
         pure=spec.pure,
         retry=spec.retry,
+        dataloaders=spec.dataloaders,
     )
 
 
@@ -93,7 +95,7 @@ def _get_task_spec_payload(spec: TaskSpec) -> TaskPayload:
 class BlockRegistry:
     def __init__(
         self,
-        local_root_dir: Path | str = Path().home() / ".cache/qall/block-registry",
+        local_root_dir: Path | str = DEFAULT_BLOCK_REGISTRY_PATH,
         read_only: bool = False,
     ):
         self.__remote_client: GrpcRegistryClient = None
@@ -116,6 +118,9 @@ class BlockRegistry:
     @property
     def local_root_dir(self) -> str:
         return self.__local_client.root_dir
+
+    def close(self):
+        self.__local_client.close()
 
     def clear(self):
         self.__local_client.clear()
@@ -178,8 +183,8 @@ class BlockRegistry:
             reg_node = TaskNode(
                 payload_hash=task_to_p_hash[task_name],
                 children=children_mapping,
-                resources=_get_task_spec_resource(spec=task),
-                metadata=_get_task_spec_metadata(spec=task),
+                resources=_get_task_spec_resource(spec=task).to_dict(),
+                metadata=_get_task_spec_metadata(spec=task).to_dict(),
             )
 
             node_block = reg_node.to_block(self.__codec)
@@ -189,9 +194,7 @@ class BlockRegistry:
         # The global workflow tracker root hash maps onto the entrypoint element
         root_hash = node_name_to_node_hash[spec.entrypoint_task.name]
 
-        return TaskDag(
-            payloads=registry_payloads, nodes=registry_nodes, root_hash=root_hash
-        )
+        return TaskDag(registry_nodes, registry_payloads, root_hash)
 
     def create_worker_dag(self, spec: WorkerSpec) -> WorkerDag:
         """
@@ -236,6 +239,7 @@ class BlockRegistry:
             "provider": spec.provider,
             "input_format": spec.input_format,
             "output_format": spec.output_format,
+            # "resources": sorted(spec.resources),
         }
 
         node = WorkerNode(

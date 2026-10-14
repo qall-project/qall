@@ -30,6 +30,7 @@ from .config import config_cli
 from .daemon import daemon_cli
 from .task import task_cli
 from .worker import worker_cli
+from .dataloader import dataloader_cli
 from .utils import parse_extra_args
 
 _DEFAULT_LOGGING_LEVEL = logging.INFO
@@ -51,6 +52,7 @@ cli.add_typer(daemon_cli)
 cli.add_typer(task_cli)
 cli.add_typer(worker_cli)
 cli.add_typer(checkpoint_cli)
+cli.add_typer(dataloader_cli)
 
 
 def _setup_logging():
