@@ -52,12 +52,12 @@ def daemon_start(
         "-a",
         help="Path to artifact registry directory",
     ),
-    worker_provider: str = typer.Option(
-        None,
-        "--worker-provider",
-        "-w",
-        help="Name of the worker provider",
-    ),
+    # worker_provider: str = typer.Option(
+    #     None,
+    #     "--worker-provider",
+    #     "-w",
+    #     help="Name of the worker provider",
+    # ),
 ):
     """
     Start a local Qall daemon in a Docker container.
@@ -68,7 +68,7 @@ def daemon_start(
             block_registry_path=block_registry,
             artifact_registry_path=artifact_registry,
             image=image,
-            worker_provider=worker_provider,
+            # worker_provider=worker_provider,
         )
     except KeyboardInterrupt:
         typer.echo("Daemon stopped.")
@@ -134,12 +134,12 @@ def daemon_run(
         "-a",
         help="Path to artifact registry directory",
     ),
-    worker_provider: str = typer.Option(
-        None,
-        "--worker-provider",
-        "-w",
-        help="Name of the worker provider",
-    ),
+    # worker_provider: str = typer.Option(
+    #     None,
+    #     "--worker-provider",
+    #     "-w",
+    #     help="Name of the worker provider",
+    # ),
     timeout: int = typer.Option(
         300, "--timeout", "-t", help="Timeout for the task execution."
     ),
@@ -156,7 +156,7 @@ def daemon_run(
             artifact_registry=artifact_registry,
             daemon_image=daemon_image,
             timeout=timeout,
-            worker_provider=worker_provider,
+            # worker_provider=worker_provider,
         )
 
         if artifacts:

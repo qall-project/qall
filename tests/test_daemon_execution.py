@@ -24,6 +24,7 @@ Tests cover:
 
 import tempfile
 import shutil
+import importlib.metadata
 from pathlib import Path
 import pytest
 import cloudpickle
@@ -76,6 +77,7 @@ def _push_task(
         code=source_code,
         code_format="raw",
         environment=TaskEnvironment(image="python:3.13").to_dict(),
+        runtime={"qall_version": importlib.metadata.version("qall")},
     )
     payload_block = payload.to_block(DEFAULT_CODEC)
     payload_hash = payload_block.hash

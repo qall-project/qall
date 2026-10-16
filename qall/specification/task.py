@@ -17,6 +17,7 @@ import ast
 import base64
 import builtins
 import importlib
+import importlib.metadata
 import sys
 import sysconfig
 import types
@@ -65,6 +66,10 @@ class TaskSpec:
     # POSIX mount points when the task executes.
     dataloaders: list[str] = field(default_factory=list)
 
+    # Qall SDK version this task was compiled with; stamped into the payload's
+    # `runtime.qall_version` (required by the daemon to resolve task payloads).
+    runtime_qall_version: str = field(default="")
+
     # Class variables for workflow state management
     _mode: ClassVar[Literal["COMPILATION", "EXECUTION"]] = "EXECUTION"
     _parent_workflow: ClassVar[Any] = None
@@ -101,6 +106,8 @@ class TaskSpec:
         # Deserialized from JSON
         else:
             self.func = self._infer_func_from_state()
+
+        self.runtime_qall_version = importlib.metadata.version("qall")
 
         # Workflow state management (Runs in both modes)
         if TaskSpec._parent_workflow is not None:

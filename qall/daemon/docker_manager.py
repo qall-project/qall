@@ -173,8 +173,8 @@ class DockerDaemonManager(BaseDaemonManager):
         try:
             command = [f"--host-task-dir={self.__host_block_registry_path}"]
 
-            if self.__worker_provider:
-                command.append(f"--worker-provider={self.__worker_provider}")
+            # if self.__worker_provider:
+            #     command.append(f"--worker-provider={self.__worker_provider}")
 
             if self.__local:
                 command.append("--local")
