@@ -34,12 +34,6 @@ daemon_cli = typer.Typer(
 @daemon_cli.command("start")
 def daemon_start(
     port: int = typer.Option(50053, "--port", "-p", help="gRPC port for the daemon"),
-    image: str = typer.Option(
-        None,
-        "--image",
-        "-i",
-        help="Daemon Docker image to use",
-    ),
     block_registry: str = typer.Option(
         None,
         "--block-dir",
@@ -52,12 +46,6 @@ def daemon_start(
         "-a",
         help="Path to artifact registry directory",
     ),
-    # worker_provider: str = typer.Option(
-    #     None,
-    #     "--worker-provider",
-    #     "-w",
-    #     help="Name of the worker provider",
-    # ),
 ):
     """
     Start a local Qall daemon in a Docker container.
@@ -67,8 +55,6 @@ def daemon_start(
             port=port,
             block_registry_path=block_registry,
             artifact_registry_path=artifact_registry,
-            image=image,
-            # worker_provider=worker_provider,
         )
     except KeyboardInterrupt:
         typer.echo("Daemon stopped.")
@@ -110,12 +96,6 @@ def daemon_run(
         "-a",
         help="Hash of the input artifact stored in registry for the task execution.",
     ),
-    daemon_image: str = typer.Option(
-        None,
-        "--daemon-image",
-        "-i",
-        help="Daemon Docker image to use",
-    ),
     daemon_address: Optional[str] = typer.Option(
         None,
         "--daemon-address",
@@ -134,12 +114,6 @@ def daemon_run(
         "-a",
         help="Path to artifact registry directory",
     ),
-    # worker_provider: str = typer.Option(
-    #     None,
-    #     "--worker-provider",
-    #     "-w",
-    #     help="Name of the worker provider",
-    # ),
     timeout: int = typer.Option(
         300, "--timeout", "-t", help="Timeout for the task execution."
     ),
@@ -154,9 +128,7 @@ def daemon_run(
             daemon_address=daemon_address,
             block_registry=block_registry,
             artifact_registry=artifact_registry,
-            daemon_image=daemon_image,
             timeout=timeout,
-            # worker_provider=worker_provider,
         )
 
         if artifacts:
@@ -173,12 +145,6 @@ def daemon_run(
 
 @daemon_cli.command("status")
 def daemon_status(
-    daemon_image: str = typer.Option(
-        None,
-        "--daemon-image",
-        "-i",
-        help="Daemon Docker image to use",
-    ),
     daemon_address: Optional[str] = typer.Option(
         None,
         "--daemon-address",
@@ -203,7 +169,6 @@ def daemon_status(
     """
     try:
         status = get_daemon_status(
-            daemon_image=daemon_image,
             daemon_address=daemon_address,
             block_registry=block_registry,
             artifact_registry=artifact_registry,

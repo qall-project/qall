@@ -24,8 +24,6 @@ from docker.models.containers import Container
 
 from qall_daemon_client import GrpcDaemonClient
 
-from qall.provider.qc import WorkerCatalog
-from qall.provider.qc.local import register_local_workers
 from qall.config.paths import (
     DEFAULT_BLOCK_REGISTRY_PATH,
     DEFAULT_ARTIFACT_REGISTRY_PATH,
@@ -35,6 +33,9 @@ from .base_manager import BaseDaemonManager
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_IMAGE = "scw/qall-daemon:latest"
+# _DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project/qall-daemon:latest"
+
 
 class DockerDaemonManager(BaseDaemonManager):
     """
@@ -43,7 +44,6 @@ class DockerDaemonManager(BaseDaemonManager):
 
     def __init__(
         self,
-        image: str,
         grpc_port: int = 50053,
         http_port: int = 8080,
         local: bool = True,
@@ -51,7 +51,7 @@ class DockerDaemonManager(BaseDaemonManager):
         host_artifact_registry_path: str | Path = DEFAULT_ARTIFACT_REGISTRY_PATH,
         worker_provider: Optional[str] = None,
     ):
-        self.__image = image
+        self.__image = _DEFAULT_IMAGE
         self.__container_name = "qalld"
         self.__grpc_port = grpc_port
         self.__http_port = http_port
@@ -59,7 +59,6 @@ class DockerDaemonManager(BaseDaemonManager):
         self.__local = local
         self.__host_block_registry_path = str(host_block_registry_path)
         self.__host_artifact_registry_path = str(host_artifact_registry_path)
-        self.__worker_provider = worker_provider if worker_provider else "local"
 
         try:
             self.__docker_client = docker.from_env()
@@ -108,7 +107,6 @@ class DockerDaemonManager(BaseDaemonManager):
     def start(self):
         self._start_daemon()
         self._wait_for_health()
-        self._register_provider_workers()
 
         return self
 
@@ -232,25 +230,28 @@ class DockerDaemonManager(BaseDaemonManager):
         except APIError as e:
             raise RuntimeError(f"Error launching the daemon: {e}")
 
-    def _register_provider_workers(self):
-        if not self.__worker_provider:
-            logger.info("No worker provider defined.")
-            return
+    def register_resource_assignments(self, resource_assigments: dict):
+        with self.client as client:
+            for task_hash, assignment in resource_assigments.items():
+                resource_name = (
+                    assignment.qpu_name
+                    or assignment.gpu_name
+                    or assignment.cpu_name
+                    or ""
+                )
 
-        catalog = WorkerCatalog()
+                res_entry = client.create_resource_assignment(
+                    task_hash=task_hash,
+                    resource_provider=assignment.provider,
+                    resource_name=resource_name,
+                )
 
-        if self.__worker_provider == "local":
-            catalog = register_local_workers(catalog)
+                if not res_entry:
+                    raise RuntimeError(
+                        f"Failed to create resource assignment entry into daemon for task_hash '{task_hash}'"
+                    )
 
-        if not catalog:
-            raise RuntimeError("could not load catalog properly")
-
-        worker_definitions = catalog.get_by_provider(self.__worker_provider)
-
-        if not worker_definitions:
-            logger.info(f"No worker definition for provider {self.__worker_provider}.")
-            return
-
+    def register_workers(self, worker_definitions: list):
         with self.client as client:
             for wd in worker_definitions:
                 if len(wd.input_formats) == 0:
