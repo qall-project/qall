@@ -60,6 +60,11 @@ class DockerDaemonManager(BaseDaemonManager):
         self.__host_block_registry_path = str(host_block_registry_path)
         self.__host_artifact_registry_path = str(host_artifact_registry_path)
 
+        # Temporary fix to create the necessary unifs volume while the daemon is still dockerized.
+        # Remove those two line once the daemon is out of its container and can run its own unifs creation logic.
+        self.__unifs = Path("/tmp/qall/unifs")
+        self.__unifs.mkdir(mode=0o777, parents=True, exist_ok=True)
+
         try:
             self.__docker_client = docker.from_env()
         except DockerException as e:

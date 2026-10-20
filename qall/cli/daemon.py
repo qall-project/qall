@@ -65,10 +65,10 @@ def daemon_start(
 
 @daemon_cli.command("stop")
 def daemon_stop(
-    port: int = typer.Option(50053, "--port", "-p", help="gRPC port for the daemon"),
+    # port: int = typer.Option(50053, "--port", "-p", help="gRPC port for the daemon"),
 ):
     try:
-        stop_daemon(port)
+        stop_daemon()
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(code=1)
