@@ -75,7 +75,7 @@ def _build_manager(container=None, missing=False):
         "qall.daemon.docker_manager.docker.from_env",
         return_value=docker_client,
     ):
-        return DockerDaemonManager(image="scw/qall-daemon-server:latest")
+        return DockerDaemonManager()
 
 
 def test_task_logs_returns_stdout_and_stderr():

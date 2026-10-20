@@ -198,6 +198,40 @@ class DockerDaemonManager(BaseDaemonManager):
             # creates or owns it.
             os.makedirs("/dev/shm/qall-dataloaders", mode=0o700, exist_ok=True)
 
+            dev_dir = os.environ.get("QALL_DEV_DIR")
+
+            volumes = {
+                self.__host_block_registry_path: {
+                    "bind": "/block-registry",
+                    "mode": "rw",
+                },
+                self.__host_artifact_registry_path: {
+                    "bind": "/artifact-registry",
+                    "mode": "rw",
+                },
+                "/var/run/docker.sock": {
+                    "bind": "/var/run/docker.sock",
+                    "mode": "rw",
+                },
+                "/dev/shm/qall-secrets": {
+                    "bind": "/dev/shm/qall-secrets",
+                    "mode": "rw",
+                },
+                "/dev/shm/qall-dataloaders": {
+                    "bind": "/dev/shm/qall-dataloaders",
+                    "mode": "rw",
+                },
+            }
+
+            # When QALL_DEV_DIR is set, mount the local qall SDK sources into
+            # the daemon container (read-only) so the daemon can package them
+            # into the runtime image build context instead of installing qall
+            # from PyPI. The env var is passed at the exact same path so the
+            # daemon can read it without needing to know about host paths.
+            if dev_dir:
+                volumes[dev_dir] = {"bind": dev_dir, "mode": "ro"}
+                logger.info(f"Mounting local qall SDK from {dev_dir} into the daemon.")
+
             # Start it if not already running
             self.__container = self.__docker_client.containers.run(
                 image=self.__image,
@@ -205,28 +239,8 @@ class DockerDaemonManager(BaseDaemonManager):
                 command=command,
                 detach=True,
                 ports=self.__ports,
-                volumes={
-                    self.__host_block_registry_path: {
-                        "bind": "/block-registry",
-                        "mode": "rw",
-                    },
-                    self.__host_artifact_registry_path: {
-                        "bind": "/artifact-registry",
-                        "mode": "rw",
-                    },
-                    "/var/run/docker.sock": {
-                        "bind": "/var/run/docker.sock",
-                        "mode": "rw",
-                    },
-                    "/dev/shm/qall-secrets": {
-                        "bind": "/dev/shm/qall-secrets",
-                        "mode": "rw",
-                    },
-                    "/dev/shm/qall-dataloaders": {
-                        "bind": "/dev/shm/qall-dataloaders",
-                        "mode": "rw",
-                    },
-                },
+                environment={"QALL_DEV_DIR": os.environ.get("QALL_DEV_DIR", "")},
+                volumes=volumes,
             )
             logger.info(
                 f"Daemon started successfully (ID: {self.__container.short_id})."

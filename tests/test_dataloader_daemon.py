@@ -264,7 +264,6 @@ def process(input):
 
         daemon_address = "localhost:50053"
         manager = DockerDaemonManager(
-            image="scw/qall-daemon-server:latest",
             grpc_port=daemon_address.split(":")[-1],
             host_block_registry_path=str(tmpdir),
             host_artifact_registry_path=str(tmpdir / "artifacts"),

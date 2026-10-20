@@ -4,10 +4,10 @@ import requests
 
 from qall import workflow
 
-
 # This example needs the prior setup of a dataloader named 'local_minio' binding to -> 'minio_path'
 # i.e.: qall dataloader add local_minio s3://<your_bucket> minio_path/ --key=minioadmin --secret=minioadmin --endpoint_url=http://127.0.0.1:9000
 # Above are default credentials when running a local minio instance, change them as needed.
+
 
 @workflow(dataloaders=["local_minio"])
 def main():
