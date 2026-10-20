@@ -20,11 +20,18 @@ Third-party imports only need to be resolved when the task/worker actually runs
 ``WorkflowSpec``/``WorkerSpec`` (or deserializing a ``TaskSpec``) should never
 crash on an import statement for a package that is not installed locally.
 
-Two concerns live here:
+Several concerns live here:
 
 - ``discover_external_imports`` statically walks a project directory
   (pipreqs-style, pure AST, no execution) and returns the set of third-party
-  top-level module names it depends on.
+  top-level module names it depends on. It is used to build the stub set so
+  compilation never crashes on missing packages.
+- ``discover_file_global_imports`` parses a *single* workflow/worker file and
+  returns only its **global** (module-body scope) third-party module names.
+  Task-scope imports (inside task bodies) and sibling files are excluded.
+- ``map_imports_to_packages`` maps those discovered *module* names to the pip
+  *package* names that provide them (``cv2`` -> ``opencv-python``). Auto-added
+  ``piprequirements`` entries always carry real package names.
 - ``lenient_imports`` is a context manager that, while some user code is being
   executed for discovery purposes, replaces imports of those *missing*
   third-party modules with inert stubs instead of raising ``ModuleNotFoundError``.
@@ -36,6 +43,8 @@ import ast
 import fnmatch
 import importlib.abc
 import importlib.machinery
+import importlib.metadata
+import logging
 import os
 import re
 import sys
@@ -44,6 +53,8 @@ import types
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 _STDLIB_NAMES = frozenset(sys.stdlib_module_names) | frozenset(sys.builtin_module_names)
 
@@ -156,6 +167,188 @@ def external_import_module_names(import_statements: Iterable[str]) -> set[str]:
                     continue
                 names.add(node.module.partition(".")[0])
     return names
+
+
+def _is_main_guard(node: ast.stmt) -> bool:
+    """True for a top-level ``if __name__ == '__main__':`` guard statement."""
+    if not isinstance(node, ast.If) or not isinstance(node.test, ast.Compare):
+        return False
+    left = node.test.left
+    return isinstance(left, ast.Name) and left.id == "__name__"
+
+
+def _global_import_nodes(nodes: Iterable[ast.stmt]) -> list[ast.stmt]:
+    """
+    Collects the import statements that live at *global* scope from an iterable
+    of module-body statements.
+
+    Only direct children of the module body count, plus imports nested in
+    top-level ``try``/``except`` blocks and ``if __name__ == '__main__':``
+    guards. Imports inside function/class bodies (task-scope) are deliberately
+    **not** collected: they are the user's per-task ``piprequirements``
+    responsibility.
+    """
+    found: list[ast.stmt] = []
+    for node in nodes:
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            found.append(node)
+        elif isinstance(node, ast.Try):
+            for group in (node.body, node.orelse, node.finalbody):
+                found.extend(_global_import_nodes(group))
+            for handler in node.handlers:
+                found.extend(_global_import_nodes(handler.body))
+        elif _is_main_guard(node):
+            found.extend(_global_import_nodes(node.body))
+            found.extend(_global_import_nodes(node.orelse))
+    return found
+
+
+def discover_file_global_imports(filepath: Path | str) -> set[str]:
+    """
+    Returns the set of top-level *third-party* module names imported at the
+    **global** scope of a single workflow/worker file.
+
+    Standard-library modules, the ``qall`` task library and immediate sibling
+    local modules are excluded. Unlike ``discover_external_imports`` this does
+    not walk the whole project directory, so unrelated sibling files do not
+    pollute the result, and task-scope imports (inside task bodies) are not
+    considered.
+    """
+    path = Path(filepath)
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8", errors="ignore"))
+    except (OSError, SyntaxError):
+        return set()
+
+    # Immediate sibling files/dirs are treated as local modules, e.g. an
+    # `import utils_helper` next to the workflow file must not become a package.
+    candidates: set[str] = set()
+    try:
+        for entry in path.parent.iterdir():
+            candidates.add(entry.stem if entry.is_file() else entry.name)
+    except OSError:
+        pass
+
+    raw: set[str] = set()
+    for node in _global_import_nodes(tree.body):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name:
+                    raw.add(alias.name.partition(".")[0])
+        elif isinstance(node, ast.ImportFrom):
+            if node.level > 0 or not node.module:
+                continue
+            raw.add(node.module.partition(".")[0])
+
+    external: set[str] = set()
+    for name in raw:
+        if name in candidates:
+            continue
+        if name in _STDLIB_NAMES:
+            continue
+        if name == "qall":
+            continue
+        external.add(name)
+
+    return external
+
+
+# Common modules whose import name differs from the pip package that provides
+# them. Used as a fallback when the package is not installed locally (and
+# therefore absent from importlib.metadata.packages_distributions()).
+_IMPORT_PACKAGE_ALIASES: dict[str, str] = {
+    "bs4": "beautifulsoup4",
+    "cbor": "cbor2",
+    "cv2": "opencv-python",
+    "dateutil": "python-dateutil",
+    "docx": "python-docx",
+    "dotenv": "python-dotenv",
+    "fitz": "pymupdf",
+    "gi": "pygobject",
+    "googleapiclient": "google-api-python-client",
+    "grpc": "grpcio",
+    "jwt": "pyjwt",
+    "nacl": "pynacl",
+    "OpenSSL": "pyopenssl",
+    "PIL": "pillow",
+    "pkg_resources": "setuptools",
+    "psycopg2": "psycopg2-binary",
+    "serial": "pyserial",
+    "skimage": "scikit-image",
+    "sklearn": "scikit-learn",
+    "yaml": "pyyaml",
+}
+
+
+def _casefold_get(mapping: dict[str, list[str]], key: str) -> list[str]:
+    """Case-insensitive ``dict.get`` for packages_distributions-style maps."""
+    value = mapping.get(key)
+    if value:
+        return value
+    lowered = key.lower()
+    for existing, dists in mapping.items():
+        if existing.lower() == lowered:
+            return dists
+    return []
+
+
+def map_imports_to_packages(module_names: Iterable[str]) -> set[str]:
+    """
+    Maps top-level third-party *module* names to the pip *package* names that
+    provide them, so auto-detected ``piprequirements`` entries are always
+    installable (e.g. ``cv2`` -> ``opencv-python``, ``PIL`` -> ``pillow``).
+
+    Resolution order:
+
+    1. ``importlib.metadata.packages_distributions()`` — authoritative for
+       packages installed in the current environment. A module provided by
+       exactly one distribution maps to that package; a namespace provided by
+       several distributions (e.g. ``google``) is ambiguous, so a warning is
+       logged and the module name is kept as-is.
+    2. The curated ``_IMPORT_PACKAGE_ALIASES`` table, for common modules whose
+       name differs from their package.
+
+    Names that cannot be mapped confidently are logged with a warning and kept
+    unchanged (best-effort: most import names already match their package name).
+    """
+    if not module_names:
+        return set()
+
+    try:
+        dist_by_module = importlib.metadata.packages_distributions()
+    except Exception:  # pragma: no cover - importlib.metadata is very stable
+        dist_by_module = {}
+
+    packages: set[str] = set()
+    for name in {str(n).strip() for n in module_names if n}:
+        dists = _casefold_get(dist_by_module, name)
+        if dists:
+            if len(dists) == 1:
+                packages.add(dists[0])
+                continue
+            logger.warning(
+                "Import %r is provided by multiple installed distributions "
+                "(%s); keeping it as-is.",
+                name,
+                ", ".join(sorted(dists)),
+            )
+            packages.add(name)
+            continue
+
+        package = _IMPORT_PACKAGE_ALIASES.get(name) or _IMPORT_PACKAGE_ALIASES.get(
+            name.lower()
+        )
+        if package:
+            packages.add(package)
+            continue
+
+        logger.warning(
+            "Could not map import %r to a pip package name; keeping it as-is.",
+            name,
+        )
+        packages.add(name)
+
+    return packages
 
 
 ### Stub machinery ###

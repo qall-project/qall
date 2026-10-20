@@ -75,3 +75,6 @@ class LocalBlockRegistryClient(RegistryClient):
     def clear(self):
         self.__blockstore.clear()
         self.__datastore.clear()
+
+    def close(self):
+        self.__datastore.close()

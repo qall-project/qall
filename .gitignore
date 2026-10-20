@@ -5,9 +5,10 @@
 resources/
 
 # Byte-compiled / optimized / DLL files
-__pycache__/
+__pycache__
 *.py[codz]
 *$py.class
+*.pyc
 
 # C extensions
 *.so
@@ -211,3 +212,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+examples/0_basic_hierarchy/__pycache__/my_workflow.cpython-313.pyc
+examples/0_basic_hierarchy/utils/__pycache__/hw_task.cpython-313.pyc
+examples/0_basic_hierarchy/utils/__pycache__/intermediate_non_task_func.cpython-313.pyc
+examples/0_basic_hierarchy/utils/__pycache__/yet_another_task.cpython-313.pyc

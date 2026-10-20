@@ -8,7 +8,7 @@ import uuid
 from qall import task, workflow
 
 
-def append_text(path: str, text: str) -> int:
+def append_text(path: Path, text: str) -> int:
     res = 0
     with path.open(mode="a") as f:
         res = f.write(text)
@@ -16,7 +16,7 @@ def append_text(path: str, text: str) -> int:
 
 
 @task()
-async def file_watchdog(dir: str, timeout: int):
+async def file_watchdog(dir: Path, timeout: int):
     """
     Looks for a txt file on the given dir until it reaches 'timeout' seconds.
     """
@@ -25,6 +25,9 @@ async def file_watchdog(dir: str, timeout: int):
     log_file = dir / "file_watchdog.log"
 
     start = time.time()
+
+    print("Starting file_watchdog loop")
+
     while time.time() - start < timeout:
         files = set(dir.glob("*"))
 
@@ -37,7 +40,7 @@ async def file_watchdog(dir: str, timeout: int):
             append_text(log_file, f"[{datetime.now()}] FILE CREATED -> {str(f)}\n")
 
         fs_map = files
-        time.sleep(1)
+        await asyncio.sleep(1)
 
 
 @task()
@@ -47,15 +50,19 @@ async def rand_fsio(dir: Path, timeout: int):
 
     start = time.time()
     rand_time = random.randint(0, 10)
+
+    print("Starting rand_fsio loop")
+
     while time.time() - start < timeout:
         rand_time = random.randint(0, 9)
-        time.sleep(rand_time)
+        await asyncio.sleep(rand_time)
         if len(created) and rand_time % 2:
             fdel = dir / created.pop(0)
             print(f"[{datetime.now()}] Deleting {fdel}")
             fdel.unlink()
         else:
             name = str(uuid.uuid4())[:8] + ".qoqo"
+            created.append(name)
             fcrea = dir / name
             print(f"[{datetime.now()}] Creating {fcrea}")
             fcrea.touch()
@@ -63,12 +70,13 @@ async def rand_fsio(dir: Path, timeout: int):
 
 @workflow()
 async def main():
-    BASE_DIR = Path(".")
+    BASE_DIR = Path(".") / "unifs"
     TIMEOUT = 180
 
-    await asyncio.gather(
-        asyncio.to_thread(file_watchdog, BASE_DIR, TIMEOUT),
-        asyncio.to_thread(rand_fsio, BASE_DIR, TIMEOUT),
-    )
+    print(f"Launching task group on {BASE_DIR.absolute()}")
+
+    async with asyncio.TaskGroup() as tg:
+        tg.create_task(file_watchdog(BASE_DIR, TIMEOUT))
+        tg.create_task(rand_fsio(BASE_DIR, TIMEOUT))
 
     return 0

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -34,3 +35,20 @@ class Artifact:
     id: str
     task_run_id: str
     created_at: datetime
+
+
+@dataclass(frozen=True)
+class LocalArtifact:
+    """LocalArtifact represents an artifact stored on the host artifact registry.
+
+    Attributes:
+        hash: The content hash of the artifact (its identifier in the registry).
+        size: The size in bytes of the raw serialized payload.
+        task_run_id: The ID of the task run that produced the artifact, when known.
+        created_at: The timestamp when the artifact was created, when known.
+    """
+
+    hash: str
+    size: int
+    task_run_id: Optional[str] = None
+    created_at: Optional[datetime] = None

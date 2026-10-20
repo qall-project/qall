@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .artifact import Artifact
+from .artifact import Artifact, LocalArtifact
 from .checkpoint import Checkpoint
 from .task_run import TaskRun, TaskRunStatus, TaskRunOutput
 from .workflow_run import WorkflowRun, WorkflowRunStatus
@@ -41,6 +41,7 @@ from .task import (
 )
 from .resource_contraint import ClassicalResourceConstraints, QuantumResourceConstraints
 from .resource_profile import ResourceProfile, AllowedResourceCollection
+from .dataloader import Dataloader, SECRET_CREDENTIAL_KEYS
 from .block import Block
 from .daemon import DaemonStatus, Daemon
 from .worker import (

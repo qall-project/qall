@@ -15,12 +15,26 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 
 import lmdb
 
 from pathlib import Path
 
 from qall_registry_client.v1.objects import Tag
+
+# Process-wide pool of open LMDB environments, keyed by database path.
+#
+# LMDB only allows a single environment handle per path inside a process:
+# opening the same path a second time raises "The environment ... is already
+# open in this process". Task proxies running concurrently in the same process
+# (e.g. several children of an entrypoint scheduled through asyncio.TaskGroup /
+# asyncio.to_thread) each build their own BlockRegistry -> LocalBlockRegistry
+# Client -> LocalDatastore, so they must share the underlying environment
+# instead of re-opening it. Reference counting keeps close() safe: the
+# environment is physically closed only once its last holder releases it.
+_ENV_POOL: dict[str, dict] = {}
+_ENV_POOL_LOCK = threading.Lock()
 
 
 class LocalDatastore:
@@ -38,15 +52,35 @@ class LocalDatastore:
         if not read_only:
             os.makedirs(self.__data_dir, exist_ok=True)
 
-        self.__env = lmdb.open(
-            f"{self.__data_dir}/datastore.db",
-            map_size=size_mb * 1024 * 1024,
-            subdir=False,
-            readonly=read_only,
-        )
+        db_path = str(Path(self.__data_dir) / "datastore.db")
+
+        with _ENV_POOL_LOCK:
+            entry = _ENV_POOL.get(db_path)
+            if entry is None:
+                env = lmdb.open(
+                    db_path,
+                    map_size=size_mb * 1024 * 1024,
+                    subdir=False,
+                    readonly=read_only,
+                )
+                entry = {"env": env, "refs": 0}
+                _ENV_POOL[db_path] = entry
+            entry["refs"] += 1
+
+        self.__env = entry["env"]
+        self.__pool_entry = entry
+        self.__db_path = db_path
 
     def close(self) -> None:
-        self.__env.close()
+        with _ENV_POOL_LOCK:
+            entry = self.__pool_entry
+            if entry is None:
+                return
+            self.__pool_entry = None
+            entry["refs"] -= 1
+            if entry["refs"] <= 0:
+                entry["env"].close()
+                _ENV_POOL.pop(self.__db_path, None)
 
     def put_tag(self, tag: Tag) -> None:
         key = tag.uri.encode("utf-8")

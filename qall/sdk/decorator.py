@@ -90,7 +90,7 @@ def workflow(func: Optional[Callable] = None, **kwargs):
         @workflow()
         async def main(): ...
 
-        @workflow(piprequirements=[...])
+        @workflow(requirements=[...])
         async def main(): ...
     """
     kwargs["entrypoint"] = True

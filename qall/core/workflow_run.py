@@ -38,6 +38,10 @@ from qall.core.daemon import (
     stop_daemon,
     apply_resource_assignments,
 )
+from qall.core.dataloader import (
+    provision_dataloader_files_for_dag,
+    cleanup_dataloader_files,
+)
 from qall.config import get_local_configuration, create_default_configuration
 from qall.resolver import resolve_workflow_resources
 from qall.provider.qc import WorkerCatalog
@@ -151,6 +155,11 @@ def create_workflow_run(
                 "No qall daemon running. Start it first, or set auto_start_daemon to True."
             )
 
+        # Provision resolved dataloader secrets for every task node referencing
+        # dataloaders, so each task container finds its own <task_hash>.json at
+        # the conventioned /dev/shm mount path. Removed once the run completes.
+        dataloader_files = provision_dataloader_files_for_dag(dag)
+
         try:
             start = datetime.datetime.now()
             artifacts = run_task(
@@ -188,10 +197,19 @@ def create_workflow_run(
             )
 
         finally:
+            cleanup_dataloader_files(dataloader_files)
             if not daemon_is_already_running and auto_start_daemon:
                 stop_daemon()
 
     else:
+        local_config = get_local_configuration() or create_default_configuration()
+
+        profile = (
+            local_config.get_profile(profile_name)
+            if profile_name
+            else local_config.get_default_profile()
+        )
+
         workflow = create_workflow(
             workflow_name=workflow_name,
             workflow_version=workflow_version,

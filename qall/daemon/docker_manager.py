@@ -13,20 +13,28 @@
 # limitations under the License.
 import logging
 import docker
+import os
 import time
 
 from pathlib import Path
+from typing import Optional
 
 from docker.errors import DockerException, APIError, ImageNotFound, NotFound
 from docker.models.containers import Container
 
 from qall_daemon_client import GrpcDaemonClient
 
+from qall.config.paths import (
+    DEFAULT_BLOCK_REGISTRY_PATH,
+    DEFAULT_ARTIFACT_REGISTRY_PATH,
+)
+
 from .base_manager import BaseDaemonManager
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project/qall-daemon:latest"
+_DEFAULT_IMAGE = "scw/qall-daemon:latest"
+# _DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project/qall-daemon:latest"
 
 
 class DockerDaemonManager(BaseDaemonManager):
@@ -39,10 +47,9 @@ class DockerDaemonManager(BaseDaemonManager):
         grpc_port: int = 50053,
         http_port: int = 8080,
         local: bool = True,
-        host_block_registry_path: str | Path = Path().home()
-        / ".cache/qall/block-registry",
-        host_artifact_registry_path: str | Path = Path().home()
-        / ".cache/qall/artifact-registry",
+        host_block_registry_path: str | Path = DEFAULT_BLOCK_REGISTRY_PATH,
+        host_artifact_registry_path: str | Path = DEFAULT_ARTIFACT_REGISTRY_PATH,
+        worker_provider: Optional[str] = None,
     ):
         self.__image = _DEFAULT_IMAGE
         self.__container_name = "qalld"
@@ -52,6 +59,11 @@ class DockerDaemonManager(BaseDaemonManager):
         self.__local = local
         self.__host_block_registry_path = str(host_block_registry_path)
         self.__host_artifact_registry_path = str(host_artifact_registry_path)
+
+        # Temporary fix to create the necessary unifs volume while the daemon is still dockerized.
+        # Remove those two line once the daemon is out of its container and can run its own unifs creation logic.
+        self.__unifs = Path("/tmp/qall/unifs")
+        self.__unifs.mkdir(mode=0o777, parents=True, exist_ok=True)
 
         try:
             self.__docker_client = docker.from_env()
@@ -127,6 +139,31 @@ class DockerDaemonManager(BaseDaemonManager):
             except APIError as e:
                 logger.error(f"Failed to retrieve logs: {e}")
 
+    def task_logs(self, task_run_id: str) -> tuple[str, str]:
+        """
+        Retrieve the stdout/stderr of a task container, if it still exists.
+
+        Task containers are named ``qall-task-<task_run_id[:8]>`` and are kept
+        around after execution, so their logs remain available for inspection
+        once a task has finished (successfully or not). Missing containers
+        yield empty strings.
+        """
+        container_name = f"qall-task-{task_run_id[:8]}"
+
+        try:
+            container = self.__docker_client.containers.get(container_name)
+        except NotFound:
+            return "", ""
+
+        try:
+            stdout = container.logs(stdout=True, stderr=False).decode(errors="replace")
+            stderr = container.logs(stdout=False, stderr=True).decode(errors="replace")
+        except APIError as e:
+            logger.warning(f"Failed to retrieve logs for {container_name}: {e}")
+            return "", ""
+
+        return stdout, stderr
+
     def _start_daemon(self):
         """
         Creates and start a container with our local daemon server.
@@ -139,6 +176,9 @@ class DockerDaemonManager(BaseDaemonManager):
         try:
             command = [f"--host-task-dir={self.__host_block_registry_path}"]
 
+            # if self.__worker_provider:
+            #     command.append(f"--worker-provider={self.__worker_provider}")
+
             if self.__local:
                 command.append("--local")
 
@@ -149,6 +189,49 @@ class DockerDaemonManager(BaseDaemonManager):
                 )
                 return
 
+            # Ensure the dataloaders secrets dir is owned by the current
+            # (client) user BEFORE the daemon starts. It is a top-level /dev/shm
+            # path, deliberately separate from the daemon's root-owned token dir
+            # (/dev/shm/qall-secrets), so the client always retains write
+            # access to provision per-task secrets files. The daemon container
+            # mounts it (so its os.Stat guard sees the directory) but never
+            # creates or owns it.
+            os.makedirs("/dev/shm/qall-dataloaders", mode=0o700, exist_ok=True)
+
+            dev_dir = os.environ.get("QALL_DEV_DIR")
+
+            volumes = {
+                self.__host_block_registry_path: {
+                    "bind": "/block-registry",
+                    "mode": "rw",
+                },
+                self.__host_artifact_registry_path: {
+                    "bind": "/artifact-registry",
+                    "mode": "rw",
+                },
+                "/var/run/docker.sock": {
+                    "bind": "/var/run/docker.sock",
+                    "mode": "rw",
+                },
+                "/dev/shm/qall-secrets": {
+                    "bind": "/dev/shm/qall-secrets",
+                    "mode": "rw",
+                },
+                "/dev/shm/qall-dataloaders": {
+                    "bind": "/dev/shm/qall-dataloaders",
+                    "mode": "rw",
+                },
+            }
+
+            # When QALL_DEV_DIR is set, mount the local qall SDK sources into
+            # the daemon container (read-only) so the daemon can package them
+            # into the runtime image build context instead of installing qall
+            # from PyPI. The env var is passed at the exact same path so the
+            # daemon can read it without needing to know about host paths.
+            if dev_dir:
+                volumes[dev_dir] = {"bind": dev_dir, "mode": "ro"}
+                logger.info(f"Mounting local qall SDK from {dev_dir} into the daemon.")
+
             # Start it if not already running
             self.__container = self.__docker_client.containers.run(
                 image=self.__image,
@@ -156,24 +239,8 @@ class DockerDaemonManager(BaseDaemonManager):
                 command=command,
                 detach=True,
                 ports=self.__ports,
-                volumes={
-                    self.__host_block_registry_path: {
-                        "bind": "/block-registry",
-                        "mode": "rw",
-                    },
-                    self.__host_artifact_registry_path: {
-                        "bind": "/artifact-registry",
-                        "mode": "rw",
-                    },
-                    "/var/run/docker.sock": {
-                        "bind": "/var/run/docker.sock",
-                        "mode": "rw",
-                    },
-                    "/dev/shm/qall-secrets": {
-                        "bind": "/dev/shm/qall-secrets",
-                        "mode": "rw",
-                    },
-                },
+                environment={"QALL_DEV_DIR": os.environ.get("QALL_DEV_DIR", "")},
+                volumes=volumes,
             )
             logger.info(
                 f"Daemon started successfully (ID: {self.__container.short_id})."

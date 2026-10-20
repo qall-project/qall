@@ -47,6 +47,7 @@ class TaskMetadata:
     pure: bool = field(default=True)
     retry: Optional[int] = field(default=0)
     max_duration: Optional[str] = field(default=None)
+    dataloaders: list[str] = field(default_factory=list)
     type: str = field(default=__TYPE)
 
     def to_dict(self) -> dict:
@@ -56,6 +57,7 @@ class TaskMetadata:
             "pure": self.pure,
             "retry": self.retry,
             "max_duration": self.max_duration,
+            "dataloaders": self.dataloaders,
             "type": self.__TYPE,
         }
 

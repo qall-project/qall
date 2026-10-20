@@ -11,16 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from pathlib import Path
 import subprocess
 import sys
 import textwrap
 import threading
 
-from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Optional
 
-from qall.runtime.unifs import UNIFIED_FS, setup_unifs
+from qall.config.paths import TASK_RUNTIME_WORKDIR
+from qall.runtime.unifs import setup_unifs
 
 
 def run_task_in_subprocess(
@@ -28,6 +30,7 @@ def run_task_in_subprocess(
     entrypoint_name: str,
     input_artifact: Optional[bytes] = None,
     worker_addresses: Optional[list[str]] = None,
+    dataloaders_file: Optional[str] = None,
     interpreter: Optional[str] = None,
 ) -> dict:
 
@@ -38,30 +41,57 @@ def run_task_in_subprocess(
             interpreter = sys.executable
 
         init_workers_code = ""
-
         if worker_addresses:
             print("[Executor] Add quantum worker manager link...")
-            init_workers_code = textwrap.dedent(
-                f"""
+            init_workers_code = textwrap.dedent(f"""
                 from qall.core import create_quantum_worker_manager
                 create_quantum_worker_manager({worker_addresses!r})
-                """
-            )
+                """)
+
+        # Dataloaders are read by the subprocess from the conventioned secrets
+        # file (/dev/shm/qall-dataloaders/<task_hash>.json), which the
+        # executor (daemonless path) or the host client (daemon path) already
+        # populated with *resolved* credentials. The wrapper only references the
+        # file path, so plaintext credentials never appear in the wrapper code
+        # or in env vars, and no host keyring is needed inside the container.
+        dataloader_bootstrap_code = ""
+        if dataloaders_file:
+            dataloader_bootstrap_code = textwrap.dedent(f"""
+                _dl_path = {dataloaders_file!r}
+                if _dl_path and os.path.exists(_dl_path):
+                    import json as _json
+                    from qall.runtime.dataloader import bind_dataloaders as _bind
+                    with open(_dl_path, encoding="utf-8") as _f:
+                        _dl_map = _json.load(_f)
+                    _dl_specs = [
+                        {{
+                            "name": _name,
+                            "src": _spec["src"],
+                            "dst": _spec["dst"],
+                            "secrets": _spec.get("creds", {{}}),
+                        }}
+                        for _name, _spec in _dl_map.items()
+                    ]
+                    _bind(_dl_specs) #, sandbox_root=os.getcwd())
+                    print("[Executor] Bound dataloader(s) to task filesystem.")
+                """)
 
         wrapper_code = f"""
 import asyncio
 import cloudpickle
+import os
 import qall
 import sys
 
+{dataloader_bootstrap_code}
 {source_code}
 
 {init_workers_code}
 
-try:
-    _args = ()
-    _kwargs = {{}}
+_args = ()
+_kwargs = {{}}
 
+try:
     input_data = cloudpickle.loads(sys.stdin.buffer.read())
 
     if isinstance(input_data, dict):
@@ -97,7 +127,7 @@ with open('{output_path}', 'wb') as f:
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            cwd=str(UNIFIED_FS),
+            cwd=str(TASK_RUNTIME_WORKDIR),
         )
 
         stdout_lines: list[str] = []

@@ -1,4 +1,4 @@
-FROM python:3.13-slim AS builder
+FROM docker-proxy.internal.scaleway.com/python:3.13-slim AS builder
 
 WORKDIR /build
 
@@ -9,7 +9,7 @@ COPY qall ./qall
 
 RUN uv build --wheel
 
-FROM python:3.13-slim
+FROM docker-proxy.internal.scaleway.com/python:3.13-slim
 
 WORKDIR /qall-workspace
 

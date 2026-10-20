@@ -15,14 +15,17 @@
 import logging
 from pathlib import Path
 
+from qall.config.paths import TASK_RUNTIME_WORKDIR
+
 logger = logging.getLogger(__name__)
 
 
-UNIFIED_FS = Path.home() / ".cache" / "qall" / "unifs"
+UNIFIED_FS = TASK_RUNTIME_WORKDIR / "unifs"
 
 
-def setup_unifs():
+def setup_unifs() -> Path:
     """Run this in the parent process before spawning the subprocess"""
     if not UNIFIED_FS.exists():
         logger.info(f"Creating unified FS root directory : {UNIFIED_FS}")
         UNIFIED_FS.mkdir(0o777, parents=True, exist_ok=True)
+    return UNIFIED_FS
