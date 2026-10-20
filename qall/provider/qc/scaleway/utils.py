@@ -11,9 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import os
-
-from qorus.provider.qc import QuantumContext
+from qall.provider.qc import QuantumContext
 
 
 def get_session_dedup_from_context(context: QuantumContext):

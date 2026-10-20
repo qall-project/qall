@@ -212,7 +212,6 @@ class WorkerSpec:
 
             self.name = name or self.name or filepath.stem
             self.requirements = sorted(set(self.requirements))
-            # self.resources = sorted(set(self.resources))
         finally:
             sys.modules.pop(module_name, None)
 
@@ -235,7 +234,6 @@ class WorkerSpec:
         self.input_format = normalize_circuit_type(metadata.get("input_format", ""))
         self.output_format = normalize_result_type(metadata.get("output_format", ""))
         self.provider = metadata.get("provider", "")
-        # self.resources = list(metadata.get("resources", []))
 
         try:
             self.source = textwrap.dedent(inspect.getsource(cls))
@@ -252,7 +250,6 @@ class WorkerSpec:
         self.input_format = other.input_format
         self.output_format = other.output_format
         self.provider = other.provider
-        # self.resources = list(other.resources)
 
         self.name = other.name
         self.source = other.source

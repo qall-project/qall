@@ -20,46 +20,12 @@ from qall.provider.qc import (
     quantum_worker,
 )
 
-
-def get_session_dedup_from_context(context: QuantumContext):
-    if not context.metadata:
-        return None
-
-    return context.metadata.get("deduplication_id", None)
-
-
-def set_session_dedup_in_context(
-    context: QuantumContext, deduplication_id: str
-) -> QuantumContext:
-    if not context.metadata:
-        context.metadata = {}
-
-    context.metadata["deduplication_id"] = deduplication_id
-
-    return context
-
-
-def add_session_id_in_context(context: QuantumContext, id: str) -> QuantumContext:
-    if not context.metadata:
-        context.metadata = {}
-
-    sessions = context.metadata.get("sessions", None)
-
-    if not sessions:
-        sessions = [id]
-    elif not id in sessions:
-        sessions.append(id)
-
-    context.metadata["sessions"] = sessions
-
-    return context
-
-
-def list_session_ids_from_context(context: QuantumContext) -> list[str]:
-    if not context.metadata:
-        return None
-
-    return context.metadata.get("sessions", None)
+from qall.provider.qc.scaleway.utils import (
+    list_session_ids_from_context,
+    add_session_id_in_context,
+    set_session_dedup_in_context,
+    get_session_dedup_from_context,
+)
 
 
 @quantum_worker(
@@ -103,7 +69,7 @@ class QiskitScalewayQuantumWorker(QuantumWorker):
             set_session_dedup_in_context(context, deduplication_id)
 
         session_id = self.__backend.start_session(
-            name=f"{resource}-qall-session",
+            name=f"{resource.lower()}-qall-session",
             deduplication_id=deduplication_id,
         )
 

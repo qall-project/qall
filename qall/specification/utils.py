@@ -31,7 +31,7 @@ from .imports import (
     lenient_imports,
     map_imports_to_packages,
 )
-from .task import DECORATORS, TaskSpec
+from .task import TaskSpec
 
 logger = logging.getLogger(__name__)
 
