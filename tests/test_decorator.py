@@ -157,8 +157,7 @@ def test_source_strips_all_decorator_forms():
 
 
 def test_remove_task_decorator_plain_and_called():
-    source = textwrap.dedent(
-        """
+    source = textwrap.dedent("""
         @task
         def a():
             pass
@@ -166,16 +165,14 @@ def test_remove_task_decorator_plain_and_called():
         @task(entrypoint=True)
         def b():
             pass
-        """
-    )
+        """)
     out = _remove_task_decorator(source, {"task", "workflow"})
     assert "@task" not in out
     assert out.count("def ") == 2
 
 
 def test_remove_task_decorator_qualified_and_aliased():
-    source = textwrap.dedent(
-        """
+    source = textwrap.dedent("""
         @qall.task()
         def a():
             pass
@@ -187,8 +184,7 @@ def test_remove_task_decorator_qualified_and_aliased():
         @my_pkg.workflow(requirements=["x"])
         def c():
             pass
-        """
-    )
+        """)
     out = _remove_task_decorator(source, {"task", "workflow", "qtask"})
     assert "qall.task" not in out
     assert "@qtask" not in out
@@ -197,15 +193,13 @@ def test_remove_task_decorator_qualified_and_aliased():
 
 
 def test_remove_task_decorator_preserves_foreign_decorators():
-    source = textwrap.dedent(
-        """
+    source = textwrap.dedent("""
         @task
         @app.route("/x")
         @functools.wraps(original)
         def a():
             pass
-        """
-    )
+        """)
     out = _remove_task_decorator(source, {"task", "workflow"})
     assert "@task" not in out
     # ast.unparse normalizes string quotes to single quotes
@@ -215,14 +209,12 @@ def test_remove_task_decorator_preserves_foreign_decorators():
 
 
 def test_remove_task_decorator_preserves_body():
-    source = textwrap.dedent(
-        """
+    source = textwrap.dedent("""
         @task(entrypoint=True, requirements=["numpy"])
         def a(x):
             # a meaningful comment
             return x * 2
-        """
-    )
+        """)
     out = _remove_task_decorator(source, {"task", "workflow"})
     assert "return x * 2" in out
     # ast.unparse does not preserve comments

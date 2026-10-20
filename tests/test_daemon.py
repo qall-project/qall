@@ -46,7 +46,6 @@ def test_daemon_grpc_and_http_connections(create_daemon_registry_paths):
 
     print("===test_daemon_grpc_and_http_connections===")
     manager = DockerDaemonManager(
-        image="scw/qall-daemon-server:latest",
         grpc_port=grpc_port,
         http_port=http_port,
         host_block_registry_path=str(blocks_path),

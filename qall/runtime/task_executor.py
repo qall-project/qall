@@ -222,8 +222,7 @@ class TaskRuntimeExecutor:
         else:
             execution_call = f'executor.execute_subtask("{parent_task_id}", input_data)'
 
-        return textwrap.dedent(
-            f"""
+        return textwrap.dedent(f"""
         {func_def} {child_name}(*args, **kwargs):
             {async_import}
             from qall.runtime import DaemonSubtaskExecutor
@@ -249,8 +248,7 @@ class TaskRuntimeExecutor:
                 raise RuntimeError(f"Subtask '{child_name}' failed: {{result.stderr}}")
                 
             return cloudpickle.loads(result.output_artifact_bytes)
-        """
-        )
+        """)
 
 
 ### Helpers ###

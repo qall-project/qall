@@ -255,7 +255,6 @@ class TestDaemonIntegration:
         from qall_daemon_client import GrpcDaemonClient
 
         manager = DockerDaemonManager(
-            image="scw/qall-daemon-server:latest",
             grpc_port=daemon_address.split(":")[-1],
         )
         try:
@@ -281,7 +280,6 @@ def multiply(x, y):
         task_hash, _ = _push_task(store, source_code, "multiply", entrypoint=True)
 
         manager = DockerDaemonManager(
-            image="scw/qall-daemon-server:latest",
             grpc_port=daemon_address.split(":")[-1],
             host_block_registry_path=str(tmpdir),
             host_artifact_registry_path=str(tmpdir / "artifacts"),
