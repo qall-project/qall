@@ -43,10 +43,12 @@ def run_task_in_subprocess(
         init_workers_code = ""
         if worker_addresses:
             print("[Executor] Add quantum worker manager link...")
-            init_workers_code = textwrap.dedent(f"""
+            init_workers_code = textwrap.dedent(
+                f"""
                 from qall.core import create_quantum_worker_manager
                 create_quantum_worker_manager({worker_addresses!r})
-                """)
+                """
+            )
 
         # Dataloaders are read by the subprocess from the conventioned secrets
         # file (/dev/shm/qall-dataloaders/<task_hash>.json), which the
@@ -56,7 +58,8 @@ def run_task_in_subprocess(
         # or in env vars, and no host keyring is needed inside the container.
         dataloader_bootstrap_code = ""
         if dataloaders_file:
-            dataloader_bootstrap_code = textwrap.dedent(f"""
+            dataloader_bootstrap_code = textwrap.dedent(
+                f"""
                 _dl_path = {dataloaders_file!r}
                 if _dl_path and os.path.exists(_dl_path):
                     import json as _json
@@ -74,7 +77,8 @@ def run_task_in_subprocess(
                     ]
                     _bind(_dl_specs) #, sandbox_root=os.getcwd())
                     print("[Executor] Bound dataloader(s) to task filesystem.")
-                """)
+                """
+            )
 
         wrapper_code = f"""
 import asyncio
