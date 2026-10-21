@@ -38,12 +38,12 @@ from qall_registry_client.v1 import (
     pull,
     push,
 )
+from qall.config.paths import DEFAULT_BLOCK_REGISTRY_PATH
 
 from qio.core.program import Program
 
 from .login import RegistryCredentials
 from .local_block_registry import LocalBlockRegistryClient
-from qall.config.paths import DEFAULT_BLOCK_REGISTRY_PATH
 
 
 def _get_task_spec_metadata(spec: TaskSpec) -> TaskMetadata:
@@ -84,9 +84,7 @@ def _get_task_spec_payload(spec: TaskSpec) -> TaskPayload:
     return TaskPayload(
         code=qio_program.to_json_dict(),
         code_format="qio.program",
-        environment=TaskEnvironment(
-            image=spec.image, requirements=spec.requirements
-        ).to_dict(),
+        environment=TaskEnvironment(image=spec.image, requirements=spec.requirements),
         metadata={"quantum_runs": spec.quantum_runs},
         runtime={"qall_version": spec.runtime_qall_version},
     )

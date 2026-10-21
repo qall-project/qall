@@ -128,6 +128,7 @@ def run(
         allowed_cpu=allowed_cpus,
         allowed_gpu=allowed_gpus,
         allowed_qpu=allowed_qpus,
+        auto_start_daemon=True,
     )
     typer.echo(f"Workflow run ID: {run_obj.id}")
 

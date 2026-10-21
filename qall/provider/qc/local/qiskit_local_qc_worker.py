@@ -26,6 +26,7 @@ from qall.provider.qc import (
     requirements=["qiskit", "qiskit-aer", "qiskit-qasm3-import"],
     input_format="qiskit",
     output_format="qiskit",
+    provider="local",
 )
 class QiskitLocalQuantumWorker(QuantumWorker):
     """

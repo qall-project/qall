@@ -34,6 +34,7 @@ from qall.provider.qc.scaleway.utils import (
     requirements=["qiskit-scaleway", "qiskit-qasm3-import"],
     input_format="qiskit",
     output_format="qiskit",
+    provider="scaleway",
 )
 class QiskitScalewayQuantumWorker(QuantumWorker):
     """

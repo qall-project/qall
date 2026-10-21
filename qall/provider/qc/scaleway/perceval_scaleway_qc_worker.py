@@ -34,6 +34,7 @@ from qall.provider.qc.scaleway.utils import (
     requirements=["perceval-quandela"],
     input_format="perceval",
     output_format="perceval",
+    provider="scaleway",
 )
 class PercevalScalewayQuantumWorker(QuantumWorker):
     """
