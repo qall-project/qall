@@ -14,6 +14,8 @@
 from typing import Any
 from uuid import uuid4
 
+from qiskit_scaleway import ScalewayProvider
+
 from qall.provider.qc import (
     QuantumWorker,
     QuantumContext,
@@ -52,8 +54,6 @@ class QiskitScalewayQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> QuantumContext:
-        from qiskit_scaleway import ScalewayProvider
-
         provider = ScalewayProvider(
             project_id=kwargs.get("project_id"),
             secret_key=kwargs.get("secret_key"),
