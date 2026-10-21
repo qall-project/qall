@@ -42,7 +42,12 @@ from qall.core.dataloader import (
     provision_dataloader_files_for_dag,
     cleanup_dataloader_files,
 )
-from qall.config import get_local_configuration, create_default_configuration
+from qall.core.config import init_config
+from qall.config import (
+    get_local_configuration,
+    create_default_configuration,
+    config_exists,
+)
 from qall.resolver import resolve_workflow_resources
 from qall.provider.qc import WorkerCatalog
 from qall.provider.qc.local import register_local_workers
@@ -89,16 +94,22 @@ def create_workflow_run(
         )
     except Exception as e:
         raise RuntimeError(
-            "Couldn't push workflow on registry",
-            registry_client.remote_domain if registry_client else "local",
-            "\nReason:",
-            e,
-        )
+            f"Couldn't push workflow on registry ({registry_client.remote_domain if registry_client else 'local'}):\n{e}"
+        ) from e
 
     provider_credentials = provider_credentials or get_provider_login_credentials()
-    resource_assignments = None
+    active_provider = provider_credentials.provider if provider_credentials else "local"
 
-    local_config = get_local_configuration() or create_default_configuration()
+    if not local_only and not provider_credentials:
+        raise RuntimeError(
+            "You must be logged in to execute workflows remotely. "
+            "Run `qall login <provider>` or use `--local`."
+        )
+
+    if config_exists():
+        local_config = get_local_configuration()
+    else:
+        local_config = init_config(active_provider)
 
     profile = (
         local_config.get_profile(profile_name)
@@ -106,110 +117,88 @@ def create_workflow_run(
         else local_config.get_default_profile()
     )
 
-    if not profile and not allowed_cpu and not allowed_gpu and not allowed_qpu:
-        if profile_name:
-            raise Exception(f"cannot find default profile {profile_name}")
-
-        raise Exception("provide profile or at least allowed_[cpu,gpu,qpu] option")
-
-    if provider_credentials:
-        provider_client = provider_client or get_provider_client_by_name(
-            provider_credentials.provider
+    if not profile:
+        raise RuntimeError(
+            f"No profile found (requested: '{profile_name or 'default'}') "
+            f"in configuration. Available: {list(local_config.profiles.keys())}"
         )
 
-        if not provider_client.login(provider_credentials):
-            raise Exception(f"cannot loggin to {provider_credentials.provider}")
+    if profile.provider == "local":
+        active_provider = "local"
 
+    available_resources = []
+    if active_provider != "local" and provider_credentials:
+        provider_client = provider_client or get_provider_client_by_name(
+            active_provider
+        )
+        if not provider_client.login(provider_credentials):
+            raise RuntimeError(
+                f"Failed to authenticate against provider '{active_provider}'."
+            )
         available_resources = provider_client.list_resources()
 
-        resource_assignments = resolve_workflow_resources(
-            task_dag=dag,
-            profile=profile,
-            available_resources=available_resources,
-            replace_to_local=local_only,
-        )
-
-    worker_definitions = _get_provider_workers(
-        provider_credentials.provider if provider_credentials else "local"
+    resource_assignments = resolve_workflow_resources(
+        task_dag=dag,
+        profile=profile,
+        available_resources=available_resources,
+        replace_to_local=local_only,
     )
 
-    print("WORKER", worker_definitions)
-    print("resource assignmenet", resource_assignments)
+    worker_definitions = _get_provider_workers(active_provider)
 
+    # 5. Branche d'exécution Locale (qall-daemon Docker)
     if local_only:
         daemon_is_already_running = get_daemon_status()
-        if not daemon_is_already_running and auto_start_daemon:
-            logger.info(
-                "Daemon not running. `auto_start_daemon` set to True, starting daemon..."
-            )
-
+        if not daemon_is_already_running:
+            if not auto_start_daemon:
+                raise RuntimeError(
+                    "No qall daemon running. Start it first, or set auto_start_daemon=True."
+                )
+            logger.info("Daemon not running. Starting local daemon...")
             start_daemon()
 
-            if worker_definitions or resource_assignments:
-                apply_resource_assignments(
-                    worker_definitions=worker_definitions,
-                    resource_assignments=resource_assignments,
-                )
-        elif not daemon_is_already_running and not auto_start_daemon:
-            raise RuntimeError(
-                "No qall daemon running. Start it first, or set auto_start_daemon to True."
+        # Enregistrement des workers et des assignations en mémoire dans le démon
+        if worker_definitions or resource_assignments:
+            apply_resource_assignments(
+                worker_definitions=worker_definitions,
+                resource_assignments=resource_assignments,
             )
 
-        # Provision resolved dataloader secrets for every task node referencing
-        # dataloaders, so each task container finds its own <task_hash>.json at
-        # the conventioned /dev/shm mount path. Removed once the run completes.
         dataloader_files = provision_dataloader_files_for_dag(dag)
 
+        start = datetime.datetime.now()
         try:
-            start = datetime.datetime.now()
             artifacts = run_task(
-                task_hash=dag.root_hash, input_artifact_hash=input_artifact_hash
+                task_hash=dag.root_hash,
+                input_artifact_hash=input_artifact_hash,
             )
             stop = datetime.datetime.now()
 
-            logger.info(
-                "Workflow done. "
-                + (
-                    f"Generated artifacts:\n\t{str("\n\t".join([str(a) for a in artifacts]))}"
-                    if artifacts
-                    else "No artifacts generated."
-                )
-            )
-
             workflow_run = WorkflowRun(
-                str(uuid.uuid4()),
-                str(tag_uri),
+                id=str(uuid.uuid4()),
+                workflow_id=str(tag_uri),
                 status=WorkflowRunStatus.DONE,
                 created_at=start,
                 started_at=start,
                 finished_at=stop,
             )
-
         except Exception as e:
             logger.error(f"Error running workflow `{entrypoint}`: {e}")
             workflow_run = WorkflowRun(
-                str(uuid.uuid4()),
-                str(tag_uri),
+                id=str(uuid.uuid4()),
+                workflow_id=str(tag_uri),
                 status=WorkflowRunStatus.ERROR,
                 created_at=start,
                 started_at=start,
                 finished_at=datetime.datetime.now(),
             )
-
         finally:
             cleanup_dataloader_files(dataloader_files)
             if not daemon_is_already_running and auto_start_daemon:
                 stop_daemon()
 
+    # 6. Branche d'exécution Distante (Provider Cloud)
     else:
-        local_config = get_local_configuration() or create_default_configuration()
-
-        profile = (
-            local_config.get_profile(profile_name)
-            if profile_name
-            else local_config.get_default_profile()
-        )
-
         workflow = create_workflow(
             workflow_name=workflow_name,
             workflow_version=workflow_version,
@@ -221,7 +210,7 @@ def create_workflow_run(
         )
 
         if not workflow:
-            raise RuntimeError("Couldn't create workflow from", entrypoint)
+            raise RuntimeError(f"Couldn't create workflow from '{entrypoint}'.")
 
         workflow_run = run_workflow(
             workflow=workflow,
@@ -233,7 +222,7 @@ def create_workflow_run(
 
         if not workflow_run:
             raise RuntimeError(
-                "Couldn't create workflow run from workflow", workflow.id
+                f"Couldn't start workflow run for workflow '{workflow.id}'."
             )
 
     return workflow_run

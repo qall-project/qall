@@ -13,6 +13,8 @@
 # limitations under the License.
 from typing import Any
 
+from qsimcirq import QSimSimulator
+
 from qall.provider.qc import (
     QuantumWorker,
     QuantumContext,
@@ -43,8 +45,6 @@ class CirqLocalQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> QuantumContext:
-        from qsimcirq import QSimSimulator
-
         self.__backend = QSimSimulator()
 
         return context
