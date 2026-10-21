@@ -381,7 +381,8 @@ def generate_call_graph(filepath: Path, format: Literal["text", "json", "rxgraph
                 if str(project_dir) in str(mod_path):
                     involved_files.add(str(mod_path))
 
-    involved_files_list = list(involved_files)
+    # Filter out compiled binaries (.so, .pyd, .dylib, .pyc)
+    involved_files_list = [f for f in involved_files if str(f).endswith(".py")]
 
     decorators_map = {}
     for f in involved_files_list:
