@@ -34,6 +34,7 @@ from qall.provider.qc.scaleway.utils import (
     requirements=["cirq-scaleway"],
     input_format="cirq",
     output_format="cirq",
+    provider="scaleway",
 )
 class CirqScalewayQuantumWorker(QuantumWorker):
     """

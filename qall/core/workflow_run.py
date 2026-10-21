@@ -20,7 +20,12 @@ import uuid
 from typing import Optional
 from pathlib import Path
 
-from qall.object import WorkflowRun, WorkflowRunStatus, apply_resource_overrides
+from qall.object import (
+    WorkflowRun,
+    WorkflowRunStatus,
+    apply_resource_overrides,
+    DaemonStatus,
+)
 from qall.specification.workflow import WorkflowSpec
 from qall.registry import BlockRegistry, RegistryCredentials
 from qall.provider import (
@@ -158,7 +163,8 @@ def create_workflow_run(
     worker_definitions = _get_provider_workers(active_provider)
 
     if local_only:
-        daemon_is_already_running = get_daemon_status()
+        daemon_status = get_daemon_status()
+        daemon_is_already_running = daemon_status.status == DaemonStatus.RUNNING
 
         if not daemon_is_already_running:
             if not auto_start_daemon:
@@ -166,7 +172,7 @@ def create_workflow_run(
                     "No qall daemon running. Start it first, or set auto_start_daemon=True."
                 )
             logger.info("Daemon not running. Starting local daemon...")
-            start_daemon()
+            start_daemon(detach=True)
 
         if worker_definitions or resource_assignments:
             apply_resource_assignments(

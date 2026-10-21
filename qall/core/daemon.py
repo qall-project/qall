@@ -60,6 +60,7 @@ def start_daemon(
     port: int = 50053,
     block_registry_path: Optional[str | Path] = None,
     artifact_registry_path: Optional[str | Path] = None,
+    detach: bool = False,
 ):
     """
     Start a local Qall daemon in a docker container.
@@ -84,19 +85,21 @@ def start_daemon(
     if daemon_mgr.service_info():
         raise RuntimeError(f"Daemon already running locally on port {port}")
 
-    with DockerDaemonManager(
-        local=True,
-        grpc_port=port,
-        host_block_registry_path=str(block_path),
-        host_artifact_registry_path=str(artifact_path),
-    ) as daemon_mgr:
+    daemon_mgr.start()
 
-        logs = daemon_mgr.logs()
+    if not detach:
+        with DockerDaemonManager(
+            local=True,
+            grpc_port=port,
+            host_block_registry_path=str(block_path),
+            host_artifact_registry_path=str(artifact_path),
+        ) as daemon_mgr:
+            logs = daemon_mgr.logs()
 
-        logger.info(f"Daemon started on port {port}")
+            logger.info(f"Daemon started on port {port}")
 
-        while logs:
-            logger.info(logs.next())
+            while logs:
+                logger.info(logs.next())
 
 
 def apply_resource_assignments(

@@ -26,6 +26,7 @@ from qall.provider.qc import (
     requirements=["cirq", "qsimcirq", "ply"],
     input_format="cirq",
     output_format="cirq",
+    provider="local",
 )
 class CirqLocalQuantumWorker(QuantumWorker):
     """

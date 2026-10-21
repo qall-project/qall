@@ -46,6 +46,12 @@ def daemon_start(
         "-a",
         help="Path to artifact registry directory",
     ),
+    detach: bool = typer.Option(
+        False,
+        "--detach",
+        "-d",
+        help="If True, run in detached mode",
+    ),
 ):
     """
     Start a local Qall daemon in a Docker container.
@@ -55,6 +61,7 @@ def daemon_start(
             port=port,
             block_registry_path=block_registry,
             artifact_registry_path=artifact_registry,
+            detach=detach,
         )
     except KeyboardInterrupt:
         typer.echo("Daemon stopped.")
