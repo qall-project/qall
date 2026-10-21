@@ -97,6 +97,24 @@ def run(
     profile: Optional[str] = typer.Option(
         None, "--profile", "-p", help="Target configuration profile name."
     ),
+    allowed_qpus: Optional[list[str]] = typer.Option(
+        None,
+        "--allowed-qpu",
+        "-q",
+        help="Overide allowed QPU from provided profile",
+    ),
+    allowed_cpus: Optional[list[str]] = typer.Option(
+        None,
+        "--allowed-cpu",
+        "-c",
+        help="Overide allowed CPU from provided profile",
+    ),
+    allowed_gpus: Optional[list[str]] = typer.Option(
+        None,
+        "--allowed-gpu",
+        "-g",
+        help="Overide allowed GPU from provided profile",
+    ),
 ):
     """Compile, delta-push, provision hardware and run an arbitrary hybrid workflow script instantly."""
     typer.echo(f"Initiating compilation run for: {entrypoint}")
@@ -107,6 +125,9 @@ def run(
         profile_name=profile,
         local_only=local,
         input_artifact_hash=input_artifact_hash,
+        allowed_cpu=allowed_cpus,
+        allowed_gpu=allowed_gpus,
+        allowed_qpu=allowed_qpus,
     )
     typer.echo(f"Workflow run ID: {run_obj.id}")
 

@@ -183,8 +183,8 @@ class BlockRegistry:
             reg_node = TaskNode(
                 payload_hash=task_to_p_hash[task_name],
                 children=children_mapping,
-                resources=_get_task_spec_resource(spec=task).to_dict(),
-                metadata=_get_task_spec_metadata(spec=task).to_dict(),
+                resources=_get_task_spec_resource(spec=task),
+                metadata=_get_task_spec_metadata(spec=task),
             )
 
             node_block = reg_node.to_block(self.__codec)

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from .local import get_local_resource
+from .local import get_local_resource, get_local_qpu_resources
 
 from qall.object import (
     Resource,
@@ -48,13 +48,17 @@ def resolve_workflow_resources(
     """
     assignments: Dict[str, TaskResourceAssignment] = {}
 
+    is_local_provider = profile.provider == "local"
+
+    qpu_pool = get_local_qpu_resources() if is_local_provider else available_resources
+
     for node in task_dag.nodes:
         task_hash = node.hash
 
         q_constraints = node.resources.quantum
         c_constraints = node.resources.classical
 
-        qpu_res = resolve_task_qpu(q_constraints, profile, available_resources)
+        qpu_res = resolve_task_qpu(q_constraints, profile, qpu_pool)
 
         if not replace_to_local:
             cpu_res = resolve_task_cpu(c_constraints, profile, available_resources)
@@ -63,11 +67,7 @@ def resolve_workflow_resources(
             cpu_res = get_local_resource()
             gpu_res = None
 
-        provider = profile.provider
-
-        if not provider or provider == "*":
-            active = qpu_res or cpu_res or gpu_res
-            provider = active.provider if active else "local"
+        provider = "local" if is_local_provider else profile.provider
 
         merged_resource = _merge_task_resource(
             qpu_res=qpu_res,
