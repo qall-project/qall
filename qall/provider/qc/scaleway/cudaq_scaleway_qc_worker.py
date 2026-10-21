@@ -14,6 +14,10 @@
 from typing import Any
 from uuid import uuid4
 
+import cudaq
+
+from scaleway_qaas_client.v1alpha1 import QaaSClient
+
 from qall.provider.qc import (
     QuantumWorker,
     QuantumContext,
@@ -52,9 +56,6 @@ class CudaQScalewayQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> QuantumContext:
-        import cudaq
-        from scaleway_qaas_client.v1alpha1 import QaaSClient
-
         deduplication_id = get_session_dedup_from_context(context)
 
         if not deduplication_id:
@@ -108,8 +109,6 @@ class CudaQScalewayQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> Any:
-        import cudaq
-
         result = cudaq.sample(kernel=program, shots_count=shots)
 
         return result

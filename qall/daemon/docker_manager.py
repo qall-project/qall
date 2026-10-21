@@ -49,7 +49,6 @@ class DockerDaemonManager(BaseDaemonManager):
         local: bool = True,
         host_block_registry_path: str | Path = DEFAULT_BLOCK_REGISTRY_PATH,
         host_artifact_registry_path: str | Path = DEFAULT_ARTIFACT_REGISTRY_PATH,
-        worker_provider: Optional[str] = None,
     ):
         self.__image = _DEFAULT_IMAGE
         self.__container_name = "qalld"

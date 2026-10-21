@@ -14,6 +14,8 @@
 from typing import Any
 from uuid import uuid4
 
+from cirq_scaleway import ScalewayQuantumService
+
 from qall.provider.qc import (
     QuantumWorker,
     QuantumContext,
@@ -52,8 +54,6 @@ class CirqScalewayQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> QuantumContext:
-        from cirq_scaleway import ScalewayQuantumService
-
         service = ScalewayQuantumService(
             project_id=kwargs.get("project_id"),
             secret_key=kwargs.get("secret_key"),
