@@ -14,6 +14,9 @@
 from typing import Any
 from uuid import uuid4
 
+from pulser import QPUBackend
+from pulser_scaleway import ScalewayProvider
+
 from qall.provider.qc import (
     QuantumWorker,
     QuantumContext,
@@ -53,8 +56,6 @@ class PulserScalewayQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> QuantumContext:
-        from pulser_scaleway import ScalewayProvider
-
         self.__is_emu = resource.startswith("EMU_")
 
         deduplication_id = get_session_dedup_from_context(context)
@@ -84,8 +85,8 @@ class PulserScalewayQuantumWorker(QuantumWorker):
             assert platforms
             assert len(platforms) == 1
 
-            max_duration = (kwargs.get("max_duration", "59m"),)
-            max_idle_duration = (kwargs.get("max_duration", "59m"),)
+            max_duration = kwargs.get("max_duration", "59m")
+            max_idle_duration = kwargs.get("max_duration", "59m")
 
             active_session = client.create_session(
                 platform_id=platforms[0].id,
@@ -111,8 +112,6 @@ class PulserScalewayQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> Any:
-        from pulser import QPUBackend
-
         backend = QPUBackend(sequence=program, connection=self.__connection)
 
         if self.__is_emu:
