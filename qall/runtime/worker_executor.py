@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import builtins
+
 from pathlib import Path
 
 from qio.core.program import Program
@@ -22,6 +24,7 @@ from qall.object import (
 )
 from qall.registry import BlockRegistry
 from qall.provider.worker import QuantumWorker, QuantumWorkerApi
+from qall.provider.worker.context import QuantumCapabilities, QuantumContext
 
 
 class WorkerRuntimeExecutor:
@@ -78,7 +81,12 @@ class WorkerRuntimeExecutor:
         """
         Reconstruct the QuantumWorker contained in the WorkerPayload.
         """
-        namespace = {}
+        namespace = {
+            "__builtins__": builtins,
+            "QuantumWorker": QuantumWorker,
+            "QuantumContext": QuantumContext,
+            "QuantumCapabilities": QuantumCapabilities,
+        }
 
         try:
             source_code = _get_source(payload)

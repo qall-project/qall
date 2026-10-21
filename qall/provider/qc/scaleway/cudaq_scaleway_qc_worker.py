@@ -36,6 +36,7 @@ from qall.provider.qc.scaleway.utils import (
     requirements=["cudaq", "scaleway-qaas-client"],
     input_format="cudaq",
     output_format="cudaq",
+    provider="scaleway",
 )
 class CudaQScalewayQuantumWorker(QuantumWorker):
     """
