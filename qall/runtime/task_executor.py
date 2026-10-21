@@ -315,8 +315,6 @@ def _child_task_is_async(
 
 
 def _get_source(payload: TaskPayload) -> str:
-    print("payload", payload)
-
     if payload.code_format == "raw":
         return payload.code
     elif payload.code_format == "qio.program":

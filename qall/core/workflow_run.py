@@ -20,7 +20,7 @@ import uuid
 from typing import Optional
 from pathlib import Path
 
-from qall.object import WorkflowRun, WorkflowRunStatus
+from qall.object import WorkflowRun, WorkflowRunStatus, apply_resource_overrides
 from qall.specification.workflow import WorkflowSpec
 from qall.registry import BlockRegistry, RegistryCredentials
 from qall.provider import (
@@ -45,7 +45,6 @@ from qall.core.dataloader import (
 from qall.core.config import init_config
 from qall.config import (
     get_local_configuration,
-    create_default_configuration,
     config_exists,
 )
 from qall.resolver import resolve_workflow_resources
@@ -68,9 +67,9 @@ def create_workflow_run(
     provider_credentials: Optional[ProviderCredentials] = None,
     local_only: bool = False,
     auto_start_daemon: bool = False,
-    allowed_qpu: Optional[list[str]] = None,
-    allowed_cpu: Optional[list[str]] = None,
-    allowed_gpu: Optional[list[str]] = None,
+    allowed_qpus: Optional[list[str]] = None,
+    allowed_cpus: Optional[list[str]] = None,
+    allowed_gpus: Optional[list[str]] = None,
     **kwargs,
 ) -> WorkflowRun:
     """
@@ -98,7 +97,11 @@ def create_workflow_run(
         ) from e
 
     provider_credentials = provider_credentials or get_provider_login_credentials()
-    active_provider = provider_credentials.provider if provider_credentials else "local"
+
+    if not provider_credentials:
+        active_provider = "local"
+    else:
+        active_provider = provider_credentials.provider
 
     if not local_only and not provider_credentials:
         raise RuntimeError(
@@ -123,10 +126,18 @@ def create_workflow_run(
             f"in configuration. Available: {list(local_config.profiles.keys())}"
         )
 
+    profile = apply_resource_overrides(
+        profile=profile,
+        allowed_qpu=allowed_qpus,
+        allowed_cpu=allowed_cpus,
+        allowed_gpu=allowed_gpus,
+    )
+
     if profile.provider == "local":
         active_provider = "local"
 
     available_resources = []
+
     if active_provider != "local" and provider_credentials:
         provider_client = provider_client or get_provider_client_by_name(
             active_provider
@@ -146,9 +157,9 @@ def create_workflow_run(
 
     worker_definitions = _get_provider_workers(active_provider)
 
-    # 5. Branche d'exécution Locale (qall-daemon Docker)
     if local_only:
         daemon_is_already_running = get_daemon_status()
+
         if not daemon_is_already_running:
             if not auto_start_daemon:
                 raise RuntimeError(
@@ -157,7 +168,6 @@ def create_workflow_run(
             logger.info("Daemon not running. Starting local daemon...")
             start_daemon()
 
-        # Enregistrement des workers et des assignations en mémoire dans le démon
         if worker_definitions or resource_assignments:
             apply_resource_assignments(
                 worker_definitions=worker_definitions,
@@ -173,6 +183,15 @@ def create_workflow_run(
                 input_artifact_hash=input_artifact_hash,
             )
             stop = datetime.datetime.now()
+
+            logger.info(
+                "Workflow done. "
+                + (
+                    f"Generated artifacts:\n\t{str("\n\t".join([str(a) for a in artifacts]))}"
+                    if artifacts
+                    else "No artifacts generated."
+                )
+            )
 
             workflow_run = WorkflowRun(
                 id=str(uuid.uuid4()),
@@ -197,7 +216,6 @@ def create_workflow_run(
             if not daemon_is_already_running and auto_start_daemon:
                 stop_daemon()
 
-    # 6. Branche d'exécution Distante (Provider Cloud)
     else:
         workflow = create_workflow(
             workflow_name=workflow_name,
