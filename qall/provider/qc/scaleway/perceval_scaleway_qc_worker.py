@@ -11,3 +11,104 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from typing import Any
+from uuid import uuid4
+
+from qall.provider.qc import (
+    QuantumWorker,
+    QuantumContext,
+    quantum_worker,
+)
+
+from qall.provider.qc.scaleway.utils import (
+    list_session_ids_from_context,
+    add_session_id_in_context,
+    set_session_dedup_in_context,
+    get_session_dedup_from_context,
+)
+
+
+@quantum_worker(
+    requirements=["qiskit-scaleway", "qiskit-qasm3-import"],
+    input_format="qiskit",
+    output_format="qiskit",
+)
+class PercevalScalewayQuantumWorker(QuantumWorker):
+    """
+    Quantum worker executing Perceval programs through Scaleway QaaS.
+    This class contains provider-specific logic only.
+    """
+
+    def __init__(
+        self,
+    ) -> None:
+        super().__init__()
+
+        self.__backend = None
+
+    def create_context(
+        self,
+        resource: str,
+        context: QuantumContext,
+        **kwargs,
+    ) -> QuantumContext:
+        from qiskit_scaleway import ScalewayProvider
+
+        provider = ScalewayProvider(
+            project_id=kwargs.get("project_id"),
+            secret_key=kwargs.get("secret_key"),
+            url=kwargs.get("url"),
+        )
+
+        self.__backend = provider.get_backend(resource)
+
+        deduplication_id = get_session_dedup_from_context(context)
+
+        if not deduplication_id:
+            deduplication_id = uuid4()
+            set_session_dedup_in_context(context, deduplication_id)
+
+        session_id = self.__backend.start_session(
+            name=f"{resource.lower()}-qall-session",
+            deduplication_id=deduplication_id,
+        )
+
+        add_session_id_in_context(context, session_id)
+
+        return context
+
+    def get_context_status(self, context: str):
+        if self.__backend is None:
+            raise RuntimeError("No session has been created yet.")
+
+        return True
+
+    def run(
+        self,
+        program: Any,
+        shots: int,
+        context: QuantumContext,
+        **kwargs,
+    ) -> Any:
+        session_ids = list_session_ids_from_context(context)
+
+        if not session_ids:
+            raise RuntimeError("no assigned session")
+
+        result = self.__backend.run(
+            program, shots=shots, session_id=session_ids[0]
+        ).result()
+
+        return result
+
+    def close_context(
+        self,
+        context: QuantumContext,
+        **kwargs,
+    ) -> None:
+        session_ids = list_session_ids_from_context(context)
+
+        for session_id in session_ids:
+            self.__backend.stop_session(session_id)
+
+        return context
