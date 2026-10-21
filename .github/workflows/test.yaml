@@ -1,0 +1,26 @@
+name: Tests
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install dependencies (dev + test)
+        run: uv sync --all-groups
+
+      - name: Pull qall-daemon image
+        run: docker pull rg.fr-par.scw.cloud/qall-project/qall-daemon:latest
+
+      - name: Pre-pull task runtime base image
+        run: docker pull python:3.13
+
+      - name: Run tests
+        env:
+          QALL_DEV_DIR: ${{ github.workspace }}
+        run: uv run pytest

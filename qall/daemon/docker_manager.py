@@ -33,8 +33,7 @@ from .base_manager import BaseDaemonManager
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_IMAGE = "scw/qall-daemon:latest"
-# _DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project/qall-daemon:latest"
+_DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project/qall-daemon:latest"
 
 
 class DockerDaemonManager(BaseDaemonManager):
@@ -49,7 +48,6 @@ class DockerDaemonManager(BaseDaemonManager):
         local: bool = True,
         host_block_registry_path: str | Path = DEFAULT_BLOCK_REGISTRY_PATH,
         host_artifact_registry_path: str | Path = DEFAULT_ARTIFACT_REGISTRY_PATH,
-        worker_provider: Optional[str] = None,
     ):
         self.__image = _DEFAULT_IMAGE
         self.__container_name = "qalld"
@@ -79,11 +77,6 @@ class DockerDaemonManager(BaseDaemonManager):
     def client(self) -> GrpcDaemonClient:
         if not self.__client:
             addr = "localhost"
-
-            # Uncomment to allow connection from remote and not local-only (needs the local attribute implementation)
-            # if not self.local:
-            #     addr = "0.0.0.0"
-
             self.__client = GrpcDaemonClient(url=f"{addr}:{self.__grpc_port}")
         return self.__client
 
@@ -175,9 +168,6 @@ class DockerDaemonManager(BaseDaemonManager):
 
         try:
             command = [f"--host-task-dir={self.__host_block_registry_path}"]
-
-            # if self.__worker_provider:
-            #     command.append(f"--worker-provider={self.__worker_provider}")
 
             if self.__local:
                 command.append("--local")
