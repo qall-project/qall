@@ -52,7 +52,7 @@ class TaskSpec:
     entrypoint: bool = field(default=False)
     pure: bool = field(default=True)
     retry: Optional[int] = None
-    image: str = field(default="python:3.12")
+    image: str = field(default="python:3.13")
     requirements: list[str] = field(default_factory=list)
     imports: dict[str, list[str]] = field(default_factory=dict)
     local_dependencies: dict[str, str] = field(default_factory=dict)
@@ -434,6 +434,26 @@ def _is_local_import(module_name: str, level: int) -> bool:
     return True
 
 
+def _path_is_external(p: Path) -> bool:
+    parts = set(p.parts)
+    if "site-packages" in parts or "dist-packages" in parts:
+        return True
+
+    user_site = Path(site.getusersitepackages()).resolve()
+
+    if p.is_relative_to(user_site):
+        return True
+
+    for std_path in (_PURELIB_PATH, _PLATLIB_PATH, _STDLIB_PATH):
+        try:
+            if p.is_relative_to(std_path):
+                return True
+        except (ValueError, RuntimeError):
+            continue
+
+    return False
+
+
 def _module_is_local(module_obj: types.ModuleType) -> bool:
     """
     Path-based locality check for an already-loaded module object. More reliable
@@ -442,25 +462,15 @@ def _module_is_local(module_obj: types.ModuleType) -> bool:
     """
     file = getattr(module_obj, "__file__", None)
     if file:
-        p = Path(file).resolve()
-        return not (
-            p.is_relative_to(_PURELIB_PATH)
-            or p.is_relative_to(_PLATLIB_PATH)
-            or p.is_relative_to(_STDLIB_PATH)
-        )
+        return not _path_is_external(Path(file).resolve())
 
     search_paths = getattr(module_obj, "__path__", None)
+
     if search_paths:
         for sp in search_paths:
-            p = Path(sp).resolve()
-            if (
-                p.is_relative_to(_PURELIB_PATH)
-                or p.is_relative_to(_PLATLIB_PATH)
-                or p.is_relative_to(_STDLIB_PATH)
-            ):
+            if _path_is_external(Path(sp).resolve()):
                 return False
         return True
-
     return False
 
 
@@ -475,19 +485,13 @@ def _object_is_local(obj: Any) -> bool:
         source_file = None
 
     if source_file:
-        p = Path(source_file).resolve()
-        return not (
-            p.is_relative_to(_PURELIB_PATH)
-            or p.is_relative_to(_PLATLIB_PATH)
-            or p.is_relative_to(_STDLIB_PATH)
-        )
+        return not _path_is_external(Path(source_file).resolve())
 
     module_name = getattr(obj, "__module__", None)
     if module_name:
         module_obj = sys.modules.get(module_name)
         if module_obj is not None:
             return _module_is_local(module_obj)
-
     return not module_name or module_name.split(".")[0] not in sys.builtin_module_names
 
 

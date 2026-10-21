@@ -19,12 +19,12 @@ cirq-scaleway-worker:
 cirq_local_qc_worker:
   provider: local
   version: latest
-  hash: zdpuAu5wZRLMPj8SMBQG5h85zmG6ypYKN8KD7Gg8UThTSCwwC
+  hash: zdpuAwCpQ31ZbiFDTZoRchp2FJEFPHVwhdsVg6BFu6fDCMr7K
   input_formats:
   - cirq.Circuit
 qiskit_local_qc_worker:
   provider: local
   version: latest
-  hash: zdpuAkXnJzuDVo3DfVxPZ7GnHpbkZXpn9YP7GTFFrqGrzhDYz
+  hash: zdpuAo9Fws9cvpV5fEWCzYuU7U2Gn37GzrNEvczwwjVuF23bB
   input_formats:
   - qiskit.QuantumCircuit

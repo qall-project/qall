@@ -24,7 +24,6 @@ from qall.provider.qc import (
 )
 
 from qall.provider.qc.scaleway.utils import (
-    list_session_ids_from_context,
     add_session_id_in_context,
     set_session_dedup_in_context,
     get_session_dedup_from_context,

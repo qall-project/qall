@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import Any
+
 from qio.core import QuantumProgram, QuantumProgramResult
 
 CIRCUIT_TYPE_QISKIT = "qiskit.QuantumCircuit"
