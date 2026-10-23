@@ -243,6 +243,16 @@ class DockerDaemonManager(BaseDaemonManager):
 
         with self.client as client:
             for task_hash, assignment in resource_assigments.items():
+                if not task_hash:
+                    raise RuntimeError(
+                        "resource assignment must have a target task hash"
+                    )
+
+                if not assignment.provider:
+                    raise RuntimeError(
+                        "resource assignment must have a target provider"
+                    )
+
                 resource_name = (
                     assignment.qpu_name
                     or assignment.gpu_name

@@ -31,7 +31,6 @@ from qall.object import (
 
 def get_local_resource() -> Resource:
     cores = os.cpu_count() or 1
-    processor_name = platform.processor() or "local-cpu"
 
     return Resource(
         id="localhost",
@@ -39,7 +38,7 @@ def get_local_resource() -> Resource:
         provider="local",
         availability=ResourceAvailability.available,
         cpu=CpuSpec(
-            model_name=processor_name,
+            model_name="local-cpu",
             available_cores=cores,
             available_memory_gb=16,
         ),
