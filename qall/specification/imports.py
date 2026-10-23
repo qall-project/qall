@@ -97,12 +97,23 @@ def discover_external_imports(
     candidates: set[str] = set()
     raw_imports: set[str] = set()
 
+    # A virtualenv may be nested inside the project directory. Its files are installed packages, not
+    # project code, so skip venv roots (any name, detected via pyvenv.cfg) and
+    # site-packages / dist-packages directories entirely; otherwise this walk
+    # would scan thousands of third-party files and pollute the discovered set.
     for dirpath, dirnames, filenames in os.walk(project_root, followlinks=False):
-        dirnames[:] = [
-            d
-            for d in dirnames
-            if not any(fnmatch.fnmatch(d, pattern) for pattern in ignore_patterns)
-        ]
+        retained_dirs = []
+        for d in dirnames:
+            if any(fnmatch.fnmatch(d, pattern) for pattern in ignore_patterns):
+                continue
+            full = os.path.join(dirpath, d)
+            if d in ("site-packages", "dist-packages"):
+                continue
+            if os.path.isfile(os.path.join(full, "pyvenv.cfg")):
+                continue
+            retained_dirs.append(d)
+        dirnames[:] = retained_dirs
+
         candidates.add(os.path.basename(dirpath))
 
         for filename in filenames:

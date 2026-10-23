@@ -17,6 +17,7 @@ import inspect
 import json
 import logging
 import os
+import site
 import sys
 from collections import deque
 from pathlib import Path
@@ -31,9 +32,50 @@ from .imports import (
     lenient_imports,
     map_imports_to_packages,
 )
-from .task import DECORATORS, TaskSpec
+from .task import DECORATORS, TaskSpec, _PLATLIB_PATH, _PURELIB_PATH, _STDLIB_PATH
 
 logger = logging.getLogger(__name__)
+
+# Directories that contain installed third-party packages. Used by
+# _is_stdlib_or_site_packages to tell "local project code" apart from pip
+# packages, even when a virtualenv is nested inside the project directory
+# (e.g. macOS layouts like `<project>/qall-quark/lib/python3.14/site-packages/`).
+_SITE_PACKAGES_DIRS = set()
+try:
+    for _p in site.getsitepackages():
+        _SITE_PACKAGES_DIRS.add(Path(_p).resolve())
+except Exception:  # pragma: no cover - depends on the host Python
+    pass
+try:
+    _SITE_PACKAGES_DIRS.add(Path(site.getusersitepackages()).resolve())
+except Exception:  # pragma: no cover - depends on the host Python
+    pass
+
+
+def _is_stdlib_or_site_packages(path: str | Path) -> bool:
+    """True when ``path`` belongs to the Python stdlib or to an installed
+    third-party package (site-packages / dist-packages).
+
+    A module must never be treated as a "local project file" just because the
+    virtualenv that provides it happens to live under the workflow's directory:
+    that would feed third-party sources (e.g. ``docker``) to the pyan3 call
+    graph and crash compilation on layouts with a nested venv.
+    """
+    p = Path(path).resolve()
+
+    # Robust string check: catches site-packages inside nested venvs and also
+    # plain "dist-packages" names on some distributions.
+    if "site-packages" in str(p) or "dist-packages" in str(p):
+        return True
+
+    bases = (_STDLIB_PATH, _PURELIB_PATH, _PLATLIB_PATH) + tuple(_SITE_PACKAGES_DIRS)
+    for base in bases:
+        try:
+            if p.is_relative_to(base):
+                return True
+        except (ValueError, OSError):
+            continue
+    return False
 
 
 def _load_pyan():
@@ -313,17 +355,23 @@ def _compile_tasks(filepath: Path):
 
 
 def _module_lives_under(module, directory: Path) -> bool:
-    """True if a module physically lives inside `directory` (file or namespace)."""
+    """True if a module physically lives inside `directory` (file or namespace).
+
+    Stdlib and installed third-party packages are excluded: a nested virtualenv
+    under ``directory`` must never be treated as local project code.
+    """
     file = getattr(module, "__file__", None)
     if file:
         try:
-            return Path(file).resolve().is_relative_to(directory)
+            p = Path(file).resolve()
+            return p.is_relative_to(directory) and not _is_stdlib_or_site_packages(p)
         except (ValueError, OSError):
             return False
 
     for path in getattr(module, "__path__", ()) or ():
         try:
-            if Path(path).resolve().is_relative_to(directory):
+            p = Path(path).resolve()
+            if p.is_relative_to(directory) and not _is_stdlib_or_site_packages(p):
                 return True
         except (ValueError, OSError):
             continue
@@ -366,19 +414,28 @@ def generate_call_graph(filepath: Path, format: Literal["text", "json", "rxgraph
                 involved_files.add(src_file)
 
     # Intermediate local files loaded during compilation
-    # We inspect sys.modules and include any file that lives inside the workflow's parent directory.
+    # We inspect sys.modules and include any file that lives inside the workflow's
+    # parent directory. Stdlib and installed third-party packages are excluded
+    # even when a virtualenv is nested under the project directory (e.g. macOS
+    # layouts like `<project>/qall-quark/lib/python3.14/site-packages/...`).
     project_dir = filepath.parent.resolve()
     for mod in list(sys.modules.values()):
         if hasattr(mod, "__file__") and mod.__file__:
             mod_path = Path(mod.__file__).resolve()
 
-            # Check if the module is part of the local project (ignore stdlib and pip packages)
+            # Only project-local siblings are relevant (ignore stdlib and pip).
             try:
-                if mod_path.is_relative_to(project_dir):
+                if (
+                    mod_path.is_relative_to(project_dir)
+                    and not _is_stdlib_or_site_packages(mod_path)
+                ):
                     involved_files.add(str(mod_path))
             except AttributeError:
                 # Fallback for Python versions older than 3.9
-                if str(project_dir) in str(mod_path):
+                if (
+                    str(project_dir) in str(mod_path)
+                    and not _is_stdlib_or_site_packages(mod_path)
+                ):
                     involved_files.add(str(mod_path))
 
     # Filter out compiled binaries (.so, .pyd, .dylib, .pyc)
