@@ -24,19 +24,27 @@ def get_session_dedup_from_context(context: QuantumContext):
 def set_session_dedup_in_context(
     context: QuantumContext, deduplication_id: str
 ) -> QuantumContext:
+    if not deduplication_id:
+        return context
+
     if not context.metadata:
         context.metadata = {}
 
-    context.metadata["deduplication_id"] = deduplication_id
+    context.metadata["deduplication_id"] = str(deduplication_id)
 
     return context
 
 
 def add_session_id_in_context(context: QuantumContext, id: str) -> QuantumContext:
+    if not id:
+        return context
+
     if not context.metadata:
         context.metadata = {}
 
     sessions = context.metadata.get("sessions", None)
+
+    id = str(id)
 
     if not sessions:
         sessions = [id]

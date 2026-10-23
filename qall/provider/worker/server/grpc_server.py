@@ -69,9 +69,11 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
         grpc_context: grpc.ServicerContext,
     ) -> pb2.QuantumContext:
 
+        print("received create context")
+
         try:
             creds = get_credentials_from_env()
-            resource = creds.pop("QALL_PROVIDER_TARGET_RESOURCE", None)
+            resource = creds.pop("target_resource", None)
 
             context = QuantumContext(
                 configuration=dict(request.configuration),
@@ -85,6 +87,8 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
             return context_to_proto(context)
 
         except Exception as exc:
+            print("exception occured in worker.create_context", exc)
+
             grpc_context.abort(
                 grpc.StatusCode.INTERNAL,
                 str(exc),
@@ -95,6 +99,8 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
         request: pb2.RunRequest,
         grpc_context: grpc.ServicerContext,
     ) -> pb2.RunResponse:
+
+        print("received run")
 
         try:
             context = context_from_proto(request.context)
@@ -136,6 +142,8 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
         grpc_context: grpc.ServicerContext,
     ) -> pb2.QuantumContext:
 
+        print("received close context")
+
         try:
             context = context_from_proto(request.context)
 
@@ -144,6 +152,7 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
             return context_to_proto(context)
 
         except Exception as exc:
+            print("exception occured in worker.close_context", exc)
             grpc_context.abort(
                 grpc.StatusCode.INTERNAL,
                 str(exc),

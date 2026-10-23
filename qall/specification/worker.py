@@ -69,7 +69,6 @@ class WorkerSpec:
     output_format: str = field(default="")
     provider: str = field(default="")
     runtime_qall_version: str = field(default="")
-    # resources: list[str] = field(default_factory=list)
 
     # Captured class information
     name: Optional[str] = None
@@ -162,15 +161,28 @@ class WorkerSpec:
         if worker_cls is None:
             raise ValueError(f"No QuantumWorker subclass found in {filepath}.")
 
-        module_name = f"__worker_module_{filepath.stem}__"
+        parent_dir = filepath.parent.resolve()
+        pkg_name = f"__worker_pkg_{parent_dir.name}__"
+        module_name = f"{pkg_name}.{filepath.stem}"
+
+        # Simulated parent package to autorize relative imports
+        pkg_mod = types.ModuleType(pkg_name)
+        pkg_mod.__path__ = [str(parent_dir)]
+        pkg_mod.__file__ = str(parent_dir / "__init__.py")
+        sys.modules[pkg_name] = pkg_mod
+
+        # Create child module attached to package
         fake_module = types.ModuleType(module_name)
         fake_module.__file__ = str(filepath.resolve())
+        fake_module.__package__ = pkg_name
 
         module_globals = fake_module.__dict__
         module_globals["__file__"] = str(filepath.resolve())
         module_globals["__name__"] = module_name
+        module_globals["__package__"] = pkg_name
 
         sys.modules[module_name] = fake_module
+        sys.path.insert(0, str(parent_dir))
 
         # Statically discover the *project's* third-party imports so missing
         # packages do not crash compilation: they are stubbed during the exec
@@ -212,7 +224,11 @@ class WorkerSpec:
             self.name = name or self.name or filepath.stem
             self.requirements = sorted(set(self.requirements))
         finally:
+            if str(parent_dir) in sys.path:
+                sys.path.remove(str(parent_dir))
+
             sys.modules.pop(module_name, None)
+            sys.modules.pop(pkg_name, None)
 
     def _compile_from_class(self, cls: type) -> None:
         if not issubclass(cls, QuantumWorker):

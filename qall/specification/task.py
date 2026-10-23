@@ -355,8 +355,13 @@ _PLATLIB_PATH = Path(sysconfig.get_path("platlib")).resolve()
 
 
 def _is_tl_import(module_name: str) -> bool:
-    """True if the import belongs to the qall task library itself."""
-    return bool(module_name) and module_name.split(".")[0] == __name__.split(".")[0]
+    """
+    True if the import belongs to the qall task decorator/SDK interface itself.
+    Never filter out qall.provider, qall.object, or qall.interop utilities.
+    """
+    if not module_name:
+        return False
+    return module_name in ("qall", "qall.sdk") or module_name.startswith("qall.sdk.")
 
 
 def _is_local_import(module_name: str, level: int) -> bool:
