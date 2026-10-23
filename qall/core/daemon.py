@@ -121,13 +121,14 @@ def apply_resource_assignments(
         return
 
 
-def stop_daemon():
+def stop_daemon(port: int = 50053):
     """
     Stops an already running local Qall daemon.
     """
 
     try:
-        daemon_mgr = DockerDaemonManager(local=True)
+        daemon_mgr = DockerDaemonManager(grpc_port=port, local=True)
+
         if not daemon_mgr.attach():
             logger.warning("No running daemon to stop.")
             return
