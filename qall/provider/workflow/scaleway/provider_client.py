@@ -216,7 +216,7 @@ profiles:
             currency="EUR",
         )
 
-        description = self._get_attr(p, "description", "")
+        description = p.description
 
         return Resource(
             name=name,
@@ -228,12 +228,6 @@ profiles:
             availability=availability,
             description=description,
         )
-
-    @staticmethod
-    def _get_attr(obj: Any, key: str, default: Any = None) -> Any:
-        if isinstance(obj, dict):
-            return obj.get(key, default)
-        return getattr(obj, key, default)
 
     @staticmethod
     def _resolve_qpu_type(type_str: str) -> QpuType:
