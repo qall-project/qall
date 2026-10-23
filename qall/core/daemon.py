@@ -24,6 +24,7 @@ from qall.core.dataloader import (
     provision_dataloader_file_for_task,
     cleanup_dataloader_files,
 )
+from qall.provider import get_provider_login_credentials, ProviderCredentials
 from qall.config.paths import (
     DEFAULT_BLOCK_REGISTRY_PATH,
     DEFAULT_ARTIFACT_REGISTRY_PATH,
@@ -215,6 +216,7 @@ def run_task(
     daemon_address: Optional[str] = None,
     block_registry: Optional[str] = None,
     artifact_registry: Optional[str] = None,
+    provider_credentials: Optional[ProviderCredentials] = None,
     timeout: int = 300,
 ) -> list[Artifact]:
     """
@@ -279,9 +281,14 @@ def run_task(
             info = client.get_service_info()
             logger.info(f"Connected to daemon: {info.name} {info.version}")
 
+            provider_credentials = (
+                provider_credentials or get_provider_login_credentials()
+            )
+
             task_run = client.create_task_run(
                 task_hash=task_hash,
                 artifact_hash=input_artifact_hash,
+                provider_credentials=provider_credentials.credentials,
             )
 
             logger.info(f"Task run created: {task_run.id}")

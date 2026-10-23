@@ -30,6 +30,7 @@ from qall.object import (
     QpuTechnology,
     QpuModality,
     QpuTopology,
+    QpuHosting,
     ResourceAvailability,
 )
 
@@ -196,6 +197,7 @@ profiles:
             available_qubits=max_qubits,
             max_shots=max_shots,
             topology=QpuTopology.unknown,
+            hosting=QpuHosting.remote,
             max_ops=9999,
             modality=modality,
             technology=technology,
