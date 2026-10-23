@@ -111,7 +111,7 @@ def resolve_task_quantum(
             constraints.qpu_provider is not None,
             constraints.qpu_technology is not None,
             constraints.qpu_topology is not None,
-            bool(constraints.qpu_gateset),
+            constraints.qpu_gateset is not None and len(constraints.qpu_gateset) > 0,
             constraints.qpu_mcm_support,
             constraints.qpu_reset_support,
         ]
@@ -297,62 +297,63 @@ def _apply_matching_strategy(
 
 
 def _merge_task_resource(
-    qpu_res: Optional[Resource] = None,
+    quantum_res: Optional[Resource] = None,
     classical_res: Optional[Resource] = None,
     provider: str = "local",
 ) -> Resource:
-    if qpu_res and qpu_res.qpu and qpu_res.qpu.hosting == QpuHosting.on_premise:
+    if (
+        quantum_res
+        and quantum_res.qpu
+        and quantum_res.qpu.hosting == QpuHosting.on_premise
+    ):
         return Resource(
-            id=qpu_res.id,
-            name=qpu_res.name,
-            provider=provider or qpu_res.provider,
-            availability=qpu_res.availability,
-            qpu=qpu_res.qpu,
-            cpu=qpu_res.cpu,
-            gpu=qpu_res.gpu,
-            price=qpu_res.price if qpu_res.price else ResourcePrice(),
-            metadata=dict(qpu_res.metadata) if qpu_res.metadata else {},
-            description=qpu_res.description,
-            region=qpu_res.region,
+            id=quantum_res.id,
+            name=quantum_res.name,
+            provider=provider or quantum_res.provider,
+            availability=quantum_res.availability,
+            qpu=quantum_res.qpu,
+            cpu=quantum_res.cpu,
+            gpu=quantum_res.gpu,
+            price=quantum_res.price if quantum_res.price else ResourcePrice(),
+            metadata=dict(quantum_res.metadata) if quantum_res.metadata else {},
+            description=quantum_res.description,
+            region=quantum_res.region,
         )
 
-    primary = qpu_res or classical_res
+    primary = quantum_res or classical_res
     if not primary:
-        return Resource(
-            id="default-resource",
-            name="default-resource",
-            provider=provider or "local",
-            availability=ResourceAvailability.available,
-            qpu=None,
-            cpu=None,
-            gpu=None,
-            price=ResourcePrice(),
-        )
+        raise RuntimeError("quantum resource or classical resource must be not None")
 
     resource_name = primary.name
     resource_id = primary.id
 
-    qpu_spec = qpu_res.qpu if qpu_res else None
+    qpu_spec = quantum_res.qpu if quantum_res else None
 
     cpu_spec = (
-        classical_res.cpu if classical_res else (qpu_res.cpu if qpu_res else None)
+        classical_res.cpu
+        if classical_res
+        else (quantum_res.cpu if quantum_res else None)
     )
     gpu_spec = (
-        classical_res.gpu if classical_res else (qpu_res.gpu if qpu_res else None)
+        classical_res.gpu
+        if classical_res
+        else (quantum_res.gpu if quantum_res else None)
     )
 
     price_per_shot = (
-        qpu_res.price.price_per_shot if (qpu_res and qpu_res.price) else 0.0
+        quantum_res.price.price_per_shot if (quantum_res and quantum_res.price) else 0.0
     )
     price_per_circuit = (
-        qpu_res.price.price_per_circuit if (qpu_res and qpu_res.price) else 0.0
+        quantum_res.price.price_per_circuit
+        if (quantum_res and quantum_res.price)
+        else 0.0
     )
     price_per_hour = 0.0
 
     if classical_res and classical_res.price:
         price_per_hour += classical_res.price.price_per_hour
-    if qpu_res and qpu_res.price:
-        price_per_hour += qpu_res.price.price_per_hour
+    if quantum_res and quantum_res.price:
+        price_per_hour += quantum_res.price.price_per_hour
 
     currency = (
         primary.price.currency
