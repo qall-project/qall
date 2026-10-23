@@ -129,7 +129,7 @@ def stop_daemon(port: int = 50053):
     try:
         daemon_mgr = DockerDaemonManager(grpc_port=port, local=True)
 
-        if not daemon_mgr.attach():
+        if not daemon_mgr.is_running():
             logger.warning("No running daemon to stop.")
             return
 
@@ -153,7 +153,7 @@ def restart_daemon(
             grpc_port=port,
             local=True,
         )
-        if not daemon_mgr.attach():
+        if not daemon_mgr.is_running():
             raise RuntimeError("No active daemon container running.")
 
         logger.info("Restarting daemon...")
