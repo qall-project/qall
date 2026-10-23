@@ -29,6 +29,7 @@ from .resource import (
     QpuTopology,
     QpuTechnology,
     QpuType,
+    QpuHosting,
 )
 from .log import Log
 from .task import (

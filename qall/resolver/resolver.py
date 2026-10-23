@@ -26,6 +26,7 @@ from qall.object import (
     QuantumResourceConstraints,
     TaskResourceAssignment,
     TaskDag,
+    QpuHosting,
 )
 
 
@@ -58,21 +59,31 @@ def resolve_workflow_resources(
         q_constraints = node.resources.quantum
         c_constraints = node.resources.classical
 
-        qpu_res = resolve_task_qpu(q_constraints, profile, qpu_pool)
+        quantum_res = resolve_task_quantum(q_constraints, profile, qpu_pool)
 
-        if not replace_to_local:
-            cpu_res = resolve_task_cpu(c_constraints, profile, available_resources)
-            gpu_res = resolve_task_gpu(c_constraints, profile, available_resources)
+        is_on_premise = (
+            quantum_res is not None
+            and quantum_res.qpu is not None
+            and quantum_res.qpu.hosting == QpuHosting.on_premise
+        )
+
+        if is_on_premise and not replace_to_local:
+            classical_res = None
+        elif replace_to_local or is_local_provider:
+            classical_res = get_local_resource()
         else:
-            cpu_res = get_local_resource()
-            gpu_res = None
+            classical_res = resolve_task_classical(
+                c_constraints, profile, available_resources
+            )
 
-        provider = "local" if is_local_provider else profile.provider
+        provider = profile.provider
+        if not provider or provider == "*":
+            active = quantum_res or classical_res
+            provider = active.provider if active else "local"
 
         merged_resource = _merge_task_resource(
-            qpu_res=qpu_res,
-            cpu_res=cpu_res,
-            gpu_res=gpu_res,
+            classical_res=classical_res,
+            quantum_res=quantum_res,
             provider=provider,
         )
 
@@ -85,15 +96,26 @@ def resolve_workflow_resources(
     return assignments
 
 
-def resolve_task_qpu(
-    constraints: QuantumResourceConstraints,
+def resolve_task_quantum(
+    constraints: Optional[QuantumResourceConstraints],
     profile: ResourceProfile,
     available_resources: List[Resource],
 ) -> Optional[Resource]:
-    """
-    Matches quantum constraints against available QPU resources.
-    """
-    if not _has_quantum_requirements(constraints):
+    """Valide et résout les contraintes quantiques vers un QPU éligible."""
+    if not constraints or not any(
+        [
+            constraints.min_qubits > 0,
+            constraints.min_shots > 0,
+            constraints.min_ops > 0,
+            constraints.qpu_modality is not None,
+            constraints.qpu_provider is not None,
+            constraints.qpu_technology is not None,
+            constraints.qpu_topology is not None,
+            bool(constraints.qpu_gateset),
+            constraints.qpu_mcm_support,
+            constraints.qpu_reset_support,
+        ]
+    ):
         return None
 
     allowed_names = profile.allowed.qpu
@@ -157,12 +179,11 @@ def resolve_task_qpu(
 
         candidates.append(res)
 
-    if len(candidates) == 0:
+    if not candidates:
         raise RuntimeError(
             f"No QPU available satisfying constraints "
             f"(min_qubits={constraints.min_qubits}, min_shots={constraints.min_shots}, "
-            f"provider={constraints.qpu_provider}, modality={constraints.qpu_modality}, "
-            f"mcm={constraints.qpu_mcm_support}, reset={constraints.qpu_reset_support}) "
+            f"provider={constraints.qpu_provider}, modality={constraints.qpu_modality}) "
             f"among authorized profile resources: {allowed_names}"
         )
 
@@ -171,24 +192,21 @@ def resolve_task_qpu(
     )
 
 
-def resolve_task_cpu(
-    constraints: ClassicalResourceConstraints,
+def resolve_task_classical(
+    constraints: Optional[ClassicalResourceConstraints],
     profile: ResourceProfile,
     available_resources: List[Resource],
-) -> Optional[Resource]:
-    """
-    Matches classical CPU constraints against available CPU resources.
-    """
-    if not _has_cpu_requirements(constraints):
-        return None
+) -> Resource:
+    min_cpu = constraints.min_cpu if constraints else 0
+    min_ram_gb = constraints.min_ram_gb if constraints else 0
+    min_gpu = constraints.min_gpu if constraints else 0
+    min_vram_gb = constraints.min_vram_gb if constraints else 0
 
-    allowed_names = profile.allowed.cpu
+    needs_gpu = (min_gpu > 0) or (min_vram_gb > 0)
+    allowed_names = profile.allowed.gpu if needs_gpu else profile.allowed.cpu
     candidates: List[Resource] = []
 
     for res in available_resources:
-        if not res.cpu:
-            continue
-
         if res.availability in (
             ResourceAvailability.unavailable,
             ResourceAvailability.maintenance,
@@ -198,105 +216,53 @@ def resolve_task_cpu(
         if "*" not in allowed_names and res.name not in allowed_names:
             continue
 
-        if constraints.min_cpu > 0 and res.cpu.available_cores < constraints.min_cpu:
+        if res.qpu is not None:
             continue
 
-        if (
-            constraints.min_ram_gb > 0
-            and res.cpu.available_memory_gb < constraints.min_ram_gb
-        ):
-            continue
+        if needs_gpu:
+            if not res.gpu or res.gpu.gpu_count <= 0:
+                continue
+            if min_gpu > 0 and res.gpu.gpu_count < min_gpu:
+                continue
+            if min_vram_gb > 0 and res.gpu.vram_per_gpu_gb < min_vram_gb:
+                continue
+
+            if not res.cpu:
+                continue
+            if min_cpu > 0 and res.cpu.available_cores < min_cpu:
+                continue
+            if min_ram_gb > 0 and res.cpu.available_memory_gb < min_ram_gb:
+                continue
+        else:
+            if not res.cpu:
+                continue
+            if res.gpu is not None and res.gpu.gpu_count > 0:
+                continue
+            if min_cpu > 0 and res.cpu.available_cores < min_cpu:
+                continue
+            if min_ram_gb > 0 and res.cpu.available_memory_gb < min_ram_gb:
+                continue
 
         candidates.append(res)
 
     if not candidates:
-        raise RuntimeError(
-            f"No CPU resource satisfying classical constraints "
-            f"(min_cpu={constraints.min_cpu}, min_ram_gb={constraints.min_ram_gb}) "
-            f"among authorized profile resources: {allowed_names}"
-        )
+        if needs_gpu:
+            raise RuntimeError(
+                f"No GPU resource satisfying classical constraints "
+                f"(min_gpu={min_gpu}, min_vram_gb={min_vram_gb}, min_cpu={min_cpu}, min_ram_gb={min_ram_gb}) "
+                f"among authorized profile resources: {allowed_names}"
+            )
+        else:
+            raise RuntimeError(
+                f"No CPU resource satisfying classical constraints "
+                f"(min_cpu={min_cpu}, min_ram_gb={min_ram_gb}) "
+                f"among authorized profile resources: {allowed_names}"
+            )
 
+    resource_type = "gpu" if needs_gpu else "cpu"
     return _apply_matching_strategy(
-        candidates, profile.match_strategy, resource_type="cpu"
+        candidates, profile.match_strategy, resource_type=resource_type
     )
-
-
-def resolve_task_gpu(
-    constraints: ClassicalResourceConstraints,
-    profile: ResourceProfile,
-    available_resources: List[Resource],
-) -> Optional[Resource]:
-    """
-    Matches GPU constraints against available GPU resources.
-    """
-    if not _has_gpu_requirements(constraints):
-        return None
-
-    allowed_names = profile.allowed.gpu
-    candidates: List[Resource] = []
-
-    for res in available_resources:
-        if not res.gpu:
-            continue
-
-        if res.availability in (
-            ResourceAvailability.unavailable,
-            ResourceAvailability.maintenance,
-        ):
-            continue
-
-        if "*" not in allowed_names and res.name not in allowed_names:
-            continue
-
-        if constraints.min_gpu > 0 and res.gpu.gpu_count < constraints.min_gpu:
-            continue
-
-        if (
-            constraints.min_vram_gb > 0
-            and res.gpu.vram_per_gpu_gb < constraints.min_vram_gb
-        ):
-            continue
-
-        candidates.append(res)
-
-    if not candidates:
-        raise RuntimeError(
-            f"No GPU resource satisfying constraints "
-            f"(min_gpu={constraints.min_gpu}, min_vram_gb={constraints.min_vram_gb}) "
-            f"among authorized profile resources: {allowed_names}"
-        )
-
-    return _apply_matching_strategy(
-        candidates, profile.match_strategy, resource_type="gpu"
-    )
-
-
-def _has_quantum_requirements(c: Optional[QuantumResourceConstraints]) -> bool:
-    if not c:
-        return False
-
-    return any(
-        [
-            c.min_qubits > 0,
-            c.min_shots > 0,
-            c.min_ops > 0,
-            c.qpu_modality is not None,
-            c.qpu_provider is not None,
-            c.qpu_technology is not None,
-            c.qpu_topology is not None,
-            bool(c.qpu_gateset),
-            c.qpu_mcm_support,
-            c.qpu_reset_support,
-        ]
-    )
-
-
-def _has_cpu_requirements(c: ClassicalResourceConstraints) -> bool:
-    return bool(c and (c.min_cpu > 0 or c.min_ram_gb > 0))
-
-
-def _has_gpu_requirements(c: ClassicalResourceConstraints) -> bool:
-    return bool(c and (c.min_gpu > 0 or c.min_vram_gb > 0))
 
 
 def _compare_str_or_enum(val1: Any, val2: Any) -> bool:
@@ -331,24 +297,50 @@ def _apply_matching_strategy(
 
 
 def _merge_task_resource(
-    qpu_res: Optional[Resource],
-    cpu_res: Optional[Resource],
-    gpu_res: Optional[Resource],
-    provider: str,
+    qpu_res: Optional[Resource] = None,
+    classical_res: Optional[Resource] = None,
+    provider: str = "local",
 ) -> Resource:
-    """
-    Merges resolved QPU, CPU, and GPU candidates into a single unified Resource.
-    """
-    primary = qpu_res or cpu_res or gpu_res
-    resource_name = primary.name if primary else "default-resource"
+    if qpu_res and qpu_res.qpu and qpu_res.qpu.hosting == QpuHosting.on_premise:
+        return Resource(
+            id=qpu_res.id,
+            name=qpu_res.name,
+            provider=provider or qpu_res.provider,
+            availability=qpu_res.availability,
+            qpu=qpu_res.qpu,
+            cpu=qpu_res.cpu,
+            gpu=qpu_res.gpu,
+            price=qpu_res.price if qpu_res.price else ResourcePrice(),
+            metadata=dict(qpu_res.metadata) if qpu_res.metadata else {},
+            description=qpu_res.description,
+            region=qpu_res.region,
+        )
+
+    primary = qpu_res or classical_res
+    if not primary:
+        return Resource(
+            id="default-resource",
+            name="default-resource",
+            provider=provider or "local",
+            availability=ResourceAvailability.available,
+            qpu=None,
+            cpu=None,
+            gpu=None,
+            price=ResourcePrice(),
+        )
+
+    resource_name = primary.name
     resource_id = primary.id
 
-    # Extract specs from individual resolution results
     qpu_spec = qpu_res.qpu if qpu_res else None
-    cpu_spec = cpu_res.cpu if cpu_res else (qpu_res.cpu if qpu_res else None)
-    gpu_spec = gpu_res.gpu if gpu_res else (qpu_res.gpu if qpu_res else None)
 
-    # Accumulate price (QPU shot pricing + classical hourly pricing)
+    cpu_spec = (
+        classical_res.cpu if classical_res else (qpu_res.cpu if qpu_res else None)
+    )
+    gpu_spec = (
+        classical_res.gpu if classical_res else (qpu_res.gpu if qpu_res else None)
+    )
+
     price_per_shot = (
         qpu_res.price.price_per_shot if (qpu_res and qpu_res.price) else 0.0
     )
@@ -357,13 +349,16 @@ def _merge_task_resource(
     )
     price_per_hour = 0.0
 
-    if cpu_res and cpu_res.price:
-        price_per_hour += cpu_res.price.price_per_hour
+    if classical_res and classical_res.price:
+        price_per_hour += classical_res.price.price_per_hour
+    if qpu_res and qpu_res.price:
+        price_per_hour += qpu_res.price.price_per_hour
 
-    if gpu_res and gpu_res.price:
-        price_per_hour += gpu_res.price.price_per_hour
-
-    currency = primary.price.currency if (primary and primary.price) else "EUR"
+    currency = (
+        primary.price.currency
+        if (primary and primary.price and primary.price.currency)
+        else "EUR"
+    )
 
     return Resource(
         id=resource_id,
@@ -379,4 +374,7 @@ def _merge_task_resource(
             price_per_hour=price_per_hour,
             currency=currency,
         ),
+        metadata=dict(primary.metadata) if primary.metadata else {},
+        description=primary.description,
+        region=primary.region,
     )
