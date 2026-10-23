@@ -65,14 +65,18 @@ class QiskitScalewayQuantumWorker(QuantumWorker):
 
         deduplication_id = get_session_dedup_from_context(context)
 
+        print("deduplication id : ", deduplication_id)
+
         if not deduplication_id:
-            deduplication_id = uuid4()
+            deduplication_id = str(uuid4())
             set_session_dedup_in_context(context, deduplication_id)
 
         session_id = self.__backend.start_session(
             name=f"{resource.lower()}-qall-session",
             deduplication_id=deduplication_id,
         )
+
+        print("session id : ", session_id)
 
         add_session_id_in_context(context, session_id)
 
@@ -92,6 +96,8 @@ class QiskitScalewayQuantumWorker(QuantumWorker):
         **kwargs,
     ) -> Any:
         session_ids = list_session_ids_from_context(context)
+
+        print("all session id  : ", session_ids)
 
         if not session_ids:
             raise RuntimeError("no assigned session")
