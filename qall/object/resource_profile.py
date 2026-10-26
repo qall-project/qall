@@ -42,9 +42,6 @@ def apply_resource_overrides(
     allowed_cpu: Optional[List[str]] = None,
     allowed_gpu: Optional[List[str]] = None,
 ) -> ResourceProfile:
-    """
-    Overrides the allowed resources in a frozen ResourceProfile with explicit CLI flags.
-    """
     if not any([allowed_qpu, allowed_cpu, allowed_gpu]):
         return profile
 

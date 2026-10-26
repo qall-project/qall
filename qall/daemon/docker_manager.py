@@ -239,8 +239,6 @@ class DockerDaemonManager(BaseDaemonManager):
             raise RuntimeError(f"Error launching the daemon: {e}")
 
     def register_resource_assignments(self, resource_assigments: dict):
-        print("resource_assigments", resource_assigments)
-
         with self.client as client:
             for task_hash, assignment in resource_assigments.items():
                 if not task_hash:
@@ -272,8 +270,6 @@ class DockerDaemonManager(BaseDaemonManager):
                     )
 
     def register_workers(self, worker_definitions: list):
-        print("worker_definitions", worker_definitions)
-
         with self.client as client:
             for wd in worker_definitions:
                 if len(wd.input_formats) == 0:

@@ -219,6 +219,7 @@ def create_workflow_run(
             )
         finally:
             cleanup_dataloader_files(dataloader_files)
+
             if not daemon_is_already_running and auto_start_daemon:
                 stop_daemon()
 

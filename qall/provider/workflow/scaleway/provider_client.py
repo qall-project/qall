@@ -218,6 +218,8 @@ profiles:
 
         description = p.description
 
+        print("scw price", price)
+
         return Resource(
             name=name,
             id=platform_id,
@@ -282,6 +284,8 @@ profiles:
         """
         Converts a gRPC Money object (units + nanos) into a float price and currency string.
         """
+        print("money_obj", money_obj)
+
         if not money_obj:
             return 0.0, "EUR"
 
@@ -290,9 +294,10 @@ profiles:
             nanos = money_obj.get("nanos") or 0
             currency = money_obj.get("currency_code") or "EUR"
         else:
-            units = getattr(money_obj, "units", 0) or 0
-            nanos = getattr(money_obj, "nanos", 0) or 0
-            currency = getattr(money_obj, "currency_code", "EUR") or "EUR"
+            units = money_obj.units
+            nanos = money_obj.nanos
+            currency = money_obj.currency_code
 
         price = float(units) + (float(nanos) / 1e9)
+
         return price, currency
