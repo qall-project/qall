@@ -139,8 +139,8 @@ def _build_call_graph(filepaths: list[str]) -> tuple[list[str], list[dict[str, s
     if hasattr(visitor, "process"):
         visitor.process()
 
-    nodes_set = set()
-    edges_list = []
+    nodes_set: set[str] = set()
+    edges_list: list[dict[str, str]] = []
 
     # Extract nodes (definitions) from defines_edges
     if hasattr(visitor, "defines_edges"):
@@ -425,17 +425,15 @@ def generate_call_graph(filepath: Path, format: Literal["text", "json", "rxgraph
 
             # Only project-local siblings are relevant (ignore stdlib and pip).
             try:
-                if (
-                    mod_path.is_relative_to(project_dir)
-                    and not _is_stdlib_or_site_packages(mod_path)
-                ):
+                if mod_path.is_relative_to(
+                    project_dir
+                ) and not _is_stdlib_or_site_packages(mod_path):
                     involved_files.add(str(mod_path))
             except AttributeError:
                 # Fallback for Python versions older than 3.9
-                if (
-                    str(project_dir) in str(mod_path)
-                    and not _is_stdlib_or_site_packages(mod_path)
-                ):
+                if str(project_dir) in str(
+                    mod_path
+                ) and not _is_stdlib_or_site_packages(mod_path):
                     involved_files.add(str(mod_path))
 
     # Filter out compiled binaries (.so, .pyd, .dylib, .pyc)

@@ -89,10 +89,7 @@ def create_workflow_run(
         )
     except Exception as e:
         raise RuntimeError(
-            "Couldn't push workflow on registry",
-            registry_client.remote_domain if registry_client else "local",
-            "\nReason:",
-            e,
+            f"Couldn't push workflow on registry '{registry_client.remote_domain if registry_client else "local"}'.\nReason: {e}"
         )
 
     provider_credentials = provider_credentials or get_provider_login_credentials()
