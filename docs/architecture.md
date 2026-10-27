@@ -53,3 +53,16 @@ others (`codec`, `daemon`, `provider`, `registry`, `specification`...):
 - Provide mid and low level implementation to be used by `core`
 - Mid level must use `object` object as possible
 - Can be technology dependant (`qall-registry-client`, `qall-daemon-client`, `lmdb`, `pip`...)
+
+## Call graph analysis (pyan3)
+
+The `specification` layer builds each workflow's call graph with **pyan3
+(`>= 2.9.0,<3`)** via its in-memory `from_sources` API: `qall/specification/utils.py`
+feeds the workflow's user sources as `(source_text, fully_qualified_module_name)`
+pairs derived from `sys.modules` (see `_discover_user_sources`). Discovery is
+import-based rather than path-glob based, so user helper modules anywhere on the
+filesystem that the workflow actually imports are included, while the stdlib,
+installed site-packages and `qall` itself are excluded. Node/edge identity is
+pyan's qualified name (`pkg.mod.func`); short task names are only used at the
+registry/graph boundary. `tests/test_pyan_shapes.py` pins the pyan data-shape
+contract.

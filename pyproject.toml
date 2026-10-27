@@ -12,7 +12,7 @@ dependencies = [
     "grpcio>=1.81.1",
     "keyring>=25.7.0",
     "matplotlib>=3.11.0",
-    "pyan3>=2.5.0",
+    "pyan3>=2.9.0,<3",
     "pyyaml>=6.0.3",
     "qio>=0.2.2",
     "rustworkx==0.17.1",

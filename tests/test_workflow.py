@@ -1316,3 +1316,129 @@ def test_workflow_worst_case_convoluted():
         assert wf() == expected
         assert WorkflowSpec.loads(wf.dumps())() == expected
         assert WorkflowSpec.from_json(wf.to_json())() == expected
+
+
+def test_workflow_out_of_tree_helper_module():
+    """
+    Regression for the discovery gap: a user helper module living **outside**
+    the workflow's directory (imported via sys.path, not via the project tree)
+    must still be fed to the call graph. Its non-task function calls a task, so
+    the BFS bridging must collapse `runner -> compute` across the out-of-tree
+    intermediate. (Previously such modules were dropped by the "must live under
+    the workflow dir" rule and the bridge silently disappeared.)
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        base = Path(tmpdir)
+        project = base / "proj"
+        lib = base / "lib"
+        project.mkdir()
+        lib.mkdir()
+
+        _write_file(
+            project,
+            "shared_tasks.py",
+            """
+            from qall import task
+
+            @task()
+            def compute(x):
+                return x * 10
+            """,
+        )
+        # The helper module is deliberately OUTSIDE the project directory.
+        _write_file(
+            lib,
+            "outside_helper.py",
+            """
+            from shared_tasks import compute
+
+            def via_module(x):
+                return compute(x)
+            """,
+        )
+        _write_file(
+            project,
+            "runner_tasks.py",
+            """
+            from qall import task
+
+            import outside_helper
+
+            @task()
+            def runner(x):
+                return outside_helper.via_module(x)
+            """,
+        )
+        wf_file = _write_file(
+            project,
+            "main.py",
+            """
+            from qall import task, workflow
+            from runner_tasks import runner
+
+            @workflow()
+            def main():
+                return runner(5)
+            """,
+        )
+
+        sys.path.insert(0, str(lib))
+        try:
+            wf = WorkflowSpec(wf_file, "OutOfTree")
+        finally:
+            sys.path.remove(str(lib))
+
+        assert sorted(wf.tasks) == ["compute", "main", "runner"]
+
+        edge_tuples = sorted(
+            (wf.graph[e[0]], wf.graph[e[1]]) for e in wf.graph.edge_list()
+        )
+        # The out-of-tree non-task helper `via_module` sits between `runner` and
+        # the `compute` task; the bridge must still collapse to a direct edge.
+        assert edge_tuples == [("main", "runner"), ("runner", "compute")]
+
+        assert wf() == 50
+
+        # The out-of-tree module must not linger in sys.modules between builds.
+        assert "outside_helper" not in sys.modules
+
+
+def test_workflow_excludes_qall_internal_and_stubs():
+    """
+    A workflow importing qall's own internals and a missing third-party package
+    must produce a graph with only the user's tasks. qall sources (including
+    editable/dev installs) and lenient-import stubs (`__file__ is None`) must
+    never reach the call graph input.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        project = Path(tmpdir)
+        wf_file = _write_file(
+            project,
+            "main_workflow.py",
+            """
+            from qall import task, workflow
+            import qall_test_missing_somepkg  # noqa: F401  (missing -> stub)
+            from qall.specification import TaskSpec as _QallTaskSpec
+
+            @task()
+            def a():
+                return 1
+
+            @workflow()
+            def main():
+                return a()
+            """,
+        )
+
+        wf = WorkflowSpec(wf_file, "QallExclude")
+
+        # Only the user's two tasks exist in the graph.
+        assert sorted(wf.tasks) == ["a", "main"]
+        edge_tuples = sorted(
+            (wf.graph[e[0]], wf.graph[e[1]]) for e in wf.graph.edge_list()
+        )
+        assert edge_tuples == [("main", "a")]
+
+        # The missing third-party package was stubbed during compile, never
+        # parsed by pyan, and cleaned out of sys.modules afterwards.
+        assert "qall_test_missing_somepkg" not in sys.modules

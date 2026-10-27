@@ -81,13 +81,13 @@ def _is_stdlib_or_site_packages(path: str | Path) -> bool:
 def _load_pyan():
     """Lazily import pyan3, raising a clear error instead of exiting the process."""
     try:
-        from pyan.analyzer import CallGraphVisitor
+        from pyan.analyzer import CallGraphVisitor, Flavor
 
-        return CallGraphVisitor
+        return CallGraphVisitor, Flavor
     except ImportError as exc:  # pragma: no cover - depends on the environment
         raise ImportError(
-            "pyan3 is required to build qall workflow call graphs. "
-            "Install it with: pip install pyan3"
+            "pyan3>=2.9.0 is required to build qall workflow call graphs. "
+            "Install it with: pip install 'pyan3>=2.9.0,<3'"
         ) from exc
 
 
@@ -125,47 +125,76 @@ def _extract_decorators_from_file(filepath: Path) -> dict[str, list[str]]:
     return decorators_map
 
 
-def _build_call_graph(filepaths: list[str]) -> tuple[list[str], list[dict[str, str]]]:
+def _build_call_graph_from_sources(
+    sources: dict[str, Path],
+) -> tuple[list[str], list[dict[str, str]]]:
     """
-    Uses pyan3 to generate the nodes and edges of the static call graph for the given files.
-    Returns a list of node names and a list of edge dictionaries.
+    Builds the nodes and edges of the static call graph using pyan3's
+    in-memory ``from_sources`` API.
+
+    :param sources: mapping ``{pyan module_name -> source file path}`` for every
+        user module the workflow pulls in (see ``_discover_user_sources``). The
+        module names are fully qualified (matching ``sys.modules``), so pyan does
+        not have to infer them from file paths and nothing is missed regardless of
+        where the files live on disk.
+    :return: a list of *qualified* node names (e.g. ``pkg.mod.func``) and a list
+        of edge dicts whose ``caller``/``callee`` are qualified node names.
     """
-    CallGraphVisitor = _load_pyan()
+    CallGraphVisitor, Flavor = _load_pyan()
 
-    # Runs pyan3
-    visitor = CallGraphVisitor(filepaths)
+    files = []
+    for module_name, path in sources.items():
+        try:
+            source = path.read_text(encoding="utf-8")
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(
+                f"Source file disappeared while building the call graph: {path}"
+            ) from exc
+        files.append((source, module_name))
 
-    # Process the files to populate the visitor dictionaries
-    if hasattr(visitor, "process"):
-        visitor.process()
+    # from_sources() runs the two-pass analysis itself (no extra process() call).
+    visitor = CallGraphVisitor.from_sources(files)
+
+    def _local(node) -> bool:
+        """A real, defined callable/class in an analyzed user module.
+
+        Unknown nodes (``namespace is None``: wildcards, unresolvable module
+        members) and synthetic structural nodes (modules, scopes, plain names)
+        are excluded: they are pyan internals, not user code. A future pyan
+        version flattening this shape will surface here as a test failure, not
+        a silent empty graph.
+        """
+        return (
+            node.defined
+            and node.namespace is not None
+            and node.flavor
+            in {
+                Flavor.FUNCTION,
+                Flavor.METHOD,
+                Flavor.STATICMETHOD,
+                Flavor.CLASSMETHOD,
+                Flavor.CLASS,
+            }
+        )
 
     nodes_set: set[str] = set()
     edges_list: list[dict[str, str]] = []
 
-    # Extract nodes (definitions) from defines_edges
-    if hasattr(visitor, "defines_edges"):
-        for scope_node, defined_nodes in visitor.defines_edges.items():
-            for node in defined_nodes:
-                name = node.name if hasattr(node, "name") else str(node)
-                nodes_set.add(name)
+    # Defined nodes (functions/classes), using the *qualified* name as identity.
+    for bucket in visitor.nodes.values():
+        for node in bucket:
+            if _local(node):
+                nodes_set.add(node.get_name())
 
-    # Extract edges (uses/calls) from uses_edges
-    if hasattr(visitor, "uses_edges"):
-        for src_node, tgt_nodes in visitor.uses_edges.items():
-            src_name = src_node.name if hasattr(src_node, "name") else str(src_node)
-
-            # Ensure the source node is tracked even if it wasn't in defines_edges
-            nodes_set.add(src_name)
-
-            for tgt_node in tgt_nodes:
-                tgt_name = tgt_node.name if hasattr(tgt_node, "name") else str(tgt_node)
-
-                # Avoid empty names and add the edge
-                if src_name and tgt_name:
-                    edges_list.append({"caller": src_name, "callee": tgt_name})
-
-                    # Add callee to nodes_set to capture external/builtin calls
-                    nodes_set.add(tgt_name)
+    # Call edges between local nodes (unknown/import targets are filtered out).
+    for src_node, target_nodes in visitor.uses_edges.items():
+        if not _local(src_node):
+            continue
+        for tgt_node in target_nodes:
+            if _local(tgt_node):
+                edges_list.append(
+                    {"caller": src_node.get_name(), "callee": tgt_node.get_name()}
+                )
 
     return list(nodes_set), edges_list
 
@@ -204,33 +233,46 @@ def _filter_tasks_edges(
     bridged directly using a transitive closure (BFS) over the static call
     graph, handling deep chains, multiple callers and shared intermediates.
 
-    :param nodes: List of nodes
-    :param edges: List of edges
-    :return: Filtered list of edges
-    """
-    valid_nodes_names = {node["name"] for node in nodes}
+    Nodes carry a qualified pyan identity (``qualified_name``) plus the short
+    ``name`` used by the task registry. Bridging uses the qualified identity so
+    two same-named functions in different modules cannot be conflated; the
+    returned edges are expressed with short task names (the registry contract).
 
-    # caller -> callees adjacency
+    :param nodes: List of nodes
+    :param edges: List of edges (qualified caller/callee)
+    :return: Filtered list of edges (short task names)
+    """
+    # Qualified name -> short name for every valid task node.
+    valid_tasks: dict[str, str] = {
+        node["qualified_name"]: node["name"] for node in nodes
+    }
+    valid_names: set[str] = set(valid_tasks)
+
+    # Qualified name -> source of each task, used to prune import-only edges below.
+    task_sources: dict[str, str] = {
+        node["qualified_name"]: node["task"].source for node in nodes
+    }
+
+    # caller -> callees adjacency (qualified names)
     adjacency: dict[str, set[str]] = {}
-    # Short name -> source of each task, used to prune import-only edges below.
-    task_sources: dict[str, str] = {node["name"]: node["task"].source for node in nodes}
     for edge in edges:
         caller, callee = edge["caller"], edge["callee"]
 
         # pyan3 records module-level imports as "uses", producing spurious edges
         # between two tasks (e.g. `from other import remote` yields `main -> remote`
         # even when `main` never calls `remote`). If the caller task never mentions
-        # the callee by name in its own source, the edge is an import, not a call.
+        # the callee's short name in its own source, the edge is an import, not a call.
         # Non-task callers are left untouched so BFS bridging still works.
-        if caller in task_sources and callee in valid_nodes_names:
-            if callee not in task_sources[caller]:
+        if caller in task_sources and callee in valid_names:
+            callee_short = callee.rsplit(".", 1)[-1]
+            if callee_short not in task_sources[caller]:
                 continue
 
         adjacency.setdefault(caller, set()).add(callee)
 
     filtered_edges: set[tuple[str, str]] = set()
     for node in nodes:
-        source = node["name"]
+        source = node["qualified_name"]
 
         queue = deque([source])
         seen = {source}
@@ -242,7 +284,7 @@ def _filter_tasks_edges(
                     continue
                 seen.add(target)
 
-                if target in valid_nodes_names:
+                if target in valid_names:
                     # Task boundary: record the edge and do not traverse through
                     # the callee task (that task owns its own outgoing edges).
                     filtered_edges.add((source, target))
@@ -250,8 +292,9 @@ def _filter_tasks_edges(
                     # Non-task intermediate: keep traversing to find real tasks.
                     queue.append(target)
 
+    # Map back to short task names for the registry and the serialized graph.
     return [
-        {"caller": caller, "callee": callee}
+        {"caller": valid_tasks[caller], "callee": valid_tasks[callee]}
         for caller, callee in sorted(filtered_edges)
     ]
 
@@ -394,6 +437,115 @@ def _purge_compiled_modules(before: set[str], project_dir: Path) -> None:
             del sys.modules[name]
 
 
+def _pyan_module_name(module: Any) -> str:
+    """The fully qualified module name pyan3 expects for a sys.modules module.
+
+    Package ``__init__`` modules are given the ``<pkg>.__init__`` suffix so that
+    pyan's relative-import resolution works (its contract for in-memory sources).
+    """
+    name = getattr(module, "__name__", None) or ""
+    file = getattr(module, "__file__", None)
+    if file and Path(file).name == "__init__.py":
+        return f"{name}.__init__"
+    return name
+
+
+def _discover_user_sources(
+    workflow_filepath: Path, *, start_modules: set[str]
+) -> dict[str, Path]:
+    """Map {pyan module name -> source path} for all user code the workflow pulls in.
+
+    Discovery is import-based, not path-glob-based: after ``_compile_tasks`` runs
+    the workflow, every module it imported is recorded in ``sys.modules`` under its
+    natural, fully qualified name. That authoritative name is exactly what pyan's
+    ``from_sources`` needs, and the file's location on disk is irrelevant — which
+    also fixes the legacy gap where out-of-tree user helper modules were dropped.
+
+    Rules per module ``m`` in ``sys.modules`` (post-compile, minus ``start_modules``):
+      - skip if no ``__file__`` (builtins / lenient-import stubs have ``__file__`` None)
+      - skip if ``_is_stdlib_or_site_packages`` (stdlib / pip / nested venv)
+      - skip if ``__name__`` is ``qall`` or starts with ``qall.`` (excludes qall
+        itself in a dev checkout, including the synthetic ``qall.plugins.*`` compile
+        namespace)
+      - skip if the file is not ``.py``
+      - include regardless of whether the file lives under the workflow's directory
+
+    The workflow file itself is seeded separately: at compile time it is registered
+    under the synthetic ``qall.plugins.<stem>`` name, so its real identity here is
+    just its stem (matching how pyan would name a top-level module).
+
+    :param workflow_filepath: the workflow file just compiled.
+    :param start_modules: snapshot of ``sys.modules`` taken before compilation; any
+        module already present is not user code pulled in by *this* workflow, so it
+        is ignored (prevents cross-compilation leakage in long-lived processes).
+    :return: mapping ``{pyan module name -> Path}``.
+    """
+    sources: dict[str, Path] = {}
+    seen_paths: set[Path] = {workflow_filepath.resolve()}
+
+    def _add(module_name: str, path: Path) -> None:
+        path = path.resolve()
+        if path in seen_paths:
+            return
+        existing = sources.get(module_name)
+        if existing is not None and existing != path:
+            raise ValueError(
+                f"Module name collision while discovering workflow sources: "
+                f"{module_name!r} maps to both {existing} and {path}. "
+                "Rename one of the modules to disambiguate them."
+            )
+        sources[module_name] = path
+        seen_paths.add(path)
+
+    # The workflow file itself (its synthetic qall.plugins.<stem> sys.modules entry
+    # is skipped below, so seed it under its natural module name).
+    sources[workflow_filepath.stem] = workflow_filepath.resolve()
+
+    for name, module in list(sys.modules.items()):
+        if name in start_modules:
+            continue
+        if name == "qall" or name.startswith("qall."):
+            continue
+        file = getattr(module, "__file__", None)
+        if not file:
+            continue  # builtins / lenient-import stubs
+        path = Path(file)
+        if not path.name.endswith(".py"):
+            continue  # .so / .pyc / .pyi handled elsewhere or not analyzable
+        if _is_stdlib_or_site_packages(path):
+            continue
+        _add(_pyan_module_name(module), path)
+
+    # Belt and suspenders: a task function could come from a file that is not in
+    # sys.modules (unusual, but the graph must never silently miss a task).
+    parent = getattr(TaskSpec, "_parent_workflow", None)
+    tasks = getattr(parent, "tasks", None) or {}
+    for task in tasks.values():
+        func = getattr(task, "func", None)
+        if func is None:
+            continue
+        src_file = inspect.getsourcefile(func)
+        if not src_file:
+            continue
+        path = Path(src_file)
+        if not path.name.endswith(".py") or _is_stdlib_or_site_packages(path):
+            continue
+        # Prefer the sys.modules name when this exact file is loaded somewhere,
+        # else fall back to a natural top-level name based on the file stem.
+        module_name = next(
+            (
+                _pyan_module_name(m)
+                for n, m in sys.modules.items()
+                if getattr(m, "__file__", None)
+                and Path(m.__file__).resolve() == path.resolve()
+            ),
+            path.stem,
+        )
+        _add(module_name, path)
+
+    return sources
+
+
 def generate_call_graph(filepath: Path, format: Literal["text", "json", "rxgraph"]):
     if not os.path.isfile(filepath):
         raise FileNotFoundError(f"File '{filepath}' does not exist.")
@@ -403,65 +555,51 @@ def generate_call_graph(filepath: Path, format: Literal["text", "json", "rxgraph
     # Compile tasks dynamically. This naturally registers local AND imported tasks.
     _compile_tasks(filepath)
 
-    # Discover all physical files involved.
-    involved_files = {str(filepath)}
-
-    # FIXED: Iterate using the new .tasks architecture layout smoothly
-    for task in TaskSpec._parent_workflow.tasks.values():
-        if task.func is not None:
-            src_file = inspect.getsourcefile(task.func)
-            if src_file:
-                involved_files.add(src_file)
-
-    # Intermediate local files loaded during compilation
-    # We inspect sys.modules and include any file that lives inside the workflow's
-    # parent directory. Stdlib and installed third-party packages are excluded
-    # even when a virtualenv is nested under the project directory (e.g. macOS
-    # layouts like `<project>/qall-quark/lib/python3.14/site-packages/...`).
-    project_dir = filepath.parent.resolve()
-    for mod in list(sys.modules.values()):
-        if hasattr(mod, "__file__") and mod.__file__:
-            mod_path = Path(mod.__file__).resolve()
-
-            # Only project-local siblings are relevant (ignore stdlib and pip).
-            try:
-                if mod_path.is_relative_to(
-                    project_dir
-                ) and not _is_stdlib_or_site_packages(mod_path):
-                    involved_files.add(str(mod_path))
-            except AttributeError:
-                # Fallback for Python versions older than 3.9
-                if str(project_dir) in str(
-                    mod_path
-                ) and not _is_stdlib_or_site_packages(mod_path):
-                    involved_files.add(str(mod_path))
-
-    # Filter out compiled binaries (.so, .pyd, .dylib, .pyc)
-    involved_files_list = [f for f in involved_files if str(f).endswith(".py")]
+    # Discover every user source file the workflow pulled in, mapped to the fully
+    # qualified module name pyan3's from_sources API needs (sys.modules-derived).
+    # Covers in-tree siblings, nested packages and out-of-tree helper modules as
+    # long as they were imported; stdlib, pip packages and qall itself are excluded.
+    sources = _discover_user_sources(filepath, start_modules=before_modules)
 
     decorators_map = {}
-    for f in involved_files_list:
+    for path in dict.fromkeys(sources.values()):
         try:
-            decorators_map.update(_extract_decorators_from_file(Path(f)))
+            decorators_map.update(_extract_decorators_from_file(path))
         except Exception as e:
-            print(f"Warning: Could not parse decorators for {f}: {e}", file=sys.stderr)
+            print(
+                f"Warning: Could not parse decorators for {path}: {e}", file=sys.stderr
+            )
 
+    project_dir = filepath.parent.resolve()
     try:
-        nodes, edges = _build_call_graph(involved_files_list)
+        nodes, edges = _build_call_graph_from_sources(sources)
     except Exception as e:
-        raise RuntimeError(f"Error building call graph with pyan3: {e}") from e
+        raise RuntimeError(
+            f"qall could not build the workflow call graph with pyan3: {e}"
+        ) from e
     finally:
-        # Do not let local sibling modules leak into sys.modules between compilations.
+        # Do not let local sibling modules (in-tree or out-of-tree) leak into
+        # sys.modules between compilations.
         _purge_compiled_modules(before_modules, project_dir)
+        discovered_paths = {p.resolve() for p in sources.values()}
+        for name, module in list(sys.modules.items()):
+            if name in before_modules:
+                continue
+            file = getattr(module, "__file__", None)
+            if file and Path(file).resolve() in discovered_paths:
+                sys.modules.pop(name, None)
 
     enriched_nodes: list[dict[str, Any]] = []
     for node in nodes:
-        short_name = node.split(".")[-1]
+        # node is the qualified pyan identity (e.g. "pkg.mod.func"); the task
+        # registry and the serialized graph speak short names.
+        short_name = node.rsplit(".", 1)[-1] if "." in node else node
         decorators = decorators_map.get(short_name, [])
 
         enriched_node = {
             "id": node,
             "name": short_name,
+            "qualified_name": node,
             "decorators": decorators,
         }
         enriched_nodes.append(enriched_node)
