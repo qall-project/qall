@@ -218,8 +218,6 @@ profiles:
 
         description = p.description
 
-        print("scw price", price)
-
         return Resource(
             name=name,
             id=platform_id,
@@ -265,10 +263,6 @@ profiles:
         return provider_map.get(provider_name.lower(), QpuModality.unknown)
 
     @staticmethod
-    def _resolve_topology(top_str: str) -> QpuTopology:
-        return QpuTopology.unknown
-
-    @staticmethod
     def _resolve_availability(status_str: str) -> ResourceAvailability:
         availability_map = {
             "available": ResourceAvailability.available,
@@ -284,8 +278,6 @@ profiles:
         """
         Converts a gRPC Money object (units + nanos) into a float price and currency string.
         """
-        print("money_obj", money_obj)
-
         if not money_obj:
             return 0.0, "EUR"
 

@@ -29,6 +29,37 @@ from qall.provider.qc.scaleway.utils import (
     get_session_dedup_from_context,
 )
 
+from datetime import datetime
+from qiskit.providers import JobStatus
+
+
+def sanitize_qiskit_result(result):
+    if result is None:
+        return result
+
+    if hasattr(result, "status"):
+        if isinstance(result.status, JobStatus) or hasattr(result.status, "name"):
+            result.status = result.status.name
+        elif not isinstance(result.status, (str, type(None))):
+            result.status = str(result.status)
+
+    if hasattr(result, "date") and result.date is not None:
+        if isinstance(result.date, datetime):
+            result.date = result.date.isoformat()
+        elif not isinstance(result.date, str):
+            result.date = str(result.date)
+
+    if hasattr(result, "results") and result.results:
+        for exp in result.results:
+            if hasattr(exp, "status") and (
+                isinstance(exp.status, JobStatus) or hasattr(exp.status, "name")
+            ):
+                exp.status = exp.status.name
+            if hasattr(exp, "date") and isinstance(exp.date, datetime):
+                exp.date = exp.date.isoformat()
+
+    return result
+
 
 @quantum_worker(
     requirements=["qiskit-scaleway", "qiskit-qasm3-import"],
@@ -100,6 +131,7 @@ class QiskitScalewayQuantumWorker(QuantumWorker):
             program, shots=shots, session_id=session_ids[0]
         ).result()
 
+        result = sanitize_qiskit_result(result)
         print("result", result)
 
         return result

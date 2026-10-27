@@ -217,9 +217,22 @@ class WorkerSpec:
             if target_cls and inspect.isclass(target_cls):
                 self.cls = target_cls
                 self.imports = _extract_imports_from_worker(target_cls)
+
                 self.local_dependencies = _bundle_local_dependencies_from_worker(
                     target_cls
                 )
+
+                for name, val in module_globals.items():
+                    if (
+                        inspect.isfunction(val)
+                        and val.__module__ == fake_module.__name__
+                    ):
+                        try:
+                            self.local_dependencies[name] = textwrap.dedent(
+                                inspect.getsource(val)
+                            )
+                        except (TypeError, OSError):
+                            pass
 
             self.name = name or self.name or filepath.stem
             self.requirements = sorted(set(self.requirements))
@@ -311,17 +324,15 @@ class WorkerSpec:
     ) -> str:
         tree = ast.parse(source)
 
-        for node in tree.body:
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef) and node.name == class_name:
                 node.decorator_list = [
                     dec
                     for dec in node.decorator_list
                     if not _is_quantum_worker_decorator(dec)
                 ]
-
-                return ast.unparse(node)
-
-        raise RuntimeError(f"Failed to extract worker class {class_name!r}.")
+        return ast.unparse(tree)
 
     def _load_decorator_metadata(
         self,
@@ -370,7 +381,7 @@ class WorkerSpec:
 
 def _extract_imports_from_worker(cls: type) -> dict[str, list[str]]:
     """
-    Extract imports used by all methods of a QuantumWorker class.
+    Extract imports used by a QuantumWorker class and its module-level helpers.
     """
     external_imports: set[str] = set()
     local_imports: set[str] = set()
@@ -379,12 +390,22 @@ def _extract_imports_from_worker(cls: type) -> dict[str, list[str]]:
     if not inspect.isclass(target_cls):
         return {"external_imports": [], "local_imports": []}
 
+    # extract import from class method
     for _, member in inspect.getmembers(target_cls):
         if not (inspect.isfunction(member) or inspect.ismethod(member)):
             continue
         imports = _extract_imports_from_function(member)
         external_imports.update(imports["external_imports"])
         local_imports.update(imports["local_imports"])
+
+    # extract import from module functions referend into the class
+    module = sys.modules.get(target_cls.__module__)
+    if module:
+        for name, obj in inspect.getmembers(module):
+            if inspect.isfunction(obj) and obj.__module__ == target_cls.__module__:
+                imports = _extract_imports_from_function(obj)
+                external_imports.update(imports["external_imports"])
+                local_imports.update(imports["local_imports"])
 
     return {
         "external_imports": sorted(external_imports),
@@ -394,7 +415,8 @@ def _extract_imports_from_worker(cls: type) -> dict[str, list[str]]:
 
 def _bundle_local_dependencies_from_worker(cls: type) -> dict[str, str]:
     """
-    Recursively bundle local dependencies used by all methods of a worker.
+    Recursively bundle local dependencies used by all methods of a worker,
+    including top-level module functions and helpers.
     """
     bundled_code: dict[str, str] = {}
     visited: set[int] = set()
@@ -403,6 +425,7 @@ def _bundle_local_dependencies_from_worker(cls: type) -> dict[str, str]:
     if not inspect.isclass(target_cls):
         return {}
 
+    # class methods
     for _, member in inspect.getmembers(target_cls):
         if not (inspect.isfunction(member) or inspect.ismethod(member)):
             continue
@@ -411,8 +434,19 @@ def _bundle_local_dependencies_from_worker(cls: type) -> dict[str, str]:
             member,
             visited=visited,
         )
-
         bundled_code.update(dependencies)
+
+    # global function in module
+    module = sys.modules.get(target_cls.__module__)
+    if module:
+        for _, obj in inspect.getmembers(module):
+            if inspect.isfunction(obj) and obj.__module__ == target_cls.__module__:
+                if id(obj) not in visited:
+                    dependencies = _bundle_local_dependencies(
+                        obj,
+                        visited=visited,
+                    )
+                    bundled_code.update(dependencies)
 
     return bundled_code
 

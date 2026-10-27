@@ -34,7 +34,7 @@ def main():
     a = prepare(5)
 
     b = []
-    for _ in range(3):
-        b.append(do_quantum_stuff(a, 10))
+    for _ in range(2):
+        b.append(do_quantum_stuff(a, 1))
 
     return b
