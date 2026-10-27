@@ -66,3 +66,10 @@ installed site-packages and `qall` itself are excluded. Node/edge identity is
 pyan's qualified name (`pkg.mod.func`); short task names are only used at the
 registry/graph boundary. `tests/test_pyan_shapes.py` pins the pyan data-shape
 contract.
+
+pyan3's loggers are routed through qall's own logger at package init
+(`qall/__init__.py::_configure_pyan_logging`): their output shares qall's
+`[...] LEVEL | name | message` format instead of leaking raw to the root logger.
+Verbosity is gated behind qall's — `QALL_LOGGING_LEVEL=DEBUG` surfaces pyan's
+INFO/DEBUG records, otherwise pyan is quiet at WARNING+. Pinned by
+`tests/test_pyan_logging.py`.

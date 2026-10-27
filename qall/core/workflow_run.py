@@ -130,8 +130,8 @@ def create_workflow_run(
         provider_credentials.provider if provider_credentials else "local"
     )
 
-    print("WORKER", worker_definitions)
-    print("resource assignmenet", resource_assignments)
+    logger.info(f"Workers: {worker_definitions}")
+    logger.info(f"Resource assignment: {resource_assignments}")
 
     if local_only:
         daemon_is_already_running = get_daemon_status()

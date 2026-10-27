@@ -2925,15 +2925,13 @@ wheels = [
 
 [[package]]
 name = "qall"
-version = "0.1.9"
+version = "0.1.10"
 source = { editable = "." }
 dependencies = [
-    { name = "adlfs" },
     { name = "cloudpickle" },
     { name = "dataclasses-json" },
     { name = "docker" },
     { name = "fsspec" },
-    { name = "gcsfs" },
     { name = "grpcio" },
     { name = "keyring" },
     { name = "lmdb" },
@@ -2954,6 +2952,10 @@ dependencies = [
 dev = [
     { name = "black" },
 ]
+objects = [
+    { name = "adlfs" },
+    { name = "gcsfs" },
+]
 test = [
     { name = "pytest" },
     { name = "pytest-progress" },
@@ -2961,12 +2963,10 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "adlfs", specifier = ">=2025.6.0" },
     { name = "cloudpickle", specifier = "==3.1.2" },
     { name = "dataclasses-json", specifier = ">=0.6.7" },
     { name = "docker", specifier = ">=7.1.0" },
     { name = "fsspec", specifier = ">=2025.6.0" },
-    { name = "gcsfs", specifier = ">=2025.6.0" },
     { name = "grpcio", specifier = ">=1.81.1" },
     { name = "keyring", specifier = ">=25.7.0" },
     { name = "lmdb", specifier = ">=2.3.0" },
@@ -2985,6 +2985,10 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [{ name = "black", specifier = ">=26.1.0" }]
+objects = [
+    { name = "adlfs", specifier = ">=2025.6.0" },
+    { name = "gcsfs", specifier = ">=2025.6.0" },
+]
 test = [
     { name = "pytest", specifier = ">=9.1.0" },
     { name = "pytest-progress", specifier = ">=1.4.0" },

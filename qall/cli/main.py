@@ -13,11 +13,15 @@
 # limitations under the License.
 import typer
 import logging
-import os
 
 from typing import Optional
 
 import qall.core as core
+from qall import (
+    _configure_pyan_logging,
+    _resolve_logging_level,
+    logger as qall_logger,
+)
 
 from .artifact import artifact_cli
 from .provider import provider_cli
@@ -32,8 +36,6 @@ from .task import task_cli
 from .worker import worker_cli
 from .dataloader import dataloader_cli
 from .utils import parse_extra_args
-
-_DEFAULT_LOGGING_LEVEL = logging.INFO
 
 cli = typer.Typer(
     name="qall",
@@ -56,18 +58,15 @@ cli.add_typer(dataloader_cli)
 
 
 def _setup_logging():
-    logging_level_str = os.getenv("QALL_LOGGING_LEVEL")
+    logging_level = _resolve_logging_level()
 
-    if not logging_level_str and not _DEFAULT_LOGGING_LEVEL:
-        return
-
-    if logging_level_str:
-        mapping = logging.getLevelNamesMapping()
-        logging_level = mapping.get(logging_level_str.upper())
-    else:
-        logging_level = _DEFAULT_LOGGING_LEVEL
-
+    # Root logger for third-party libraries (typer, urllib3, ...). pyan3 is
+    # handled separately so its output is routed through qall's own logger.
     logging.basicConfig(level=logging_level)
+
+    # Keep qall's own logger and the pyan3 verbosity gate in sync with the knob.
+    qall_logger.setLevel(logging_level)
+    _configure_pyan_logging()
 
 
 _setup_logging()
