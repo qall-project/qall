@@ -194,18 +194,20 @@ class TaskNode:
     @staticmethod
     def from_block(block: Block, codec: Codec = DEFAULT_CODEC) -> "TaskNode":
         data = codec.decode(block.data)
-
         block_type = data.get("type", "")
         if TaskNode.__TYPE != block_type:
             raise RuntimeError(
                 f"node.from_block failed due to different type of raw block data {block_type}"
             )
 
+        raw_meta = data.get("metadata", {})
+        metadata = TaskMetadata(**raw_meta) if isinstance(raw_meta, dict) else raw_meta
+
         return TaskNode(
             payload_hash=data.get("payload_hash", ""),
             resources=data.get("resources", None),
             children=data.get("children", {}),
-            metadata=data.get("metadata", None),
+            metadata=metadata,
         )
 
     @property

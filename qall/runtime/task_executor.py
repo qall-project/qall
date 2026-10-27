@@ -21,7 +21,6 @@ from qio.core.program import Program
 from qall.object import (
     TaskNode,
     TaskPayload,
-    TaskMetadata,
     TaskRunOutput,
 )
 from qall.registry import BlockRegistry
@@ -95,7 +94,7 @@ class TaskRuntimeExecutor:
                 f"No Payload associated with task {self.__task_hash} in local store."
             )
 
-        metadata = TaskMetadata(**node.metadata)
+        metadata = node.metadata
         print(f"[Executor] Node's metadata and payload loaded: {metadata}")
         print("[Executor] Processing source...")
         source = _get_source(payload)
