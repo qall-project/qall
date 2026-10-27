@@ -218,7 +218,7 @@ def _filter_tasks_nodes(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     filtered_nodes.append(node)
             else:
                 raise SyntaxWarning(
-                    f"Function {node_name} is not registered as a qall task, did you define another @task or @workflow decorator in your code?"
+                    f"Function '{node_name}()' is not registered as a qall task, did you define another @task or @workflow decorator in your code?"
                 )
     return filtered_nodes
 

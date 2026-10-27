@@ -46,7 +46,7 @@ botocore==1.43.106
     # via aiobotocore
 cbor2==6.1.5
     # via py-ipld-dag
-certifi==2026.10.18
+certifi==2026.10.23
     # via
     #   httpcore
     #   httpx
