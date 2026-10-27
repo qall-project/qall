@@ -20,7 +20,7 @@ import uuid
 from typing import Optional
 from pathlib import Path
 
-from qall.object import WorkflowRun, WorkflowRunStatus
+from qall.object import WorkflowRun, WorkflowRunStatus, TaskDag
 from qall.specification.workflow import WorkflowSpec
 from qall.registry import BlockRegistry, RegistryCredentials
 from qall.provider import (
@@ -49,6 +49,51 @@ from qall.provider.qc.local import register_local_workers
 from qall.provider.qc.scaleway import register_scaleway_workers
 
 logger = logging.getLogger(__name__)
+
+
+def _producing_task_name(dag: Optional[TaskDag]) -> Optional[str]:
+    """Name of the task that produced the run's returned artifacts.
+
+    ``run_task`` is invoked on ``dag.root_hash``, which is the workflow's
+    entrypoint node, so the artifacts it surfaces belong to that entrypoint task
+    run. We resolve its task name from the DAG rather than guessing from the
+    artifact payloads themselves (a content-hash gives no provenance).
+    """
+    if dag is None or not getattr(dag, "nodes", None):
+        return None
+
+    for node in dag.nodes:
+        if getattr(node, "hash", None) != dag.root_hash:
+            continue
+
+        metadata = getattr(node, "metadata", None)
+        if isinstance(metadata, dict):
+            return metadata.get("name")
+        return getattr(metadata, "name", None)
+
+    return None
+
+
+def _artifact_show_hints(artifacts, producing_task: Optional[str] = None) -> str:
+    """Copy-paste ``qall artifact show <hash>`` hints for each generated artifact.
+
+    Each hint lets the user launch the CLI command that deserializes and prints
+    the matching local artifact, optionally annotated with the producing task.
+    Artifacts without a usable content hash are skipped.
+    """
+    hints = ["To show an artifact, run the following command(s):"]
+    for artifact in artifacts or []:
+        artifact_hash = getattr(artifact, "hash", None)
+        if not artifact_hash:
+            continue
+
+        hint = "\n\t"
+        if producing_task:
+            hint += f" From task: {producing_task} -> "
+        hint += f"'qall artifact show {artifact_hash}'"
+        hints.append(hint)
+
+    return "".join(hints)
 
 
 def create_workflow_run(
@@ -172,6 +217,14 @@ def create_workflow_run(
                     else "No artifacts generated."
                 )
             )
+
+            # QoL: let the user launch `qall artifact show <hash>` to display the
+            # actual output(s), annotated with the entrypoint task that produced them.
+            hints = _artifact_show_hints(
+                artifacts, producing_task=_producing_task_name(dag)
+            )
+            if hints:
+                logger.info(hints)
 
             workflow_run = WorkflowRun(
                 str(uuid.uuid4()),
