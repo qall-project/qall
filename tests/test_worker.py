@@ -125,3 +125,45 @@ def test_worker_imported_global_not_serialized():
         )
         assert "cloudpickle.loads" not in code
         assert "from math import exp" in code
+
+
+def test_worker_nested_helper_import_synthesized():
+    """
+    A worker method that delegates to a module-level helper which uses an
+    external global (`exp`) gets the helper's import synthesized into the
+    worker's external imports instead of a pickle.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        filepath = Path(tmpdir) / "worker_nested_import.py"
+        filepath.write_text(textwrap.dedent("""
+            from math import exp
+
+            from qall.provider.qc import (
+                QuantumWorker,
+                QuantumContext,
+                quantum_worker,
+            )
+
+            def expo(b):
+                return exp(b)
+
+            @quantum_worker(
+                input_format="qiskit",
+                output_format="qiskit",
+            )
+            class NestedExpWorker(QuantumWorker):
+                def run(self, program, shots, context, **kwargs):
+                    return expo(shots)
+            """))
+
+        spec = WorkerSpec(filepath)
+
+        assert "from math import exp" in spec.imports["external_imports"]
+        assert "exp" not in spec.local_dependencies
+
+        code = "\n\n".join(
+            spec.imports["external_imports"]
+            + list(spec.local_dependencies.values())
+            + [spec.source]
+        )
+        assert "cloudpickle.loads" not in code

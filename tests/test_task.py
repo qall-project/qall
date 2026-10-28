@@ -766,6 +766,90 @@ def test_json_roundtrip_imported_global_via_import():
             sys.modules.pop("rt_import_global_mod", None)
 
 
+def test_bundle_local_dependencies_synthesizes_import_for_nested_helper():
+    """
+    A global used by a *nested* local helper (a non-task function the task
+    calls) is re-importable but not covered by the task's own external imports.
+    Instead of shipping a redundant (or, for unpicklable values, impossible)
+    pickle, the bundler synthesizes the ``from math import exp`` import that
+    provides it.
+
+    Regression: `ex` only references `expo`, so `_extract_imports_from_function`
+    shipped no import for `exp`; the helper's `exp` global was pickled even
+    though `from math import exp` exists in the module.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sys.path.insert(0, tmpdir)
+        try:
+            mod = _load_source_module(
+                "bundle_synth_import_mod",
+                """
+                from math import exp
+
+                def expo(b):
+                    return exp(b)
+
+                def ex(a):
+                    return expo(a)
+                """,
+                Path(tmpdir),
+            )
+            spec = TaskSpec(func=mod.ex)
+            assert "from math import exp" in spec.imports["external_imports"]
+            assert "exp" not in spec.local_dependencies
+
+            code = "\n\n".join(
+                spec.imports["external_imports"]
+                + list(spec.local_dependencies.values())
+                + [spec.source]
+            )
+            assert "cloudpickle.loads" not in code
+            assert "base64" not in code
+            namespace = {}
+            exec(code, namespace)
+            assert namespace["ex"](2) == math.exp(2)
+        finally:
+            sys.path.remove(tmpdir)
+            sys.modules.pop("bundle_synth_import_mod", None)
+
+
+def test_bundle_local_dependencies_nested_alias_pickle_fallback():
+    """
+    A nested helper using an *aliased* external global (`from math import exp
+    as e`) cannot be proven re-importable under the alias, so it safely falls
+    back to serialization and still executes.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sys.path.insert(0, tmpdir)
+        try:
+            mod = _load_source_module(
+                "bundle_alias_fallback_mod",
+                """
+                from math import exp as e
+
+                def expo(b):
+                    return e(b)
+
+                def ex(a):
+                    return expo(a)
+                """,
+                Path(tmpdir),
+            )
+            spec = TaskSpec(func=mod.ex)
+            assert "e" in spec.local_dependencies
+            code = "\n\n".join(
+                spec.imports["external_imports"]
+                + list(spec.local_dependencies.values())
+                + [spec.source]
+            )
+            namespace = {"cloudpickle": __import__("cloudpickle")}
+            exec(code, namespace)
+            assert namespace["ex"](2) == math.exp(2)
+        finally:
+            sys.path.remove(tmpdir)
+            sys.modules.pop("bundle_alias_fallback_mod", None)
+
+
 def test_bundle_local_dependencies_class_with_methods():
     """Classes are bundled along with the functions they reference from methods."""
     with tempfile.TemporaryDirectory() as tmpdir:

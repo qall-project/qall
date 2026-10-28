@@ -41,6 +41,7 @@ from .task import (
     _bundle_local_dependencies,
     _extract_imports_from_function,
     import_bound_sources,
+    merge_synthesized_imports,
 )
 
 
@@ -207,12 +208,15 @@ class WorkerSpec:
             if target_cls and inspect.isclass(target_cls):
                 self.cls = target_cls
                 self.imports = _extract_imports_from_worker(target_cls)
+                synthesized: set[str] = set()
                 self.local_dependencies = _bundle_local_dependencies_from_worker(
                     target_cls,
                     bound_sources=import_bound_sources(
                         self.imports.get("external_imports", [])
                     ),
+                    synthesized=synthesized,
                 )
+                merge_synthesized_imports(self.imports, synthesized)
 
             self.name = name or self.name or filepath.stem
             self.requirements = sorted(set(self.requirements))
@@ -247,12 +251,15 @@ class WorkerSpec:
             self.source = None
 
         self.imports = _extract_imports_from_worker(cls)
+        synthesized: set[str] = set()
         self.local_dependencies = _bundle_local_dependencies_from_worker(
             cls,
             bound_sources=import_bound_sources(
                 self.imports.get("external_imports", [])
             ),
+            synthesized=synthesized,
         )
+        merge_synthesized_imports(self.imports, synthesized)
 
     def _copy_from(self, other: WorkerSpec) -> None:
         self.cls = other.cls
@@ -392,6 +399,7 @@ def _extract_imports_from_worker(cls: type) -> dict[str, list[str]]:
 def _bundle_local_dependencies_from_worker(
     cls: type,
     bound_sources: Optional[dict[str, tuple[str, str]]] = None,
+    synthesized: Optional[set[str]] = None,
 ) -> dict[str, str]:
     """
     Recursively bundle local dependencies used by all methods of a worker.
@@ -399,10 +407,13 @@ def _bundle_local_dependencies_from_worker(
     ``bound_sources`` is the task.py-derived mapping from names bound by the
     worker's shipped external imports to their source module attributes; it is
     forwarded so globals a shipped import already re-provides are not
-    redundantly serialized.
+    redundantly serialized. ``synthesized`` collects import statements for
+    re-importable external attributes discovered during bundling.
     """
     bundled_code: dict[str, str] = {}
     visited: set[int] = set()
+    if synthesized is None:
+        synthesized = set()
 
     target_cls = cls.cls if isinstance(cls, WorkerSpec) else cls
     if not inspect.isclass(target_cls):
@@ -416,6 +427,7 @@ def _bundle_local_dependencies_from_worker(
             member,
             visited=visited,
             bound_sources=bound_sources,
+            synthesized=synthesized,
         )
 
         bundled_code.update(dependencies)
