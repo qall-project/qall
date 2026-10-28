@@ -15,8 +15,13 @@ from __future__ import annotations
 
 from typing import Dict, Union
 
+from keyring.errors import KeyringError
+
 import json
 import keyring
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def set_token(service_name: str, user: str, credentials: Union[Dict, str]) -> bool:
@@ -26,8 +31,9 @@ def set_token(service_name: str, user: str, credentials: Union[Dict, str]) -> bo
 
         keyring.set_password(service_name, user, credentials)
         return True
-    except Exception as e:
-        raise e
+    except (KeyringError, Exception) as e:
+        logger.warning("Could not store token in keyring (headless/no backend): %s", e)
+        return False
 
 
 def get_token(service_name: str, user: str) -> str | dict | None:
@@ -41,14 +47,14 @@ def get_token(service_name: str, user: str) -> str | dict | None:
         except (json.JSONDecodeError, TypeError):
             return credentials
 
-    except Exception as e:
-        raise e
+    except (KeyringError, Exception) as e:
+        logger.warning("Keyring unavailable or unconfigured: %s", e)
+        return None
 
 
 def delete_token(service_name: str, user: str) -> bool:
     try:
         keyring.delete_password(service_name, user)
         return True
-    except Exception as e:
-        # If the password mapping does not exist, silence it gracefully or return false
+    except (KeyringError, Exception):
         return False

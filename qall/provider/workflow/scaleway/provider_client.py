@@ -30,6 +30,7 @@ from qall.object import (
     QpuTechnology,
     QpuModality,
     QpuTopology,
+    QpuHosting,
     ResourceAvailability,
 )
 
@@ -196,6 +197,7 @@ profiles:
             available_qubits=max_qubits,
             max_shots=max_shots,
             topology=QpuTopology.unknown,
+            hosting=QpuHosting.remote,
             max_ops=9999,
             modality=modality,
             technology=technology,
@@ -214,7 +216,7 @@ profiles:
             currency="EUR",
         )
 
-        description = self._get_attr(p, "description", "")
+        description = p.description
 
         return Resource(
             name=name,
@@ -226,12 +228,6 @@ profiles:
             availability=availability,
             description=description,
         )
-
-    @staticmethod
-    def _get_attr(obj: Any, key: str, default: Any = None) -> Any:
-        if isinstance(obj, dict):
-            return obj.get(key, default)
-        return getattr(obj, key, default)
 
     @staticmethod
     def _resolve_qpu_type(type_str: str) -> QpuType:
@@ -267,10 +263,6 @@ profiles:
         return provider_map.get(provider_name.lower(), QpuModality.unknown)
 
     @staticmethod
-    def _resolve_topology(top_str: str) -> QpuTopology:
-        return QpuTopology.unknown
-
-    @staticmethod
     def _resolve_availability(status_str: str) -> ResourceAvailability:
         availability_map = {
             "available": ResourceAvailability.available,
@@ -294,9 +286,10 @@ profiles:
             nanos = money_obj.get("nanos") or 0
             currency = money_obj.get("currency_code") or "EUR"
         else:
-            units = getattr(money_obj, "units", 0) or 0
-            nanos = getattr(money_obj, "nanos", 0) or 0
-            currency = getattr(money_obj, "currency_code", "EUR") or "EUR"
+            units = money_obj.units
+            nanos = money_obj.nanos
+            currency = money_obj.currency_code
 
         price = float(units) + (float(nanos) / 1e9)
+
         return price, currency

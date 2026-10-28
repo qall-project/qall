@@ -17,7 +17,6 @@ import os
 import time
 
 from pathlib import Path
-from typing import Optional
 
 from docker.errors import DockerException, APIError, ImageNotFound, NotFound
 from docker.models.containers import Container
@@ -33,6 +32,7 @@ from .base_manager import BaseDaemonManager
 
 logger = logging.getLogger(__name__)
 
+# _DEFAULT_IMAGE = "scw/qall-daemon:latest"
 _DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project/qall-daemon:latest"
 
 
@@ -242,6 +242,16 @@ class DockerDaemonManager(BaseDaemonManager):
     def register_resource_assignments(self, resource_assigments: dict):
         with self.client as client:
             for task_hash, assignment in resource_assigments.items():
+                if not task_hash:
+                    raise RuntimeError(
+                        "resource assignment must have a target task hash"
+                    )
+
+                if not assignment.provider:
+                    raise RuntimeError(
+                        "resource assignment must have a target provider"
+                    )
+
                 resource_name = (
                     assignment.qpu_name
                     or assignment.gpu_name

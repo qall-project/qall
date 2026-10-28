@@ -13,6 +13,8 @@
 # limitations under the License.
 from typing import Any
 
+from qiskit_aer import AerSimulator
+
 from qall.provider.qc import (
     QuantumWorker,
     QuantumContext,
@@ -24,6 +26,7 @@ from qall.provider.qc import (
     requirements=["qiskit", "qiskit-aer", "qiskit-qasm3-import"],
     input_format="qiskit",
     output_format="qiskit",
+    provider="local",
 )
 class QiskitLocalQuantumWorker(QuantumWorker):
     """
@@ -43,8 +46,6 @@ class QiskitLocalQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> QuantumContext:
-        from qiskit_aer import AerSimulator
-
         self.__backend = AerSimulator()
 
         return context

@@ -31,11 +31,15 @@ def create_quantum_worker_manager(
     if __qw_manager:
         raise RuntimeError("QuantumWorkerManager has been already initialized.")
 
-    if worker_addresses:
+    if worker_addresses and len(worker_addresses) > 0:
         qw_manager = QuantumWorkerManager()
 
         for address in worker_addresses:
             qw_manager.register(address=address)
+    else:
+        logger.warning(
+            "QuantumWorkerManager has been initialized with empty worker addresses list."
+        )
 
     __qw_manager = qw_manager
 

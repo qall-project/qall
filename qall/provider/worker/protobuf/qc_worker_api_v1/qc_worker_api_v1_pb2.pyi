@@ -1,5 +1,5 @@
 from google.api import annotations_pb2 as _annotations_pb2
-from google.protobuf.internal import containers as _containers
+from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -46,27 +46,6 @@ class Error(_message.Message):
 
 class QuantumContext(_message.Message):
     __slots__ = ("id", "resource", "provider", "configuration", "metadata")
-
-    class ConfigurationEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: str
-        def __init__(
-            self, key: _Optional[str] = ..., value: _Optional[str] = ...
-        ) -> None: ...
-
-    class MetadataEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: str
-        def __init__(
-            self, key: _Optional[str] = ..., value: _Optional[str] = ...
-        ) -> None: ...
-
     ID_FIELD_NUMBER: _ClassVar[int]
     RESOURCE_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_FIELD_NUMBER: _ClassVar[int]
@@ -75,51 +54,30 @@ class QuantumContext(_message.Message):
     id: str
     resource: str
     provider: str
-    configuration: _containers.ScalarMap[str, str]
-    metadata: _containers.ScalarMap[str, str]
+    configuration: _struct_pb2.Struct
+    metadata: _struct_pb2.Struct
     def __init__(
         self,
         id: _Optional[str] = ...,
         resource: _Optional[str] = ...,
         provider: _Optional[str] = ...,
-        configuration: _Optional[_Mapping[str, str]] = ...,
-        metadata: _Optional[_Mapping[str, str]] = ...,
+        configuration: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
+        metadata: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
     ) -> None: ...
 
 class CreateContextRequest(_message.Message):
     __slots__ = ("resource", "configuration", "metadata")
-
-    class ConfigurationEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: str
-        def __init__(
-            self, key: _Optional[str] = ..., value: _Optional[str] = ...
-        ) -> None: ...
-
-    class MetadataEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: str
-        def __init__(
-            self, key: _Optional[str] = ..., value: _Optional[str] = ...
-        ) -> None: ...
-
     RESOURCE_FIELD_NUMBER: _ClassVar[int]
     CONFIGURATION_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
     resource: str
-    configuration: _containers.ScalarMap[str, str]
-    metadata: _containers.ScalarMap[str, str]
+    configuration: _struct_pb2.Struct
+    metadata: _struct_pb2.Struct
     def __init__(
         self,
         resource: _Optional[str] = ...,
-        configuration: _Optional[_Mapping[str, str]] = ...,
-        metadata: _Optional[_Mapping[str, str]] = ...,
+        configuration: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
+        metadata: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
     ) -> None: ...
 
 class CreateContextResponse(_message.Message):

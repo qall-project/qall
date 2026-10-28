@@ -14,58 +14,58 @@
 from typing import Any
 from uuid import uuid4
 
+from qiskit_scaleway import ScalewayProvider
+
 from qall.provider.qc import (
     QuantumWorker,
     QuantumContext,
     quantum_worker,
 )
 
+from qall.provider.qc.scaleway.utils import (
+    list_session_ids_from_context,
+    add_session_id_in_context,
+    set_session_dedup_in_context,
+    get_session_dedup_from_context,
+)
 
-def get_session_dedup_from_context(context: QuantumContext):
-    if not context.metadata:
-        return None
-
-    return context.metadata.get("deduplication_id", None)
-
-
-def set_session_dedup_in_context(
-    context: QuantumContext, deduplication_id: str
-) -> QuantumContext:
-    if not context.metadata:
-        context.metadata = {}
-
-    context.metadata["deduplication_id"] = deduplication_id
-
-    return context
+from datetime import datetime
+from qiskit.providers import JobStatus
 
 
-def add_session_id_in_context(context: QuantumContext, id: str) -> QuantumContext:
-    if not context.metadata:
-        context.metadata = {}
+def sanitize_qiskit_result(result):
+    if result is None:
+        return result
 
-    sessions = context.metadata.get("sessions", None)
+    if hasattr(result, "status"):
+        if isinstance(result.status, JobStatus) or hasattr(result.status, "name"):
+            result.status = result.status.name
+        elif not isinstance(result.status, (str, type(None))):
+            result.status = str(result.status)
 
-    if not sessions:
-        sessions = [id]
-    elif not id in sessions:
-        sessions.append(id)
+    if hasattr(result, "date") and result.date is not None:
+        if isinstance(result.date, datetime):
+            result.date = result.date.isoformat()
+        elif not isinstance(result.date, str):
+            result.date = str(result.date)
 
-    context.metadata["sessions"] = sessions
+    if hasattr(result, "results") and result.results:
+        for exp in result.results:
+            if hasattr(exp, "status") and (
+                isinstance(exp.status, JobStatus) or hasattr(exp.status, "name")
+            ):
+                exp.status = exp.status.name
+            if hasattr(exp, "date") and isinstance(exp.date, datetime):
+                exp.date = exp.date.isoformat()
 
-    return context
-
-
-def list_session_ids_from_context(context: QuantumContext) -> list[str]:
-    if not context.metadata:
-        return None
-
-    return context.metadata.get("sessions", None)
+    return result
 
 
 @quantum_worker(
     requirements=["qiskit-scaleway", "qiskit-qasm3-import"],
     input_format="qiskit",
     output_format="qiskit",
+    provider="scaleway",
 )
 class QiskitScalewayQuantumWorker(QuantumWorker):
     """
@@ -86,8 +86,6 @@ class QiskitScalewayQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> QuantumContext:
-        from qiskit_scaleway import ScalewayProvider
-
         provider = ScalewayProvider(
             project_id=kwargs.get("project_id"),
             secret_key=kwargs.get("secret_key"),
@@ -99,11 +97,11 @@ class QiskitScalewayQuantumWorker(QuantumWorker):
         deduplication_id = get_session_dedup_from_context(context)
 
         if not deduplication_id:
-            deduplication_id = uuid4()
+            deduplication_id = str(uuid4())
             set_session_dedup_in_context(context, deduplication_id)
 
         session_id = self.__backend.start_session(
-            name=f"{resource}-qall-session",
+            name=f"{resource.lower()}-qall-session",
             deduplication_id=deduplication_id,
         )
 
@@ -132,6 +130,9 @@ class QiskitScalewayQuantumWorker(QuantumWorker):
         result = self.__backend.run(
             program, shots=shots, session_id=session_ids[0]
         ).result()
+
+        result = sanitize_qiskit_result(result)
+        print("result", result)
 
         return result
 

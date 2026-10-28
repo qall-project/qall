@@ -54,7 +54,7 @@ def run(
         "-m",
         help="Execution mode: 'local' for daemonless, 'daemon' for daemon-based",
     ),
-    worker_address: Optional[list[str]] = typer.Option(
+    worker_addresses: Optional[list[str]] = typer.Option(
         None,
         "--worker-address",
         "-w",
@@ -86,7 +86,7 @@ def run(
         block_registry=block_registry,
         artifact_hash=artifact_hash,
         mode=execution_mode,
-        worker_addresses=worker_address,
+        worker_addresses=worker_addresses,
     )
 
     typer.echo(f"[Runtime] Task done!")

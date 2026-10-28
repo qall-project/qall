@@ -32,6 +32,12 @@ class QpuType(Enum):
     physical = "physical"
 
 
+class QpuHosting(Enum):
+    unknown = "unknown"
+    remote = "remote"
+    on_premise = "on_premise"
+
+
 class QpuTechnology(Enum):
     unknown = "unknown"
     continuous_photon = "continuous_photon"
@@ -93,6 +99,7 @@ class QpuSpec:
     bookable: bool = False
     mcm_support: bool = False
     reset_support: bool = False
+    hosting: QpuHosting = QpuHosting.unknown
 
 
 @dataclass(frozen=True)
