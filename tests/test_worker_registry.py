@@ -78,8 +78,6 @@ def test_worker_spec_inlining_and_relative_import_stripping(tmp_path: Path):
 
     spec = WorkerSpec(worker_file)
 
-    print(spec.source)
-
     assert spec.name == "LocalTestWorker"
     assert spec.input_format == normalize_circuit_type("qiskit")
     assert spec.output_format == normalize_result_type("qiskit")

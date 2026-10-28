@@ -134,9 +134,6 @@ with open('{output_path}', 'wb') as f:
 
 {stop_workers_code}
 """
-
-        print("wrapper_code", wrapper_code)
-
         setup_unifs()
 
         process = subprocess.Popen(
