@@ -203,9 +203,28 @@ class TaskNode:
         raw_meta = data.get("metadata", {})
         metadata = TaskMetadata(**raw_meta) if isinstance(raw_meta, dict) else raw_meta
 
+        raw_res = data.get("resources")
+
+        if isinstance(raw_res, dict):
+            c_data = raw_res.get("classical")
+            q_data = raw_res.get("quantum")
+            classical = (
+                ClassicalResourceConstraints(**c_data)
+                if isinstance(c_data, dict)
+                else c_data
+            )
+            quantum = (
+                QuantumResourceConstraints(**q_data)
+                if isinstance(q_data, dict)
+                else q_data
+            )
+            resources = TaskResource(classical=classical, quantum=quantum)
+        else:
+            resources = raw_res
+
         return TaskNode(
             payload_hash=data.get("payload_hash", ""),
-            resources=data.get("resources", None),
+            resources=resources,
             children=data.get("children", {}),
             metadata=metadata,
         )

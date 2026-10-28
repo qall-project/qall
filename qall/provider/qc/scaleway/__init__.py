@@ -49,6 +49,9 @@ def register_scaleway_workers(catalog: WorkerCatalog = None) -> WorkerCatalog:
             local_only=True,
         )
 
+        print("worker_spec local dep", worker_spec.local_dependencies)
+        print("worker_spec imports", worker_spec.imports)
+
         local_entries[tag.name] = WorkerEntry(
             hash=dag.root_hash,
             version=tag.version,

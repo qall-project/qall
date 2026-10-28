@@ -208,7 +208,7 @@ class WorkerSpec:
                 self.requirements,
                 map_imports_to_packages(discover_file_global_imports(filepath)),
             )
-            self.source = self._extract_class_source(
+            clean_source = self._extract_class_source(
                 source,
                 worker_cls.class_name,
             )
@@ -217,7 +217,6 @@ class WorkerSpec:
             if target_cls and inspect.isclass(target_cls):
                 self.cls = target_cls
                 self.imports = _extract_imports_from_worker(target_cls)
-
                 self.local_dependencies = _bundle_local_dependencies_from_worker(
                     target_cls
                 )
@@ -233,6 +232,12 @@ class WorkerSpec:
                             )
                         except (TypeError, OSError):
                             pass
+
+            bundled_helpers = "\n\n".join(self.local_dependencies.values())
+            if bundled_helpers:
+                self.source = f"{bundled_helpers}\n\n{clean_source}".strip()
+            else:
+                self.source = clean_source
 
             self.name = name or self.name or filepath.stem
             self.requirements = sorted(set(self.requirements))
@@ -323,15 +328,19 @@ class WorkerSpec:
         class_name: str,
     ) -> str:
         tree = ast.parse(source)
+        cleaned_body = []
 
-        tree = ast.parse(source)
-        for node in ast.walk(tree):
+        for node in tree.body:
+            if isinstance(node, ast.ImportFrom) and node.level > 0:
+                continue
             if isinstance(node, ast.ClassDef) and node.name == class_name:
                 node.decorator_list = [
                     dec
                     for dec in node.decorator_list
                     if not _is_quantum_worker_decorator(dec)
                 ]
+            cleaned_body.append(node)
+        tree.body = cleaned_body
         return ast.unparse(tree)
 
     def _load_decorator_metadata(

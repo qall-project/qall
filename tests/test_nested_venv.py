@@ -88,13 +88,17 @@ def test_workflow_ignores_modules_from_nested_venv():
         sys.modules[fake_module.__name__] = fake_module
         try:
             filepath = project_dir / "main_workflow.py"
-            filepath.write_text(textwrap.dedent("""
+            filepath.write_text(
+                textwrap.dedent(
+                    """
                     from qall import task, workflow
 
                     @workflow()
                     def main():
                         return 42
-                    """))
+                    """
+                )
+            )
 
             my_wf = WorkflowSpec(filepath, "NestedVenvWorkflow")
 
