@@ -50,6 +50,7 @@ from qall.core.dataloader import (
 from qall.core.config import init_config
 from qall.config import (
     get_local_configuration,
+    get_default_configuration,
     config_exists,
 )
 from qall.resolver import resolve_workflow_resources
@@ -125,6 +126,18 @@ def create_workflow_run(
         else local_config.get_default_profile()
     )
 
+    if profile.provider != "local" and not provider_credentials:
+        logging.warning(
+            f"profile is targetting {profile.provider} but not loggin, considering default local profile instead"
+        )
+
+        active_provider = "local"
+        default_config = get_default_configuration(active_provider)
+        profile = default_config.get_default_profile()
+
+    if profile.provider == "local":
+        active_provider = "local"
+
     if not profile:
         raise RuntimeError(
             f"No profile found (requested: '{profile_name or 'default'}') "
@@ -137,9 +150,6 @@ def create_workflow_run(
         allowed_cpu=allowed_cpus,
         allowed_gpu=allowed_gpus,
     )
-
-    if profile.provider == "local":
-        active_provider = "local"
 
     available_resources = []
 
@@ -187,6 +197,7 @@ def create_workflow_run(
             artifacts = run_task(
                 task_hash=dag.root_hash,
                 input_artifact_hash=input_artifact_hash,
+                provider_credentials=provider_credentials,
             )
             stop = datetime.datetime.now()
 

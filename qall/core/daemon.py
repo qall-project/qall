@@ -288,7 +288,9 @@ def run_task(
             task_run = client.create_task_run(
                 task_hash=task_hash,
                 artifact_hash=input_artifact_hash,
-                provider_credentials=provider_credentials.credentials,
+                provider_credentials=(
+                    provider_credentials.credentials if provider_credentials else None
+                ),
             )
 
             logger.info(f"Task run created: {task_run.id}")
