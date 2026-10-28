@@ -20,7 +20,7 @@ workflow run, annotated with the entrypoint task that produced the artifacts.
 
 from types import SimpleNamespace
 
-from qall.core.workflow_run import _artifact_show_hints, _producing_task_name
+from qall.core.workflow_run import _artifact_show_hints
 from qall.object import TaskDag, TaskMetadata, TaskNode
 
 
@@ -34,64 +34,34 @@ def _node(name: str) -> TaskNode:
     )
 
 
-def test_producing_task_name_resolves_root_node_from_dict_metadata():
-    nodes = [_node("task_a"), _node("main")]
-    dag = TaskDag(nodes=nodes, payloads=[], root_hash=nodes[1].hash)
-
-    assert _producing_task_name(dag) == "main"
-
-
-def test_producing_task_name_handles_metadata_object():
-    node = TaskNode(
-        payload_hash="payload-x",
-        resources={},
-        children={},
-        metadata=TaskMetadata(name="obj_task"),
-    )
-    dag = TaskDag(nodes=[node], payloads=[], root_hash=node.hash)
-
-    assert _producing_task_name(dag) == "obj_task"
-
-
-def test_producing_task_name_is_none_when_unresolvable():
-    assert _producing_task_name(None) is None
-
-    node = _node("loner")
-    dag_without_match = TaskDag(nodes=[node], payloads=[], root_hash="not-here")
-    assert _producing_task_name(dag_without_match) is None
-
-    unnamed = TaskNode(
-        payload_hash="payload-x",
-        resources={},
-        children={},
-        metadata={},
-    )
-    dag_unnamed = TaskDag(nodes=[unnamed], payloads=[], root_hash=unnamed.hash)
-    assert _producing_task_name(dag_unnamed) is None
-
-
 def test_artifact_show_hints_emit_runable_commands():
     artifacts = [SimpleNamespace(hash="aaa111"), SimpleNamespace(hash="bbb222")]
 
-    hints = _artifact_show_hints(artifacts, producing_task="main")
+    hints = _artifact_show_hints(artifacts)
 
     assert hints.splitlines() == [
-        "-> `qall artifact show aaa111` (from task: main)",
-        "-> `qall artifact show bbb222` (from task: main)",
+        "To show an artifact, run the following command(s):",
+        "\t-> 'qall artifact show aaa111'",
+        "\t-> 'qall artifact show bbb222'",
     ]
 
 
 def test_artifact_show_hints_without_task_name():
     hints = _artifact_show_hints([SimpleNamespace(hash="abc")])
 
-    assert hints == "-> `qall artifact show abc`"
+    assert hints == (
+        "To show an artifact, run the following command(s):\n"
+        "\t-> 'qall artifact show abc'"
+    )
 
 
 def test_artifact_show_hints_skips_hashless_and_empty_inputs():
     artifacts = [SimpleNamespace(name="no-hash"), SimpleNamespace(hash="ok")]
 
-    assert _artifact_show_hints(artifacts, producing_task="main") == (
-        "-> `qall artifact show ok` (from task: main)"
+    assert _artifact_show_hints(artifacts) == (
+        "To show an artifact, run the following command(s):\n"
+        "\t-> 'qall artifact show ok'"
     )
+
     assert _artifact_show_hints([]) == ""
     assert _artifact_show_hints(None) == ""
