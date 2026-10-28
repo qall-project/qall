@@ -40,6 +40,7 @@ from .imports import (
 from .task import (
     _bundle_local_dependencies,
     _extract_imports_from_function,
+    import_bound_sources,
 )
 
 
@@ -207,7 +208,10 @@ class WorkerSpec:
                 self.cls = target_cls
                 self.imports = _extract_imports_from_worker(target_cls)
                 self.local_dependencies = _bundle_local_dependencies_from_worker(
-                    target_cls
+                    target_cls,
+                    bound_sources=import_bound_sources(
+                        self.imports.get("external_imports", [])
+                    ),
                 )
 
             self.name = name or self.name or filepath.stem
@@ -243,7 +247,12 @@ class WorkerSpec:
             self.source = None
 
         self.imports = _extract_imports_from_worker(cls)
-        self.local_dependencies = _bundle_local_dependencies_from_worker(cls)
+        self.local_dependencies = _bundle_local_dependencies_from_worker(
+            cls,
+            bound_sources=import_bound_sources(
+                self.imports.get("external_imports", [])
+            ),
+        )
 
     def _copy_from(self, other: WorkerSpec) -> None:
         self.cls = other.cls
@@ -380,9 +389,17 @@ def _extract_imports_from_worker(cls: type) -> dict[str, list[str]]:
     }
 
 
-def _bundle_local_dependencies_from_worker(cls: type) -> dict[str, str]:
+def _bundle_local_dependencies_from_worker(
+    cls: type,
+    bound_sources: Optional[dict[str, tuple[str, str]]] = None,
+) -> dict[str, str]:
     """
     Recursively bundle local dependencies used by all methods of a worker.
+
+    ``bound_sources`` is the task.py-derived mapping from names bound by the
+    worker's shipped external imports to their source module attributes; it is
+    forwarded so globals a shipped import already re-provides are not
+    redundantly serialized.
     """
     bundled_code: dict[str, str] = {}
     visited: set[int] = set()
@@ -398,6 +415,7 @@ def _bundle_local_dependencies_from_worker(cls: type) -> dict[str, str]:
         dependencies = _bundle_local_dependencies(
             member,
             visited=visited,
+            bound_sources=bound_sources,
         )
 
         bundled_code.update(dependencies)

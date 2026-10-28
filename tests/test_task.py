@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import importlib
+import math
 import sys
 import textwrap
 from datetime import datetime
@@ -620,6 +621,149 @@ def test_bundle_local_dependencies_globals():
         finally:
             sys.path.remove(tmpdir)
             sys.modules.pop("bundle_globals_mod", None)
+
+
+def test_bundle_local_dependencies_skips_external_callable_covered_by_import():
+    """
+    A global that a shipped external import already re-provides as the *same*
+    object must not be serialized into the task payload: the import alone
+    suffices.
+
+    Regression: `math.exp` is a C extension callable (`builtin_function_or_method`,
+    neither `types.FunctionType` nor a class), so it escaped the "external
+    functions and classes are not re-bundled -- the imports already make them
+    available" guard and was shipped as a redundant
+    `exp = cloudpickle.loads(base64.b64decode(...))` on top of `from math import
+    exp`. The pickled payload literally encodes `STACK_GLOBAL('math','exp')`, so
+    it added no portability beyond the import already being shipped.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sys.path.insert(0, tmpdir)
+        try:
+            mod = _load_source_module(
+                "bundle_skip_external_mod",
+                """
+                from math import exp
+
+                def ex(a):
+                    return exp(a)
+                """,
+                Path(tmpdir),
+            )
+            spec = TaskSpec(func=mod.ex)
+            assert "from math import exp" in spec.imports["external_imports"]
+            assert "exp" not in spec.local_dependencies
+
+            # Reproduce the runtime payload assembly (imports + deps + source).
+            code = "\n\n".join(
+                spec.imports["external_imports"]
+                + list(spec.local_dependencies.values())
+                + [spec.source]
+            )
+            assert "base64" not in code
+            assert "cloudpickle.loads" not in code
+            namespace = {}
+            exec(code, namespace)
+            assert namespace["ex"](2) == math.exp(2)
+        finally:
+            sys.path.remove(tmpdir)
+            sys.modules.pop("bundle_skip_external_mod", None)
+
+
+def test_bundle_local_dependencies_skips_imported_value_covered_by_import():
+    """
+    A literal repr-copy of an imported constant is also dropped: with `from math
+    import pi` shipped, a redundant `pi = 3.14...` assignment is no longer
+    emitted.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sys.path.insert(0, tmpdir)
+        try:
+            mod = _load_source_module(
+                "bundle_skip_value_mod",
+                """
+                from math import pi
+
+                def g():
+                    return round(pi, 3)
+                """,
+                Path(tmpdir),
+            )
+            spec = TaskSpec(func=mod.g)
+            assert "from math import pi" in spec.imports["external_imports"]
+            assert "pi" not in spec.local_dependencies
+            code = "\n\n".join(
+                spec.imports["external_imports"]
+                + list(spec.local_dependencies.values())
+                + [spec.source]
+            )
+            namespace = {}
+            exec(code, namespace)
+            assert namespace["g"]() == 3.142
+        finally:
+            sys.path.remove(tmpdir)
+            sys.modules.pop("bundle_skip_value_mod", None)
+
+
+def test_bundle_local_dependencies_keeps_local_values_even_with_imports():
+    """
+    Negative control for the re-export guard: local values that no import can
+    re-produce under the same name (Path instance, plain module constant) are
+    still bundled even when the module also ships external imports. Only the
+    truly re-importable callable (`exp`) is dropped.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sys.path.insert(0, tmpdir)
+        try:
+            mod = _load_source_module(
+                "bundle_keep_local_mod",
+                """
+                from math import exp
+                from pathlib import Path
+
+                BASE = Path("/data")
+                FACTOR = 3
+
+                def f(a):
+                    return exp(a), str(BASE), FACTOR
+                """,
+                Path(tmpdir),
+            )
+            spec = TaskSpec(func=mod.f)
+            assert "exp" not in spec.local_dependencies
+            assert "BASE" in spec.local_dependencies
+            assert "FACTOR" in spec.local_dependencies
+        finally:
+            sys.path.remove(tmpdir)
+            sys.modules.pop("bundle_keep_local_mod", None)
+
+
+def test_json_roundtrip_imported_global_via_import():
+    """
+    A task global covered by a shipped import survives JSON without any pickled
+    copy: reconstruction resolves it from `external_imports`.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sys.path.insert(0, tmpdir)
+        try:
+            mod = _load_source_module(
+                "rt_import_global_mod",
+                """
+                from math import exp
+
+                def ex(a):
+                    return exp(a)
+                """,
+                Path(tmpdir),
+            )
+            spec = TaskSpec(func=mod.ex)
+            assert "exp" not in spec.local_dependencies
+            restored = TaskSpec.from_json(spec.to_json())
+            assert "exp" not in restored.local_dependencies
+            assert restored(3) == math.exp(3)
+        finally:
+            sys.path.remove(tmpdir)
+            sys.modules.pop("rt_import_global_mod", None)
 
 
 def test_bundle_local_dependencies_class_with_methods():

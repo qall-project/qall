@@ -28,6 +28,7 @@ import importlib.util
 import site
 import sys
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 from pathlib import Path
@@ -88,7 +89,12 @@ class TaskSpec:
                 _task_decorator_names(self.func),
             )
             self.imports = _extract_imports_from_function(self.func)
-            self.local_dependencies = _bundle_local_dependencies(self.func)
+            self.local_dependencies = _bundle_local_dependencies(
+                self.func,
+                bound_sources=import_bound_sources(
+                    self.imports.get("external_imports", [])
+                ),
+            )
             self.quantum_runs = extract_quantum_runs(
                 self.func,
                 self.source,
@@ -712,6 +718,66 @@ def _serialize_value(name: str, obj: Any) -> str:
     return f"import base64\n{name} = cloudpickle.loads(base64.b64decode({payload!r}))"
 
 
+def import_bound_sources(external_imports: Iterable[str]) -> dict[str, tuple[str, str]]:
+    """
+    Maps each name bound by a set of external import statements to the
+    ``(module, attribute)`` pair it loads from, e.g.::
+
+        "from math import exp"          -> {"exp": ("math", "exp")}
+        "from math import exp as e"     -> {"e": ("math", "exp")}
+
+    ``from ... import *`` statements add no entry (a wildcard cannot be
+    identity-checked), and ``import x`` / ``import x as y`` statements are
+    ignored: the names they bind are module objects, which the bundler never
+    serializes. Used to detect task/workflow globals that a shipped import
+    already re-provides as the *same* object.
+    """
+    bound: dict[str, tuple[str, str]] = {}
+    for statement in external_imports:
+        try:
+            tree = ast.parse(statement)
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ImportFrom):
+                continue
+            if node.level > 0 or not node.module:
+                continue
+            for alias in node.names:
+                if alias.name == "*":
+                    continue
+                bound[alias.asname or alias.name] = (node.module, alias.name)
+    return bound
+
+
+def _object_is_reexported_by_import(
+    name: str,
+    obj: Any,
+    bound_sources: Optional[dict[str, tuple[str, str]]] = None,
+) -> bool:
+    """
+    True if a shipped external import statement binds ``name`` to *exactly*
+    ``obj`` (identity), i.e. executing that import in the target runtime
+    already yields this same object, making a serialized copy redundant.
+
+    Only top-level attribute loads (``from M import X[ as name]``) are
+    considered. If the module cannot be imported from the current environment
+    the check returns False and the caller keeps bundling as before.
+    """
+    if not bound_sources:
+        return False
+    source = bound_sources.get(name)
+    if source is None:
+        return False
+    module_name, attr = source
+    try:
+        module = importlib.import_module(module_name)
+        value = getattr(module, attr)
+    except Exception:
+        return False
+    return value is obj
+
+
 def _is_definition_source(source: str) -> bool:
     stripped = source.lstrip()
     return stripped.startswith(("def ", "class ", "async def "))
@@ -748,7 +814,13 @@ def _find_attribute_chains(tree: ast.AST, root_name: str) -> list[tuple[str, ...
     return sorted(chains, key=len)
 
 
-def _bundle_object(name: str, obj: Any, bundled: dict[str, str], visited: set) -> None:
+def _bundle_object(
+    name: str,
+    obj: Any,
+    bundled: dict[str, str],
+    visited: set,
+    bound_sources: Optional[dict[str, tuple[str, str]]] = None,
+) -> None:
     """Bundles a single dependency object (function/class/value) into source."""
     obj_id = id(obj)
     if obj_id in visited:
@@ -791,22 +863,33 @@ def _bundle_object(name: str, obj: Any, bundled: dict[str, str], visited: set) -
         bundled[name] = source
 
         if isinstance(obj, types.FunctionType):
-            nested = _bundle_local_dependencies(obj, visited)
+            nested = _bundle_local_dependencies(obj, visited, bound_sources)
         else:
             nested = {}
             for _, method in inspect.getmembers(obj, predicate=inspect.isfunction):
-                nested.update(_bundle_local_dependencies(method, visited))
+                nested.update(
+                    _bundle_local_dependencies(method, visited, bound_sources)
+                )
         for dep_name, dep_source in nested.items():
             bundled.setdefault(dep_name, dep_source)
     else:
         # Plain values (Path, datetime, containers of objects, lambdas,
         # partials, ...) are always transported: their serialization does not
-        # depend on where their defining class lives.
+        # depend on where their defining class lives. The exception is a value
+        # that a shipped external import already re-produces as the *same*
+        # object (e.g. a stdlib callable or constant rebound at module scope):
+        # pickling or repr-copying those is redundant with the import and adds
+        # no portability to the runtime payload.
+        if _object_is_reexported_by_import(name, obj, bound_sources):
+            return
         bundled[name] = _serialize_value(name, obj)
 
 
 def _bundle_module_members(
-    func: Callable, bundled: dict[str, str], visited: set
+    func: Callable,
+    bundled: dict[str, str],
+    visited: set,
+    bound_sources: Optional[dict[str, tuple[str, str]]] = None,
 ) -> None:
     """
     Bundles members of local modules accessed as `module.attr` by the function
@@ -848,13 +931,26 @@ def _bundle_module_members(
             dotted = ".".join((name, *chain))
             if dotted in bundled or id(target) in visited:
                 continue
-            _bundle_object(dotted, target, bundled, visited)
+            _bundle_object(dotted, target, bundled, visited, bound_sources)
 
 
-def _bundle_local_dependencies(func: Callable, visited: set = None) -> dict[str, str]:
+def _bundle_local_dependencies(
+    func: Callable,
+    visited: set = None,
+    bound_sources: Optional[dict[str, tuple[str, str]]] = None,
+) -> dict[str, str]:
     """
     Recursively discovers and extracts the source code of local variables,
     functions, and classes used by the given function.
+
+    Args:
+        func: The function whose dependencies are extracted.
+        visited: Set of already-serialized object ids (used across recursive
+            calls to avoid duplicates).
+        bound_sources: Optional mapping from names bound by the shipped
+            external imports to their ``(module, attribute)`` source, used to
+            avoid redundantly serializing globals that a shipped import already
+            re-provides as the same object (see import_bound_sources).
 
     Returns:
         A dictionary mapping the dependency name to its Python source code string.
@@ -877,10 +973,10 @@ def _bundle_local_dependencies(func: Callable, visited: set = None) -> dict[str,
     for name, obj in dependencies.items():
         if name in bundled:
             continue
-        _bundle_object(name, obj, bundled, visited)
+        _bundle_object(name, obj, bundled, visited, bound_sources)
 
     # Transport members of local modules accessed as `module.attr`.
-    _bundle_module_members(func, bundled, visited)
+    _bundle_module_members(func, bundled, visited, bound_sources)
 
     return _reorder_dependencies(bundled)
 
