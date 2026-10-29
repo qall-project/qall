@@ -257,7 +257,7 @@ pywin32-ctypes==0.2.3 ; sys_platform == 'win32'
     # via keyring
 pyyaml==6.0.3
     # via qall
-qall-daemon-client==0.1.5
+qall-daemon-client==0.1.6
     # via qall
 qall-registry-client==0.1.1
     # via qall

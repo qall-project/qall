@@ -1,6 +1,6 @@
 [project]
 name = "qall"
-version = "0.1.12"
+version = "0.1.13"
 description = "A pythonic tool for modern hybrid and quantum workflows."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -23,7 +23,7 @@ dependencies = [
     "s3fs>=2025.6.0",
     "scaleway-qaas-client>=0.1.0",
     "qall-registry-client>=0.1.0",
-    "qall-daemon-client>=0.1.5",
+    "qall-daemon-client>=0.1.6",
 ]
 
 ### Dependencies ###
