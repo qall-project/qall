@@ -146,8 +146,8 @@ def create_workflow_run(
     )
 
     if profile.provider != "local" and not provider_credentials:
-        logging.warning(
-            f"profile is targetting {profile.provider} but not loggin, considering default local profile instead"
+        logger.warning(
+            f"Profile is targetting '{profile.provider}' but you're not logged in, consider default 'local' profile instead."
         )
 
         active_provider = "local"
