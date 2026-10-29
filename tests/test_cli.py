@@ -80,8 +80,7 @@ def dummy_workflow_file(tmp_path: Path) -> Path:
     """
     filepath = tmp_path / "test_pipeline.py"
     filepath.write_text(
-        textwrap.dedent(
-            """
+        textwrap.dedent("""
             from qall import task, workflow
 
             @task()
@@ -91,8 +90,7 @@ def dummy_workflow_file(tmp_path: Path) -> Path:
             @workflow()
             def my_main_wf():
                 return my_subtask() * 2
-            """
-        ),
+            """),
         encoding="utf-8",
     )
     return filepath

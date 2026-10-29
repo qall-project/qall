@@ -51,16 +51,14 @@ def artifact_store(tmp_path: Path) -> tuple[Path, dict]:
 
     db_path = root / "daemon_state.db"
     con = sqlite3.connect(db_path)
-    con.execute(
-        """
+    con.execute("""
         CREATE TABLE artifacts_meta (
             hash TEXT NOT NULL,
             task_run_id TEXT NOT NULL,
             created_at DATETIME NOT NULL,
             PRIMARY KEY (hash, task_run_id)
         )
-        """
-    )
+        """)
     con.execute(
         "INSERT INTO artifacts_meta VALUES (?, ?, ?)",
         (hash, "task-123", "2026-09-24 10:00:00"),

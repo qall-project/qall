@@ -105,9 +105,7 @@ def test_pyan_configured_idempotently():
     assert len(shared) == 1
 
 
-def test_pyan_gated_to_warning_at_default_qall_level(
-    restore_qall_level, pyan_capture
-):
+def test_pyan_gated_to_warning_at_default_qall_level(restore_qall_level, pyan_capture):
     qall_logger.setLevel(logging.INFO)
     _configure_pyan_logging()
 
@@ -166,8 +164,6 @@ def test_call_graph_build_keeps_pyan_quiet_and_unrouted(caplog, restore_qall_lev
     # pyan must not leak to the root logger (which is what produced the raw
     # "text wall" before qall routed and gated it).
     leaked = [
-        r
-        for r in caplog.records
-        if r.name == "pyan" or r.name.startswith("pyan.")
+        r for r in caplog.records if r.name == "pyan" or r.name.startswith("pyan.")
     ]
     assert not leaked

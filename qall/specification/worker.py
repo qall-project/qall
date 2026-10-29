@@ -229,6 +229,29 @@ class WorkerSpec:
                 )
                 merge_synthesized_imports(self.imports, synthesized)
 
+                # Also transport every helper function defined directly in the
+                # worker file, so the source emitted below is self-contained.
+                for name, val in module_globals.items():
+                    if (
+                        inspect.isfunction(val)
+                        and val.__module__ == fake_module.__name__
+                    ):
+                        try:
+                            self.local_dependencies[name] = textwrap.dedent(
+                                inspect.getsource(val)
+                            )
+                        except (TypeError, OSError):
+                            pass
+
+            # Inline the bundled local dependencies into the worker source, on
+            # top of the (decorator/relative-import stripped) class source, so
+            # the payload is executable without separately shipping the deps.
+            bundled_helpers = "\n\n".join(self.local_dependencies.values())
+            if bundled_helpers:
+                self.source = f"{bundled_helpers}\n\n{clean_source}".strip()
+            else:
+                self.source = clean_source
+
             self.name = name or self.name or filepath.stem
             self.requirements = sorted(set(self.requirements))
         finally:

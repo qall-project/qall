@@ -294,9 +294,7 @@ def test_discover_file_global_imports():
         (project_dir / "local_helper.py").write_text("def helper(): return 1\n")
 
         filepath = project_dir / "global_imports_main.py"
-        filepath.write_text(
-            textwrap.dedent(
-                """
+        filepath.write_text(textwrap.dedent("""
                 import cv2
                 import numpy as np
                 from qall import task, workflow
@@ -316,9 +314,7 @@ def test_discover_file_global_imports():
                 def a():
                     import cv2
                     return helper(1)
-                """
-            )
-        )
+                """))
 
         found = discover_file_global_imports(filepath)
         assert found == {"cv2", "numpy", "dateutil"}
@@ -372,31 +368,21 @@ def test_extract_imports_from_function():
 
         # Create a local sibling module to test local import detection
         local_helper = base_dir / "my_local_helper.py"
-        local_helper.write_text(
-            textwrap.dedent(
-                """
+        local_helper.write_text(textwrap.dedent("""
                 def do_something_local():
                     return "local action"
-                """
-            )
-        )
+                """))
 
         # Create an empty unused local module so Python doesn't crash on load
         missing_module = base_dir / "missing_module.py"
-        missing_module.write_text(
-            textwrap.dedent(
-                """
+        missing_module.write_text(textwrap.dedent("""
                 def dummy_func():
                     return 42
-                """
-            )
-        )
+                """))
 
         # Create the main file with a mix of external, local, and unused imports
         main_file = base_dir / "test_imports.py"
-        main_file.write_text(
-            textwrap.dedent(
-                """
+        main_file.write_text(textwrap.dedent("""
                 import math
                 import os
                 import sys as system
@@ -416,9 +402,7 @@ def test_extract_imports_from_function():
                     res = my_local_helper.do_something_local()
                     
                     return x
-                """
-            )
-        )
+                """))
 
         # Temporarily inject the temp dir into sys.path so the local import resolves safely
         sys.path.insert(0, str(base_dir))
