@@ -31,6 +31,7 @@ from qall.config.dataloader import (
     read_dataloader_secrets,
     write_dataloader_secrets,
 )
+from qall.runtime.unifs import cleanup_unifs
 
 
 class TaskRuntimeExecutor:
@@ -149,6 +150,8 @@ class TaskRuntimeExecutor:
             # which is responsible for cleaning it up.
             if dataloaders_file and dataloaders_provisioned:
                 dataloaders_file.unlink(missing_ok=True)
+            if metadata.entrypoint:
+                cleanup_unifs()
 
         output_artifact_hash = None
         output_artifact_bytes = None
