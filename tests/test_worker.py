@@ -28,9 +28,7 @@ def test_worker_spec_from_file_with_missing_third_party_imports():
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         filepath = Path(tmpdir) / "my_worker.py"
-        filepath.write_text(
-            textwrap.dedent(
-                """
+        filepath.write_text(textwrap.dedent("""
             import qall_test_missing_qiskit as qk
             from qall_test_missing_aer import AerSimulator
 
@@ -48,9 +46,7 @@ def test_worker_spec_from_file_with_missing_third_party_imports():
                 def run(self, program, shots, context, **kwargs):
                     backend = AerSimulator()
                     return backend.run(program, shots=shots).result()
-            """
-            )
-        )
+            """))
 
         spec = WorkerSpec(filepath)
 
@@ -68,9 +64,7 @@ def test_worker_spec_without_third_party_imports():
     """Plain workers keep working with empty requirements."""
     with tempfile.TemporaryDirectory() as tmpdir:
         filepath = Path(tmpdir) / "plain_worker.py"
-        filepath.write_text(
-            textwrap.dedent(
-                """
+        filepath.write_text(textwrap.dedent("""
             from qall.provider.qc import (
                 QuantumWorker,
                 QuantumContext,
@@ -84,12 +78,92 @@ def test_worker_spec_without_third_party_imports():
             class PlainWorker(QuantumWorker):
                 def run(self, program, shots, context, **kwargs):
                     return program
-            """
-            )
-        )
+            """))
 
         spec = WorkerSpec(filepath)
 
         assert spec.name == "PlainWorker"
         assert spec.requirements == []
         assert spec.source is not None
+
+
+def test_worker_imported_global_not_serialized():
+    """
+    A worker-method global already re-provided by a shipped external import
+    (e.g. `from math import exp`) must not be pickled into the worker payload:
+    the import alone suffices. Mirrors the TaskSpec re-export guard.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        filepath = Path(tmpdir) / "worker_import_global.py"
+        filepath.write_text(textwrap.dedent("""
+            from math import exp
+
+            from qall.provider.qc import (
+                QuantumWorker,
+                QuantumContext,
+                quantum_worker,
+            )
+
+            @quantum_worker(
+                input_format="qiskit",
+                output_format="qiskit",
+            )
+            class ExpWorker(QuantumWorker):
+                def run(self, program, shots, context, **kwargs):
+                    return exp(shots)
+            """))
+
+        spec = WorkerSpec(filepath)
+
+        assert "from math import exp" in spec.imports["external_imports"]
+        assert "exp" not in spec.local_dependencies
+
+        code = "\n\n".join(
+            spec.imports["external_imports"]
+            + list(spec.local_dependencies.values())
+            + [spec.source]
+        )
+        assert "cloudpickle.loads" not in code
+        assert "from math import exp" in code
+
+
+def test_worker_nested_helper_import_synthesized():
+    """
+    A worker method that delegates to a module-level helper which uses an
+    external global (`exp`) gets the helper's import synthesized into the
+    worker's external imports instead of a pickle.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        filepath = Path(tmpdir) / "worker_nested_import.py"
+        filepath.write_text(textwrap.dedent("""
+            from math import exp
+
+            from qall.provider.qc import (
+                QuantumWorker,
+                QuantumContext,
+                quantum_worker,
+            )
+
+            def expo(b):
+                return exp(b)
+
+            @quantum_worker(
+                input_format="qiskit",
+                output_format="qiskit",
+            )
+            class NestedExpWorker(QuantumWorker):
+                def run(self, program, shots, context, **kwargs):
+                    return expo(shots)
+            """))
+
+        spec = WorkerSpec(filepath)
+
+        assert "from math import exp" in spec.imports["external_imports"]
+        assert "exp" not in spec.local_dependencies
+
+        code = "\n\n".join(
+            spec.imports["external_imports"]
+            + list(spec.local_dependencies.values())
+            + [spec.source]
+        )
+        assert "cloudpickle.loads" not in code

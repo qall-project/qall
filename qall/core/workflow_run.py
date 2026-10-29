@@ -61,6 +61,25 @@ from qall.provider.qc.scaleway import register_scaleway_workers
 logger = logging.getLogger(__name__)
 
 
+def _artifact_show_hints(artifacts) -> str:
+    """Copy-paste ``qall artifact show <hash>`` hints for each generated artifact.
+
+    Each hint lets the user launch the CLI command that deserializes and prints
+    the matching local artifact, optionally annotated with the producing task.
+    Artifacts without a usable content hash are skipped.
+    """
+    hints = ["To show an artifact, run the following command(s):"] if artifacts else []
+    for artifact in artifacts or []:
+        artifact_hash = getattr(artifact, "hash", None)
+        if not artifact_hash:
+            continue
+
+        hint = f"\n\t-> 'qall artifact show {artifact_hash}'"
+        hints.append(hint)
+
+    return "".join(hints)
+
+
 def create_workflow_run(
     entrypoint: str,
     workflow_name: Optional[str] = None,
@@ -127,8 +146,8 @@ def create_workflow_run(
     )
 
     if profile.provider != "local" and not provider_credentials:
-        logging.warning(
-            f"profile is targetting {profile.provider} but not loggin, considering default local profile instead"
+        logger.warning(
+            f"Profile is targetting '{profile.provider}' but you're not logged in, consider default 'local' profile instead."
         )
 
         active_provider = "local"
@@ -210,6 +229,12 @@ def create_workflow_run(
                 )
             )
 
+            # QoL: let the user launch `qall artifact show <hash>` to display the
+            # actual output(s), annotated with the entrypoint task that produced them.
+            hints = _artifact_show_hints(artifacts)
+            if hints:
+                logger.info(hints)
+
             workflow_run = WorkflowRun(
                 id=str(uuid.uuid4()),
                 workflow_id=str(tag_uri),
@@ -289,7 +314,7 @@ def fix_workflow_run(
     provider_client: Optional[WorkflowProviderClient] = None,
     provider_credentials: Optional[ProviderCredentials] = None,
 ) -> WorkflowRun:
-    pass
+    raise NotImplementedError()
 
 
 def _get_provider_workers(provider: str):

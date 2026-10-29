@@ -314,10 +314,6 @@ def run_task(
                 raise RuntimeError(
                     f"Task ended with unexpected status: {task_run.status.name}"
                 )
-
-    # except Exception as e:
-    #     logger.error(f"Could not execute task {task_hash}: {e}")
-
     finally:
         cleanup_dataloader_files(dataloader_files)
         if daemon_mgr:

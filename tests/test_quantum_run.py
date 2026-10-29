@@ -21,8 +21,7 @@ from qall.interop.mapping import normalize_circuit_type, normalize_result_type
 
 
 def test_quantum_run_analyzer_qiskit_direct():
-    source = textwrap.dedent(
-        """
+    source = textwrap.dedent("""
         import qall
         from qiskit import QuantumCircuit
 
@@ -30,8 +29,7 @@ def test_quantum_run_analyzer_qiskit_direct():
             qc = QuantumCircuit(2)
             res = qall.run(qc, shots=100)
             return res
-        """
-    )
+        """)
     analyzer = _QuantumRunAnalyzer(source)
     runs = analyzer.analyze()
 
@@ -41,8 +39,7 @@ def test_quantum_run_analyzer_qiskit_direct():
 
 
 def test_quantum_run_analyzer_aliased_import_and_cirq():
-    source = textwrap.dedent(
-        """
+    source = textwrap.dedent("""
         from qall import run as qrun
         import cirq
 
@@ -50,8 +47,7 @@ def test_quantum_run_analyzer_aliased_import_and_cirq():
             circuit = cirq.Circuit()
             res = qrun(circuit, shots=50)
             return res
-        """
-    )
+        """)
     analyzer = _QuantumRunAnalyzer(source)
     runs = analyzer.analyze()
 
@@ -61,14 +57,12 @@ def test_quantum_run_analyzer_aliased_import_and_cirq():
 
 
 def test_quantum_run_analyzer_dynamic_or_unknown_type():
-    source = textwrap.dedent(
-        """
+    source = textwrap.dedent("""
         import qall
 
         def execute(circuit_unk):
             return qall.run(circuit_unk, shots=10)
-        """
-    )
+        """)
     analyzer = _QuantumRunAnalyzer(source)
     runs = analyzer.analyze()
 
@@ -78,23 +72,19 @@ def test_quantum_run_analyzer_dynamic_or_unknown_type():
 
 
 def test_extract_quantum_runs_from_local_dependencies():
-    main_task_source = textwrap.dedent(
-        """
+    main_task_source = textwrap.dedent("""
         def my_task():
             return helper_quantum_executor()
-        """
-    )
+        """)
 
-    helper_source = textwrap.dedent(
-        """
+    helper_source = textwrap.dedent("""
         import qall
         from qiskit import QuantumCircuit
 
         def helper_quantum_executor():
             qc = QuantumCircuit(3)
             return qall.run(qc, shots=200)
-        """
-    )
+        """)
 
     def dummy_func():
         pass
@@ -174,8 +164,7 @@ def test_quantum_run_analyzer_diverse_typologies():
     Tests the AST analyzer on several qall.run() call typologies:
     Qiskit, Cirq, and an opaque dynamic argument that cannot be typed statically.
     """
-    source = textwrap.dedent(
-        """
+    source = textwrap.dedent("""
         import qall
         import qiskit
         import cirq
@@ -193,8 +182,7 @@ def test_quantum_run_analyzer_diverse_typologies():
             res3 = qall.run(opaque_circuit, shots=10)
 
             return res1, res2, res3
-        """
-    )
+        """)
 
     analyzer = _QuantumRunAnalyzer(source)
     runs = analyzer.analyze()
@@ -221,9 +209,7 @@ def test_workflow_hybrid_file_compilation_and_graph(tmp_path):
     in 'do_quantum_stuff' are preserved after file parsing.
     """
     wf_file = tmp_path / "hybrid_workflow.py"
-    wf_file.write_text(
-        textwrap.dedent(
-            """
+    wf_file.write_text(textwrap.dedent("""
             import qall
             import qiskit
             import cirq
@@ -261,9 +247,7 @@ def test_workflow_hybrid_file_compilation_and_graph(tmp_path):
                 a = prepare(10)
                 b = do_quantum_stuff(a, 2)
                 return b
-            """
-        )
-    )
+            """))
 
     wf_spec = WorkflowSpec(wf_file, "HybridWorkflow")
 

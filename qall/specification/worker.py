@@ -40,6 +40,8 @@ from .imports import (
 from .task import (
     _bundle_local_dependencies,
     _extract_imports_from_function,
+    import_bound_sources,
+    merge_synthesized_imports,
 )
 
 
@@ -217,10 +219,18 @@ class WorkerSpec:
             if target_cls and inspect.isclass(target_cls):
                 self.cls = target_cls
                 self.imports = _extract_imports_from_worker(target_cls)
+                synthesized: set[str] = set()
                 self.local_dependencies = _bundle_local_dependencies_from_worker(
-                    target_cls
+                    target_cls,
+                    bound_sources=import_bound_sources(
+                        self.imports.get("external_imports", [])
+                    ),
+                    synthesized=synthesized,
                 )
+                merge_synthesized_imports(self.imports, synthesized)
 
+                # Also transport every helper function defined directly in the
+                # worker file, so the source emitted below is self-contained.
                 for name, val in module_globals.items():
                     if (
                         inspect.isfunction(val)
@@ -233,6 +243,9 @@ class WorkerSpec:
                         except (TypeError, OSError):
                             pass
 
+            # Inline the bundled local dependencies into the worker source, on
+            # top of the (decorator/relative-import stripped) class source, so
+            # the payload is executable without separately shipping the deps.
             bundled_helpers = "\n\n".join(self.local_dependencies.values())
             if bundled_helpers:
                 self.source = f"{bundled_helpers}\n\n{clean_source}".strip()
@@ -274,7 +287,15 @@ class WorkerSpec:
             self.source = None
 
         self.imports = _extract_imports_from_worker(cls)
-        self.local_dependencies = _bundle_local_dependencies_from_worker(cls)
+        synthesized: set[str] = set()
+        self.local_dependencies = _bundle_local_dependencies_from_worker(
+            cls,
+            bound_sources=import_bound_sources(
+                self.imports.get("external_imports", [])
+            ),
+            synthesized=synthesized,
+        )
+        merge_synthesized_imports(self.imports, synthesized)
 
     def _copy_from(self, other: WorkerSpec) -> None:
         self.cls = other.cls
@@ -422,13 +443,24 @@ def _extract_imports_from_worker(cls: type) -> dict[str, list[str]]:
     }
 
 
-def _bundle_local_dependencies_from_worker(cls: type) -> dict[str, str]:
+def _bundle_local_dependencies_from_worker(
+    cls: type,
+    bound_sources: Optional[dict[str, tuple[str, str]]] = None,
+    synthesized: Optional[set[str]] = None,
+) -> dict[str, str]:
     """
-    Recursively bundle local dependencies used by all methods of a worker,
-    including top-level module functions and helpers.
+    Recursively bundle local dependencies used by all methods of a worker.
+
+    ``bound_sources`` is the task.py-derived mapping from names bound by the
+    worker's shipped external imports to their source module attributes; it is
+    forwarded so globals a shipped import already re-provides are not
+    redundantly serialized. ``synthesized`` collects import statements for
+    re-importable external attributes discovered during bundling.
     """
     bundled_code: dict[str, str] = {}
     visited: set[int] = set()
+    if synthesized is None:
+        synthesized = set()
 
     target_cls = cls.cls if isinstance(cls, WorkerSpec) else cls
     if not inspect.isclass(target_cls):
@@ -442,20 +474,11 @@ def _bundle_local_dependencies_from_worker(cls: type) -> dict[str, str]:
         dependencies = _bundle_local_dependencies(
             member,
             visited=visited,
+            bound_sources=bound_sources,
+            synthesized=synthesized,
         )
-        bundled_code.update(dependencies)
 
-    # global function in module
-    module = sys.modules.get(target_cls.__module__)
-    if module:
-        for _, obj in inspect.getmembers(module):
-            if inspect.isfunction(obj) and obj.__module__ == target_cls.__module__:
-                if id(obj) not in visited:
-                    dependencies = _bundle_local_dependencies(
-                        obj,
-                        visited=visited,
-                    )
-                    bundled_code.update(dependencies)
+        bundled_code.update(dependencies)
 
     return bundled_code
 

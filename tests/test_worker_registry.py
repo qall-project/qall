@@ -34,22 +34,16 @@ def test_worker_spec_inlining_and_relative_import_stripping(tmp_path: Path):
     pkg_dir.mkdir()
 
     utils_file = pkg_dir / "utils.py"
-    utils_file.write_text(
-        textwrap.dedent(
-            """
+    utils_file.write_text(textwrap.dedent("""
             def format_shots(shots: int) -> int:
                 return max(1, shots)
 
             def get_default_context_name() -> str:
                 return "default_ctx"
-            """
-        )
-    )
+            """))
 
     worker_file = pkg_dir / "my_local_worker.py"
-    worker_file.write_text(
-        textwrap.dedent(
-            """
+    worker_file.write_text(textwrap.dedent("""
             from .utils import format_shots, get_default_context_name
             from qall.provider.qc import (
                 QuantumWorker,
@@ -72,9 +66,7 @@ def test_worker_spec_inlining_and_relative_import_stripping(tmp_path: Path):
 
                 def close_context(self, context, **kwargs):
                     return context
-            """
-        )
-    )
+            """))
 
     spec = WorkerSpec(worker_file)
 
@@ -95,9 +87,7 @@ def test_worker_push_and_pull_from_registry(
     tmp_path: Path, local_registry: BlockRegistry
 ):
     worker_file = tmp_path / "dummy_worker.py"
-    worker_file.write_text(
-        textwrap.dedent(
-            """
+    worker_file.write_text(textwrap.dedent("""
             from qall.provider.qc import (
                 QuantumWorker,
                 QuantumContext,
@@ -121,9 +111,7 @@ def test_worker_push_and_pull_from_registry(
 
                 def close_context(self, context, **kwargs):
                     return context
-            """
-        )
-    )
+            """))
 
     spec = WorkerSpec(worker_file)
     dag = local_registry.create_worker_dag(spec)
@@ -151,9 +139,7 @@ def test_worker_reconstruction_and_loading(
     tmp_path: Path, local_registry: BlockRegistry
 ):
     worker_file = tmp_path / "executable_worker.py"
-    worker_file.write_text(
-        textwrap.dedent(
-            """
+    worker_file.write_text(textwrap.dedent("""
             from qall.provider.qc import (
                 QuantumWorker,
                 QuantumContext,
@@ -177,9 +163,7 @@ def test_worker_reconstruction_and_loading(
 
                 def close_context(self, context, **kwargs):
                     return context
-            """
-        )
-    )
+            """))
 
     spec = WorkerSpec(worker_file)
     dag = local_registry.create_worker_dag(spec)
