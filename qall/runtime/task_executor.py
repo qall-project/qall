@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import ast
+import signal
+import sys
 import textwrap
 from pathlib import Path
 from typing import Optional
@@ -97,6 +99,17 @@ class TaskRuntimeExecutor:
 
         metadata = node.metadata
         print(f"[Executor] Node's metadata and payload loaded: {metadata}")
+
+        # Ensure proper unifs cleanup in case of termination signal, avoiding data leakage
+        if metadata.entrypoint:
+
+            def term_handler(s, f):
+                cleanup_unifs()
+                sys.exit(0)
+
+            signal.signal(signal.SIGTERM, term_handler)
+            signal.signal(signal.SIGINT, term_handler)
+
         print("[Executor] Processing source...")
         source = _get_source(payload)
 
