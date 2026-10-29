@@ -123,7 +123,7 @@ def _push_task(
     node = TaskNode(
         payload_hash=payload_hash,
         children={},
-        metadata=metadata.to_dict(),
+        metadata=metadata,
     )
     node_block = node.to_block(DEFAULT_CODEC)
     store.put(node_block.hash, node_block.data)

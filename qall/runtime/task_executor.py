@@ -21,7 +21,6 @@ from qio.core.program import Program
 from qall.object import (
     TaskNode,
     TaskPayload,
-    TaskMetadata,
     TaskRunOutput,
 )
 from qall.registry import BlockRegistry
@@ -95,7 +94,7 @@ class TaskRuntimeExecutor:
                 f"No Payload associated with task {self.__task_hash} in local store."
             )
 
-        metadata = TaskMetadata(**node.metadata)
+        metadata = node.metadata
         print(f"[Executor] Node's metadata and payload loaded: {metadata}")
         print("[Executor] Processing source...")
         source = _get_source(payload)
@@ -222,7 +221,8 @@ class TaskRuntimeExecutor:
         else:
             execution_call = f'executor.execute_subtask("{parent_task_id}", input_data)'
 
-        return textwrap.dedent(f"""
+        return textwrap.dedent(
+            f"""
         {func_def} {child_name}(*args, **kwargs):
             {async_import}
             from qall.runtime import DaemonSubtaskExecutor
@@ -248,7 +248,8 @@ class TaskRuntimeExecutor:
                 raise RuntimeError(f"Subtask '{child_name}' failed: {{result.stderr}}")
                 
             return cloudpickle.loads(result.output_artifact_bytes)
-        """)
+        """
+        )
 
 
 ### Helpers ###
@@ -313,8 +314,6 @@ def _child_task_is_async(
 
 
 def _get_source(payload: TaskPayload) -> str:
-    print("payload", payload)
-
     if payload.code_format == "raw":
         return payload.code
     elif payload.code_format == "qio.program":

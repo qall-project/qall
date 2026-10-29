@@ -1,6 +1,6 @@
 [project]
 name = "qall"
-version = "0.1.10"
+version = "0.1.11"
 description = "A pythonic tool for modern hybrid and quantum workflows."
 readme = "README.md"
 license = { file = "LICENSE" }

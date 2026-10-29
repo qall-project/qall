@@ -28,7 +28,9 @@ def test_worker_spec_from_file_with_missing_third_party_imports():
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         filepath = Path(tmpdir) / "my_worker.py"
-        filepath.write_text(textwrap.dedent("""
+        filepath.write_text(
+            textwrap.dedent(
+                """
             import qall_test_missing_qiskit as qk
             from qall_test_missing_aer import AerSimulator
 
@@ -46,7 +48,9 @@ def test_worker_spec_from_file_with_missing_third_party_imports():
                 def run(self, program, shots, context, **kwargs):
                     backend = AerSimulator()
                     return backend.run(program, shots=shots).result()
-            """))
+            """
+            )
+        )
 
         spec = WorkerSpec(filepath)
 
@@ -64,7 +68,9 @@ def test_worker_spec_without_third_party_imports():
     """Plain workers keep working with empty requirements."""
     with tempfile.TemporaryDirectory() as tmpdir:
         filepath = Path(tmpdir) / "plain_worker.py"
-        filepath.write_text(textwrap.dedent("""
+        filepath.write_text(
+            textwrap.dedent(
+                """
             from qall.provider.qc import (
                 QuantumWorker,
                 QuantumContext,
@@ -78,7 +84,9 @@ def test_worker_spec_without_third_party_imports():
             class PlainWorker(QuantumWorker):
                 def run(self, program, shots, context, **kwargs):
                     return program
-            """))
+            """
+            )
+        )
 
         spec = WorkerSpec(filepath)
 

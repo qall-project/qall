@@ -29,6 +29,7 @@ from .resource import (
     QpuTopology,
     QpuTechnology,
     QpuType,
+    QpuHosting,
 )
 from .log import Log
 from .task import (
@@ -40,7 +41,11 @@ from .task import (
     TaskDag,
 )
 from .resource_contraint import ClassicalResourceConstraints, QuantumResourceConstraints
-from .resource_profile import ResourceProfile, AllowedResourceCollection
+from .resource_profile import (
+    ResourceProfile,
+    AllowedResourceCollection,
+    apply_resource_overrides,
+)
 from .dataloader import Dataloader, SECRET_CREDENTIAL_KEYS
 from .block import Block
 from .daemon import DaemonStatus, Daemon

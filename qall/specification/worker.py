@@ -66,12 +66,11 @@ class WorkerSpec:
 
     # Decorator arguments
     requirements: list[str] = field(default_factory=list)
-    image: str = field(default="python:3.12")
+    image: str = field(default="python:3.13")
     input_format: str = field(default="")
     output_format: str = field(default="")
     provider: str = field(default="")
     runtime_qall_version: str = field(default="")
-    # resources: list[str] = field(default_factory=list)
 
     # Captured class information
     name: Optional[str] = None
@@ -87,12 +86,11 @@ class WorkerSpec:
     ):
         self.cls = None
         self.requirements = []
-        self.image = "python:3.12"
+        self.image = "python:3.13"
         self.input_format = ""
         self.output_format = ""
         self.provider = ""
         self.runtime_qall_version = importlib.metadata.version("qall")
-        # self.resources = []
 
         self.name = None
         self.source = None
@@ -165,15 +163,28 @@ class WorkerSpec:
         if worker_cls is None:
             raise ValueError(f"No QuantumWorker subclass found in {filepath}.")
 
-        module_name = f"__worker_module_{filepath.stem}__"
+        parent_dir = filepath.parent.resolve()
+        pkg_name = f"__worker_pkg_{parent_dir.name}__"
+        module_name = f"{pkg_name}.{filepath.stem}"
+
+        # Simulated parent package to autorize relative imports
+        pkg_mod = types.ModuleType(pkg_name)
+        pkg_mod.__path__ = [str(parent_dir)]
+        pkg_mod.__file__ = str(parent_dir / "__init__.py")
+        sys.modules[pkg_name] = pkg_mod
+
+        # Create child module attached to package
         fake_module = types.ModuleType(module_name)
         fake_module.__file__ = str(filepath.resolve())
+        fake_module.__package__ = pkg_name
 
         module_globals = fake_module.__dict__
         module_globals["__file__"] = str(filepath.resolve())
         module_globals["__name__"] = module_name
+        module_globals["__package__"] = pkg_name
 
         sys.modules[module_name] = fake_module
+        sys.path.insert(0, str(parent_dir))
 
         # Statically discover the *project's* third-party imports so missing
         # packages do not crash compilation: they are stubbed during the exec
@@ -199,7 +210,7 @@ class WorkerSpec:
                 self.requirements,
                 map_imports_to_packages(discover_file_global_imports(filepath)),
             )
-            self.source = self._extract_class_source(
+            clean_source = self._extract_class_source(
                 source,
                 worker_cls.class_name,
             )
@@ -220,9 +231,12 @@ class WorkerSpec:
 
             self.name = name or self.name or filepath.stem
             self.requirements = sorted(set(self.requirements))
-            # self.resources = sorted(set(self.resources))
         finally:
+            if str(parent_dir) in sys.path:
+                sys.path.remove(str(parent_dir))
+
             sys.modules.pop(module_name, None)
+            sys.modules.pop(pkg_name, None)
 
     def _compile_from_class(self, cls: type) -> None:
         if not issubclass(cls, QuantumWorker):
@@ -239,11 +253,10 @@ class WorkerSpec:
             )
 
         self.requirements = list(metadata.get("requirements", []))
-        self.image = metadata.get("image", "python:3.12")
+        self.image = metadata.get("image", "python:3.13")
         self.input_format = normalize_circuit_type(metadata.get("input_format", ""))
         self.output_format = normalize_result_type(metadata.get("output_format", ""))
         self.provider = metadata.get("provider", "")
-        # self.resources = list(metadata.get("resources", []))
 
         try:
             self.source = textwrap.dedent(inspect.getsource(cls))
@@ -268,7 +281,6 @@ class WorkerSpec:
         self.input_format = other.input_format
         self.output_format = other.output_format
         self.provider = other.provider
-        # self.resources = list(other.resources)
 
         self.name = other.name
         self.source = other.source
@@ -314,18 +326,20 @@ class WorkerSpec:
         class_name: str,
     ) -> str:
         tree = ast.parse(source)
+        cleaned_body = []
 
         for node in tree.body:
+            if isinstance(node, ast.ImportFrom) and node.level > 0:
+                continue
             if isinstance(node, ast.ClassDef) and node.name == class_name:
                 node.decorator_list = [
                     dec
                     for dec in node.decorator_list
                     if not _is_quantum_worker_decorator(dec)
                 ]
-
-                return ast.unparse(node)
-
-        raise RuntimeError(f"Failed to extract worker class {class_name!r}.")
+            cleaned_body.append(node)
+        tree.body = cleaned_body
+        return ast.unparse(tree)
 
     def _load_decorator_metadata(
         self,
@@ -374,7 +388,7 @@ class WorkerSpec:
 
 def _extract_imports_from_worker(cls: type) -> dict[str, list[str]]:
     """
-    Extract imports used by all methods of a QuantumWorker class.
+    Extract imports used by a QuantumWorker class and its module-level helpers.
     """
     external_imports: set[str] = set()
     local_imports: set[str] = set()
@@ -383,12 +397,22 @@ def _extract_imports_from_worker(cls: type) -> dict[str, list[str]]:
     if not inspect.isclass(target_cls):
         return {"external_imports": [], "local_imports": []}
 
+    # extract import from class method
     for _, member in inspect.getmembers(target_cls):
         if not (inspect.isfunction(member) or inspect.ismethod(member)):
             continue
         imports = _extract_imports_from_function(member)
         external_imports.update(imports["external_imports"])
         local_imports.update(imports["local_imports"])
+
+    # extract import from module functions referend into the class
+    module = sys.modules.get(target_cls.__module__)
+    if module:
+        for name, obj in inspect.getmembers(module):
+            if inspect.isfunction(obj) and obj.__module__ == target_cls.__module__:
+                imports = _extract_imports_from_function(obj)
+                external_imports.update(imports["external_imports"])
+                local_imports.update(imports["local_imports"])
 
     return {
         "external_imports": sorted(external_imports),
@@ -419,6 +443,7 @@ def _bundle_local_dependencies_from_worker(
     if not inspect.isclass(target_cls):
         return {}
 
+    # class methods
     for _, member in inspect.getmembers(target_cls):
         if not (inspect.isfunction(member) or inspect.ismethod(member)):
             continue

@@ -24,6 +24,7 @@ from qall.core.dataloader import (
     provision_dataloader_file_for_task,
     cleanup_dataloader_files,
 )
+from qall.provider import get_provider_login_credentials, ProviderCredentials
 from qall.config.paths import (
     DEFAULT_BLOCK_REGISTRY_PATH,
     DEFAULT_ARTIFACT_REGISTRY_PATH,
@@ -60,6 +61,7 @@ def start_daemon(
     port: int = 50053,
     block_registry_path: Optional[str | Path] = None,
     artifact_registry_path: Optional[str | Path] = None,
+    detach: bool = False,
 ):
     """
     Start a local Qall daemon in a docker container.
@@ -67,7 +69,6 @@ def start_daemon(
 
     block_registry_path = block_registry_path or DEFAULT_BLOCK_REGISTRY_PATH
     artifact_registry_path = artifact_registry_path or DEFAULT_ARTIFACT_REGISTRY_PATH
-    # worker_provider = worker_provider or "local"
 
     block_path = Path(block_registry_path).resolve()
     artifact_path = Path(artifact_registry_path).resolve()
@@ -80,26 +81,26 @@ def start_daemon(
         grpc_port=port,
         host_block_registry_path=str(block_path),
         host_artifact_registry_path=str(artifact_path),
-        # worker_provider=worker_provider,
     )
 
     if daemon_mgr.service_info():
         raise RuntimeError(f"Daemon already running locally on port {port}")
 
-    with DockerDaemonManager(
-        local=True,
-        grpc_port=port,
-        host_block_registry_path=str(block_path),
-        host_artifact_registry_path=str(artifact_path),
-        # worker_provider=worker_provider,
-    ) as daemon_mgr:
+    daemon_mgr.start()
 
-        logs = daemon_mgr.logs()
+    if not detach:
+        with DockerDaemonManager(
+            local=True,
+            grpc_port=port,
+            host_block_registry_path=str(block_path),
+            host_artifact_registry_path=str(artifact_path),
+        ) as daemon_mgr:
+            logs = daemon_mgr.logs()
 
-        logger.info(f"Daemon started on port {port}")
+            logger.info(f"Daemon started on port {port}")
 
-        while logs:
-            logger.info(logs.next())
+            while logs:
+                logger.info(logs.next())
 
 
 def apply_resource_assignments(
@@ -215,6 +216,7 @@ def run_task(
     daemon_address: Optional[str] = None,
     block_registry: Optional[str] = None,
     artifact_registry: Optional[str] = None,
+    provider_credentials: Optional[ProviderCredentials] = None,
     timeout: int = 300,
 ) -> list[Artifact]:
     """
@@ -279,9 +281,16 @@ def run_task(
             info = client.get_service_info()
             logger.info(f"Connected to daemon: {info.name} {info.version}")
 
+            provider_credentials = (
+                provider_credentials or get_provider_login_credentials()
+            )
+
             task_run = client.create_task_run(
                 task_hash=task_hash,
                 artifact_hash=input_artifact_hash,
+                provider_credentials=(
+                    provider_credentials.credentials if provider_credentials else None
+                ),
             )
 
             logger.info(f"Task run created: {task_run.id}")

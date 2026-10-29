@@ -78,16 +78,18 @@ def run(
         ..., help="Path to the Python script containing tasks."
     ),
     local: bool = typer.Option(
-        False, "--local", help="Wether to run locally or remotely"
+        False, "--local", "-l", help="Wether to run locally or remotely"
     ),
     input_artifact_hash: Optional[str] = typer.Option(
         None,
         "--input-artifact-hash",
+        "-i",
         help="The artifact's hash the entrypoint task may require to execute.",
     ),
     name: Optional[str] = typer.Option(
         None,
         "--name",
+        "-n",
         help="Name of the workflow to declare. Script file name if not provided",
     ),
     version: Optional[str] = typer.Option(
@@ -96,9 +98,28 @@ def run(
     profile: Optional[str] = typer.Option(
         None, "--profile", "-p", help="Target configuration profile name."
     ),
+    allowed_qpus: Optional[list[str]] = typer.Option(
+        None,
+        "--allowed-qpu",
+        "-q",
+        help="Override allowed QPU from provided profile",
+    ),
+    allowed_cpus: Optional[list[str]] = typer.Option(
+        None,
+        "--allowed-cpu",
+        "-c",
+        help="Override allowed CPU from provided profile",
+    ),
+    allowed_gpus: Optional[list[str]] = typer.Option(
+        None,
+        "--allowed-gpu",
+        "-g",
+        help="Override allowed GPU from provided profile",
+    ),
 ):
     """Compile, delta-push, provision hardware and run an arbitrary hybrid workflow script instantly."""
     typer.echo(f"Initiating compilation run for: {entrypoint}")
+
     run_obj = core.create_workflow_run(
         entrypoint=entrypoint,
         workflow_name=name,
@@ -106,6 +127,10 @@ def run(
         profile_name=profile,
         local_only=local,
         input_artifact_hash=input_artifact_hash,
+        allowed_cpus=allowed_cpus,
+        allowed_gpus=allowed_gpus,
+        allowed_qpus=allowed_qpus,
+        auto_start_daemon=True,
     )
     typer.echo(f"Workflow run ID: {run_obj.id}")
 

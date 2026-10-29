@@ -17,6 +17,8 @@ from concurrent import futures
 
 from qio.core import QuantumProgram, QuantumProgramResult, QuantumComputationParameters
 
+from google.protobuf.json_format import MessageToDict, ParseDict
+
 from ..protobuf.qc_worker_api_v1 import (
     qc_worker_api_v1_pb2 as pb2,
 )
@@ -37,23 +39,32 @@ from .qc_worker import QuantumWorker
 def context_from_proto(
     proto: pb2.QuantumContext,
 ) -> QuantumContext:
+    config = (
+        MessageToDict(proto.configuration) if proto.HasField("configuration") else {}
+    )
+    meta = MessageToDict(proto.metadata) if proto.HasField("metadata") else {}
 
     return QuantumContext(
         resource=proto.resource,
-        configuration=dict(proto.configuration),
-        metadata=dict(proto.metadata),
+        configuration=config,
+        metadata=meta,
     )
 
 
 def context_to_proto(
     context: QuantumContext,
 ) -> pb2.QuantumContext:
-
-    return pb2.QuantumContext(
-        resource=context.resource,
-        configuration=context.configuration,
-        metadata=context.metadata,
+    pb_context = pb2.QuantumContext(
+        resource=context.resource or "",
     )
+
+    if context.configuration:
+        ParseDict(context.configuration, pb_context.configuration)
+
+    if context.metadata:
+        ParseDict(context.metadata, pb_context.metadata)
+
+    return pb_context
 
 
 class QuantumWorkerApi(pb2_grpc.ApiServicer):
@@ -69,9 +80,11 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
         grpc_context: grpc.ServicerContext,
     ) -> pb2.QuantumContext:
 
+        print("received create context")
+
         try:
             creds = get_credentials_from_env()
-            resource = creds.pop("QALL_PROVIDER_TARGET_RESOURCE", None)
+            resource = creds.pop("target_resource", None)
 
             context = QuantumContext(
                 configuration=dict(request.configuration),
@@ -85,6 +98,8 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
             return context_to_proto(context)
 
         except Exception as exc:
+            print("exception occured in worker.create_context", exc)
+
             grpc_context.abort(
                 grpc.StatusCode.INTERNAL,
                 str(exc),
@@ -95,6 +110,8 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
         request: pb2.RunRequest,
         grpc_context: grpc.ServicerContext,
     ) -> pb2.RunResponse:
+
+        print("received run")
 
         try:
             context = context_from_proto(request.context)
@@ -136,6 +153,8 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
         grpc_context: grpc.ServicerContext,
     ) -> pb2.QuantumContext:
 
+        print("received close context")
+
         try:
             context = context_from_proto(request.context)
 
@@ -144,6 +163,7 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
             return context_to_proto(context)
 
         except Exception as exc:
+            print("exception occured in worker.close_context", exc)
             grpc_context.abort(
                 grpc.StatusCode.INTERNAL,
                 str(exc),
