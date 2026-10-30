@@ -47,9 +47,13 @@ click==8.5.0
 cloudpickle==3.1.2
     # via qall
 colorama==0.4.6 ; sys_platform == 'win32'
-    # via typer
+    # via
+    #   pytest
+    #   typer
 contourpy==1.4.0
     # via matplotlib
+coverage==7.17.0
+    # via pytest-cov
 cryptography==50.0.2
     # via
     #   google-auth
@@ -117,6 +121,8 @@ idna==3.20
     #   httpx
     #   requests
     #   yarl
+iniconfig==2.3.1
+    # via pytest
 jaraco-classes==3.4.0
     # via keyring
 jaraco-context==6.1.2
@@ -186,12 +192,17 @@ packaging==26.3
     #   black
     #   marshmallow
     #   matplotlib
+    #   pytest
 pathspec==1.1.1
     # via black
 pillow==13.0.0
     # via matplotlib
 platformdirs==4.13.5
     # via black
+pluggy==1.7.0
+    # via
+    #   pytest
+    #   pytest-cov
 propcache==0.5.4
     # via
     #   aiohttp
@@ -232,13 +243,21 @@ pyasn1-modules==0.4.2
 pycparser==3.11 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
     # via cffi
 pygments==2.21.0
-    # via rich
+    # via
+    #   pytest
+    #   rich
 pyparsing==3.3.3
     # via
     #   httplib2
     #   matplotlib
 pyqasm==1.0.4
     # via qio
+pytest==9.1.1
+    # via
+    #   pytest-cov
+    #   pytest-progress
+pytest-cov==7.1.0
+pytest-progress==1.4.0
 python-baseconv==1.2.2
     # via py-multibase
 python-dateutil==2.9.0.post0
