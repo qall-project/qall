@@ -1,5 +1,6 @@
 .tmp/
 .qall.yml
+.minio-data/
 
 # User-defined Directories
 resources/

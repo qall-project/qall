@@ -11,7 +11,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
 
-      - name: Install dependencies (dev + test)
+      - name: Install dependencies (dev)
         run: uv sync --all-groups
 
       - name: Pull qall-daemon image
@@ -19,6 +19,19 @@ jobs:
 
       - name: Pre-pull task runtime base image
         run: docker pull python:3.13
+
+      - name: Start local MinIO (pgsty/silo)
+        run: |
+          docker network create qall-network
+          docker run -d \
+            --name minio \
+            --hostname minio \
+            --network qall-network \
+            -p 9000:9000 \
+            -p 9001:9001 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            pgsty/silo server /data --console-address ":9001"
 
       - name: Run tests
         env:
