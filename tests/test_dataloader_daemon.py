@@ -15,7 +15,7 @@
 Dataloader tests for the daemon/container credential-passing path.
 
 Cover:
-  1. Client-side provisioning of `/dev/shm/qall-dataloaders/<hash>.json`
+  1. Client-side provisioning of `/tmp/qall-dataloaders/<hash>.json`
      from a pushed workflow DAG (dir 0700, files 0400, resolved creds).
   2. The executor preferring a pre-provisioned mount file over the host config
      (this is what the task container sees — the host config is NOT mounted).
@@ -59,7 +59,7 @@ def config_path(tmp_path: Path, monkeypatch):
 
 @pytest.fixture
 def secrets_dir(tmp_path: Path, monkeypatch):
-    """Isolates the conventioned /dev/shm secrets dir under a temp path."""
+    """Isolates the conventioned /tmp secrets dir under a temp path."""
     path = tmp_path / "qall-secrets" / "dataloaders"
     monkeypatch.setenv("QALL_DATALOADERS_DIR", str(path))
     return path
@@ -285,7 +285,7 @@ def process(input):
         core_dl.add_dataloader("mnist", f"file://{file_src}", "mnist")
 
         # NOTE: no QALL_DATALOADERS_DIR override here — the secrets file must
-        # land on the real conventioned mount (/dev/shm/qall-dataloaders)
+        # land on the real conventioned mount (/tmp/qall-dataloaders)
         # which is what the daemon bind-mounts into every task container.
         written = core_dl.provision_dataloader_file_for_task(
             task_hash, BlockRegistry(tmpdir)

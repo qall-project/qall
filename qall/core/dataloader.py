@@ -177,7 +177,7 @@ def validate_dataloader(name: str) -> bool:
     return check_reachable(dl.src, resolve_secrets(dl))
 
 
-### Task-secrets provisioning for the shared /dev/shm mount ###
+### Task-secrets provisioning for the shared /tmp mount ###
 
 
 def resolve_dataloader_specs(names: list[str]) -> dict:

@@ -190,7 +190,7 @@ class TaskRuntimeExecutor:
     ) -> tuple[Optional[Path], bool]:
         """
         Ensures the resolved-secrets file for this task exists at the
-        conventioned ``/dev/shm/qall-dataloaders/<task_hash>.json`` mount path
+        conventioned ``/tmp/qall-dataloaders/<task_hash>.json`` mount path
         and returns ``(path, provisioned_here)``.
 
         In the daemon/container path the file was already provisioned by the
