@@ -72,7 +72,8 @@ clean-containers: minio-clear
 .PHONY: test
 test: minio-restart ## Run pytest with coverage
 	uv sync --group dev && uv audit && uv run pytest --cov=$(PACKAGE_NAME) --cov-report=html
-	minio-stop
+	make minio-stop
+	@open htmlcov/index.html > /dev/null 2>&1 &
 
 .PHONY: install
 install: install-docker install-uv ## Install all system and project dependencies
