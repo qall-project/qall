@@ -14,3 +14,4 @@
 from .docker_manager import DockerDaemonManager
 from .base_manager import BaseDaemonManager
 from .systemd_manager import SystemdDaemonManager
+from .selector import get_daemon_manager

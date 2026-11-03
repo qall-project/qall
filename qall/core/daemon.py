@@ -18,7 +18,7 @@ from typing import Optional
 from pathlib import Path
 
 from qall.object import Artifact, DaemonStatus, Daemon, TaskRunStatus
-from qall.daemon import DockerDaemonManager
+from qall.daemon import get_daemon_manager
 from qall.registry import BlockRegistry
 from qall.core.dataloader import (
     provision_dataloader_file_for_task,
@@ -62,12 +62,10 @@ def start_daemon(
     artifact_registry_path: Optional[str | Path] = None,
 ):
     """
-    Start a local Qall daemon in a docker container.
+    Start a local Qall daemon (Docker or systemd backend), then stream its logs.
     """
-
     block_registry_path = block_registry_path or DEFAULT_BLOCK_REGISTRY_PATH
     artifact_registry_path = artifact_registry_path or DEFAULT_ARTIFACT_REGISTRY_PATH
-    # worker_provider = worker_provider or "local"
 
     block_path = Path(block_registry_path).resolve()
     artifact_path = Path(artifact_registry_path).resolve()
@@ -75,31 +73,25 @@ def start_daemon(
     block_path.mkdir(parents=True, exist_ok=True)
     artifact_path.mkdir(parents=True, exist_ok=True)
 
-    daemon_mgr = DockerDaemonManager(
-        local=True,
+    daemon_mgr = get_daemon_manager(
         grpc_port=port,
         host_block_registry_path=str(block_path),
         host_artifact_registry_path=str(artifact_path),
-        # worker_provider=worker_provider,
     )
 
     if daemon_mgr.service_info():
         raise RuntimeError(f"Daemon already running locally on port {port}")
 
-    with DockerDaemonManager(
-        local=True,
-        grpc_port=port,
-        host_block_registry_path=str(block_path),
-        host_artifact_registry_path=str(artifact_path),
-        # worker_provider=worker_provider,
-    ) as daemon_mgr:
+    daemon_mgr.start()
 
-        logs = daemon_mgr.logs()
+    logger.info(f"Daemon started on port {port}")
 
-        logger.info(f"Daemon started on port {port}")
+    logs = daemon_mgr.logs()
+    if logs is None:
+        return
 
-        while logs:
-            logger.info(logs.next())
+    for line in logs:
+        logger.info(line.rstrip())
 
 
 def apply_resource_assignments(
@@ -107,7 +99,7 @@ def apply_resource_assignments(
     resource_assignments: Optional[dict] = None,
 ):
     try:
-        daemon_mgr = DockerDaemonManager(local=True)
+        daemon_mgr = get_daemon_manager()
 
         if worker_definitions:
             daemon_mgr.register_workers(worker_definitions)
@@ -127,7 +119,7 @@ def stop_daemon(port: int = 50053):
     """
 
     try:
-        daemon_mgr = DockerDaemonManager(grpc_port=port, local=True)
+        daemon_mgr = get_daemon_manager(grpc_port=port)
 
         if not daemon_mgr.is_running():
             logger.warning("No running daemon to stop.")
@@ -149,10 +141,7 @@ def restart_daemon(
     """
 
     try:
-        daemon_mgr = DockerDaemonManager(
-            grpc_port=port,
-            local=True,
-        )
+        daemon_mgr = get_daemon_manager(grpc_port=port)
         if not daemon_mgr.is_running():
             raise RuntimeError("No active daemon container running.")
 
@@ -194,8 +183,7 @@ def get_daemon_status(
     artifact_registry = Path(artifact_registry).resolve()
 
     try:
-        daemon_mgr = DockerDaemonManager(
-            local=True,
+        daemon_mgr = get_daemon_manager(
             grpc_port=port,
             host_block_registry_path=str(block_registry),
             host_artifact_registry_path=str(artifact_registry),
@@ -242,16 +230,12 @@ def run_task(
         block_registry = Path(block_registry).resolve()
         artifact_registry = Path(artifact_registry).resolve()
 
-        daemon_mgr = DockerDaemonManager(
-            local=True,
+        daemon_mgr = get_daemon_manager(
             grpc_port=port,
             host_block_registry_path=str(block_registry),
             host_artifact_registry_path=str(artifact_registry),
         )
-
-        if not daemon_mgr.service_info():
-            logger.info("Daemon not running, starting it...")
-            daemon_mgr.start()
+        daemon_mgr.ensure_running()
 
         logger.info(f"Daemon ready at {daemon_address}")
 
@@ -312,5 +296,6 @@ def run_task(
 
     finally:
         cleanup_dataloader_files(dataloader_files)
-        if daemon_mgr:
-            daemon_mgr.stop()
+        # Intentionally leave the daemon running after the task: subsequent
+        # task runs reuse it, and only an explicit stop_daemon() /
+        # `qall daemon stop` stops it.

@@ -52,6 +52,16 @@ class BaseDaemonManager(abc.ABC):
 
         return self
 
+    def ensure_running(self) -> "BaseDaemonManager":
+        """
+        Ensure the daemon is running and healthy, starting it if needed.
+        """
+        if not self.service_info():
+            logger.info("Daemon not running, starting it...")
+            self.start()
+
+        return self
+
     def service_info(self) -> bool:
         """
         Check the status of the daemon server.

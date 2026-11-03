@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 import requests
 
-from qall.core.daemon import DockerDaemonManager
+from qall.daemon import DockerDaemonManager
 
 
 @pytest.fixture
