@@ -257,7 +257,7 @@ def run_task(
         logger.info(f"Daemon ready at {daemon_address}")
 
     # Provision the resolved dataloader secrets for the requested task so its
-    # container finds them at the conventioned /dev/shm mount path. No-op when
+    # container finds them at the conventioned /tmp mount path. No-op when
     # the task references no dataloader. Cleaned up once the run completes.
     dataloader_files = []
     try:

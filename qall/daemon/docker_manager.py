@@ -180,13 +180,13 @@ class DockerDaemonManager(BaseDaemonManager):
                 return
 
             # Ensure the dataloaders secrets dir is owned by the current
-            # (client) user BEFORE the daemon starts. It is a top-level /dev/shm
+            # (client) user BEFORE the daemon starts. It is a top-level /tmp
             # path, deliberately separate from the daemon's root-owned token dir
-            # (/dev/shm/qall-secrets), so the client always retains write
+            # (/tmp/qall-secrets), so the client always retains write
             # access to provision per-task secrets files. The daemon container
             # mounts it (so its os.Stat guard sees the directory) but never
             # creates or owns it.
-            os.makedirs("/dev/shm/qall-dataloaders", mode=0o700, exist_ok=True)
+            os.makedirs("/tmp/qall-dataloaders", mode=0o700, exist_ok=True)
 
             dev_dir = os.environ.get("QALL_DEV_DIR")
 
@@ -203,12 +203,12 @@ class DockerDaemonManager(BaseDaemonManager):
                     "bind": "/var/run/docker.sock",
                     "mode": "rw",
                 },
-                "/dev/shm/qall-secrets": {
-                    "bind": "/dev/shm/qall-secrets",
+                "/tmp/qall-secrets": {
+                    "bind": "/tmp/qall-secrets",
                     "mode": "rw",
                 },
-                "/dev/shm/qall-dataloaders": {
-                    "bind": "/dev/shm/qall-dataloaders",
+                "/tmp/qall-dataloaders": {
+                    "bind": "/tmp/qall-dataloaders",
                     "mode": "rw",
                 },
             }
