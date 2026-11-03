@@ -84,7 +84,12 @@ def test_is_running_active(tmp_path):
         return_value=_proc(returncode=0),
     ) as run:
         assert mgr.is_running() is True
-        assert run.call_args.args[0] == ["systemctl", "is-active", "--quiet", DEFAULT_UNIT_NAME]
+        assert run.call_args.args[0] == [
+            "systemctl",
+            "is-active",
+            "--quiet",
+            DEFAULT_UNIT_NAME,
+        ]
 
 
 def test_is_running_inactive(tmp_path):
@@ -158,7 +163,9 @@ def test_stop_calls_systemctl_stop(tmp_path):
         return_value=_proc(returncode=0),
     ) as run:
         mgr.stop()
-    assert ["systemctl", "stop", DEFAULT_UNIT_NAME] in [c.args[0] for c in run.call_args_list]
+    assert ["systemctl", "stop", DEFAULT_UNIT_NAME] in [
+        c.args[0] for c in run.call_args_list
+    ]
 
 
 def test_install_writes_system_unit_and_enables(tmp_path):
@@ -198,7 +205,11 @@ def test_unit_templates_shipped_and_rendered():
     rendered = SystemdDaemonManager()._unit_file_content()
     assert "{binary}" not in rendered
     assert "ExecStart=" in rendered
-    for flag in ("--host-task-dir=", "--block-registry-dir=", "--artifact-registry-dir="):
+    for flag in (
+        "--host-task-dir=",
+        "--block-registry-dir=",
+        "--artifact-registry-dir=",
+    ):
         assert flag in rendered
     assert "/var/cache/qall/block-registry" in rendered
 

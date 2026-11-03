@@ -95,14 +95,13 @@ class SystemdDaemonManager(BaseDaemonManager):
 
         system_scope = scope == "system"
         self.daemon_binary = str(
-            daemon_binary or (SYSTEM_DAEMON_BINARY if system_scope else USER_DAEMON_BINARY)
+            daemon_binary
+            or (SYSTEM_DAEMON_BINARY if system_scope else USER_DAEMON_BINARY)
         )
         self.host_block_registry_path = str(
             host_block_registry_path
             or (
-                SYSTEM_BLOCK_REGISTRY_PATH
-                if system_scope
-                else USER_BLOCK_REGISTRY_PATH
+                SYSTEM_BLOCK_REGISTRY_PATH if system_scope else USER_BLOCK_REGISTRY_PATH
             )
         )
         self.host_artifact_registry_path = str(
@@ -113,7 +112,9 @@ class SystemdDaemonManager(BaseDaemonManager):
                 else USER_ARTIFACT_REGISTRY_PATH
             )
         )
-        self._unit_dir = Path(unit_dir or (SYSTEM_UNIT_DIR if system_scope else USER_UNIT_DIR))
+        self._unit_dir = Path(
+            unit_dir or (SYSTEM_UNIT_DIR if system_scope else USER_UNIT_DIR)
+        )
         self._ctl = systemd_ctl_args(scope)
 
     @property
@@ -252,7 +253,9 @@ class SystemdDaemonManager(BaseDaemonManager):
     @staticmethod
     def _enable_linger() -> None:
         user = os.environ.get("USER", "")
-        logger.info(f"Enabling linger for user {user} so the daemon survives logouts...")
+        logger.info(
+            f"Enabling linger for user {user} so the daemon survives logouts..."
+        )
         proc = subprocess.run(["loginctl", "enable-linger", user])
         if proc.returncode != 0:
             logger.warning(

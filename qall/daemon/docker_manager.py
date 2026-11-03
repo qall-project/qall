@@ -157,8 +157,8 @@ class DockerDaemonManager(BaseDaemonManager):
             command = [
                 f"--host-task-dir={self.__host_block_registry_path}",
                 "--block-registry-dir=/block-registry",
-                "--artifact-registry-dir=/artifact-registry"
-                ]
+                "--artifact-registry-dir=/artifact-registry",
+            ]
 
             if self.__local:
                 command.append("--local")
