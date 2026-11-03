@@ -154,7 +154,11 @@ class DockerDaemonManager(BaseDaemonManager):
         self._ensure_image_exists()
 
         try:
-            command = [f"--host-task-dir={self.__host_block_registry_path}"]
+            command = [
+                f"--host-task-dir={self.__host_block_registry_path}",
+                "--block-registry-dir=/block-registry",
+                "--artifact-registry-dir=/artifact-registry"
+                ]
 
             if self.__local:
                 command.append("--local")
