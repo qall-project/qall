@@ -20,7 +20,8 @@ from dataclasses import dataclass, field
 from dataclasses_json import dataclass_json
 
 # Credential keys considered sensitive: their plaintext value never lands in the
-# user's qall-config.json, only in the host keyring (obfuscated placeholder).
+# user's config file (.qall.yml / qall-config.yml), only in the host keyring
+# (obfuscated placeholder).
 SECRET_CREDENTIAL_KEYS = frozenset(
     {
         "api_key",
@@ -57,6 +58,27 @@ _MASK = "****"
 # Reasonable functional identifier (mirrors POSIX file-name constraints).
 _NAME_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$")
 
+# Config scopes a dataloader may live in. ``local`` (the current project's
+# ``.qall.yml``) takes precedence over ``global`` (the machine-wide
+# ``qall-config.yml``) when both define the same name.
+DATALOADER_SCOPES = ("local", "global")
+
+
+@dataclass_json
+@dataclass(frozen=True)
+class DataloaderEntry:
+    """
+    Value-only persisted representation of a dataloader inside a
+    ``LocalConfiguration`` (``profiles`` + ``dataloaders`` + ``version``).
+
+    Keeps the YAML clean: the entry lives under the ``dataloaders:`` map keyed
+    by dataloader name, so the name itself is not duplicated inside the entry.
+    """
+
+    src: str
+    dst: str
+    creds: dict = field(default_factory=dict)
+
 
 @dataclass_json
 @dataclass(frozen=True)
@@ -67,14 +89,19 @@ class Dataloader:
 
     ``creds`` holds the storage-options required by the ``fsspec`` backend of
     ``src``. Sensitive values (see :data:`SECRET_CREDENTIAL_KEYS`) are stored
-    obfuscated in ``qall-config.json`` and resolved from the host keyring at
+    obfuscated in the configuration file and resolved from the host keyring at
     bind time.
+
+    ``scope`` records which config file the dataloader was loaded from
+    (``"global"`` by default; ``"local"`` for the current project's
+    ``.qall.yml``).
     """
 
     name: str
     src: str
     dst: str
     creds: dict = field(default_factory=dict)
+    scope: str = "global"
 
     @staticmethod
     def is_secret_key(key: str) -> bool:
@@ -96,3 +123,51 @@ class Dataloader:
                 k: _MASK if self.is_secret_key(k) else v for k, v in self.creds.items()
             },
         )
+
+
+# Interactive credential prompt table, keyed by the ``fsspec`` protocol (scheme)
+# of the dataloader ``src``. Each field mirrors the provider-login shape:
+# ``{"name", "prompt", "hide_input"}`` where ``name`` is the fsspec-native
+# credential key. Unknown schemes and local files need no credentials, so they
+# map to an empty table (automation must pass flags for those backends).
+_CREDENTIAL_FIELD_PROTOCOLS = {
+    "s3": [
+        {"name": "key", "prompt": "Access key", "hide_input": False},
+        {"name": "secret", "prompt": "Secret key", "hide_input": True},
+        {
+            "name": "endpoint_url",
+            "prompt": "Endpoint URL (optional)",
+            "hide_input": False,
+        },
+    ],
+    "s3a": [
+        {"name": "key", "prompt": "Access key", "hide_input": False},
+        {"name": "secret", "prompt": "Secret key", "hide_input": True},
+        {
+            "name": "endpoint_url",
+            "prompt": "Endpoint URL (optional)",
+            "hide_input": False,
+        },
+    ],
+    "s3n": [
+        {"name": "key", "prompt": "Access key", "hide_input": False},
+        {"name": "secret", "prompt": "Secret key", "hide_input": True},
+        {
+            "name": "endpoint_url",
+            "prompt": "Endpoint URL (optional)",
+            "hide_input": False,
+        },
+    ],
+}
+
+
+def credential_fields_for_protocol(protocol: str) -> list[dict]:
+    """
+    Returns the interactive credential prompt fields for an object-storage
+    protocol (URL scheme), mirroring the provider-login shape
+    ``[{name, prompt, hide_input}, ...]``.
+
+    Only protocols with a known prompt table are listed; ``file://`` and any
+    unknown scheme return ``[]`` (no prompts, credentials via flags only).
+    """
+    return list(_CREDENTIAL_FIELD_PROTOCOLS.get((protocol or "").lower(), []))

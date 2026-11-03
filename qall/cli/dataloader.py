@@ -12,12 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import json
+import urllib.parse
 
 import typer
 
 from typing import Optional
 
 import qall.core as core
+
+from qall.object import credential_fields_for_protocol
 
 from .utils import parse_extra_args
 
@@ -26,6 +29,56 @@ dataloader_cli = typer.Typer(
     help="Manage dataloaders binding an object storage as a virtual POSIX mount point for tasks.",
     no_args_is_help=True,
 )
+
+
+def _protocol_of(src: str) -> str:
+    """Extracts the object-storage protocol (URL scheme) of a dataloader src."""
+    return urllib.parse.urlparse(src).scheme
+
+
+def _scope_label(scope: str) -> str:
+    return "global config" if scope == "global" else ".qall.yml (current project)"
+
+
+def _scope_tag(scope: str) -> str:
+    return "(local)" if scope == "local" else "(global)"
+
+
+# Maximum display width of any ``ls`` table column. Longer cells are truncated
+# (with an ellipsis) so the table stays compact and never wraps on a narrow
+# terminal -- a wrapped line is what makes the columns look misaligned.
+_MAX_LS_COLUMN_WIDTH = 40
+
+
+def _truncate_cell(value: str, width: int, ellipsis: str = "…") -> str:
+    """Cuts ``value`` down to ``width`` characters, appending an ellipsis."""
+    if len(value) <= width:
+        return value
+    return value[: max(0, width - len(ellipsis))] + ellipsis
+
+
+def _print_columns(
+    headers: list[str], rows: list[list[str]], max_width: Optional[int] = None
+) -> None:
+    """
+    Prints ``rows`` as left-aligned columns under ``headers``.
+
+    Every column is padded to the width of its widest cell (header or data), so
+    all rows share the same (standardized) column widths. When ``max_width`` is
+    given, no column grows wider than it: over-long cells are truncated (with an
+    ellipsis) so the table never wraps on a narrow terminal.
+    """
+    cells = [headers] + [list(map(str, row)) for row in rows]
+    widths = []
+    for i in range(len(headers)):
+        width = max(len(cell[i]) for cell in cells)
+        widths.append(width if max_width is None else min(width, max_width))
+    for row in cells:
+        padded = []
+        for cell, width in zip(row, widths):
+            text = _truncate_cell(cell, width) if max_width is not None else str(cell)
+            padded.append(text.ljust(width))
+        typer.echo(" ".join(padded).rstrip())
 
 
 @dataloader_cli.command(
@@ -46,9 +99,32 @@ def dataloader_add(
     no_validate: bool = typer.Option(
         False, "--no-validate", help="Skip the remote reachability check."
     ),
+    current_project: bool = typer.Option(
+        False,
+        "--current-project",
+        help="Store the dataloader in the current project's .qall.yml instead "
+        "of the machine-wide global config.",
+    ),
+    no_prompt: bool = typer.Option(
+        False, "--no-prompt", help="Never prompt for credentials (automation)."
+    ),
 ):
     """Create, validate and persist a new dataloader."""
+    scope = "local" if current_project else "global"
     creds = parse_extra_args(ctx.args)
+
+    if not no_prompt:
+        for field in credential_fields_for_protocol(_protocol_of(src)):
+            cred_key = field["name"]
+            if cred_key in creds and creds[cred_key]:
+                continue
+            value = typer.prompt(
+                field["prompt"],
+                hide_input=field.get("hide_input", False),
+                default="",
+            )
+            if value:
+                creds[cred_key] = value
 
     try:
         core.add_dataloader(
@@ -57,12 +133,13 @@ def dataloader_add(
             dst=dst,
             creds=creds,
             validate=not no_validate,
+            scope=scope,
         )
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(code=1)
 
-    typer.echo(f"Dataloader {name!r} added ({src} -> {dst}).")
+    typer.echo(f"Dataloader {name!r} added ({src} -> {dst}) [{_scope_label(scope)}].")
 
 
 @dataloader_cli.command(
@@ -77,9 +154,45 @@ def dataloader_update(
     no_validate: bool = typer.Option(
         False, "--no-validate", help="Skip the remote reachability check."
     ),
+    current_project: bool = typer.Option(
+        False,
+        "--current-project",
+        help="Update the dataloader scoped to the current project's .qall.yml.",
+    ),
+    no_prompt: bool = typer.Option(
+        False, "--no-prompt", help="Never prompt for credentials (automation)."
+    ),
 ):
-    """Update an existing dataloader (only provided fields are changed)."""
+    """Update an existing dataloader. Credentials are prompted for by default;
+    leaving a prompt empty keeps the currently stored value."""
+    current = core.get_dataloader(name)
+    if current is None:
+        typer.echo(f"No dataloader named {name!r} found.", err=True)
+        raise typer.Exit(code=1)
+    if current_project and current.scope != "local":
+        typer.echo(
+            f"No dataloader named {name!r} found in the current project config.",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    protocol = _protocol_of(src) if src else _protocol_of(current.src)
     creds = parse_extra_args(ctx.args)
+
+    if not no_prompt:
+        for field in credential_fields_for_protocol(protocol):
+            cred_key = field["name"]
+            if cred_key in creds and creds[cred_key]:
+                continue
+            value = typer.prompt(
+                field["prompt"],
+                hide_input=field.get("hide_input", False),
+            )
+            if value:
+                creds[cred_key] = value
+            # empty input -> key omitted -> core keeps the stored value
+
+    creds = {k: v for k, v in creds.items() if v != ""} or None
 
     try:
         core.update_dataloader(
@@ -88,6 +201,7 @@ def dataloader_update(
             dst=dst,
             creds=creds,
             validate=not no_validate,
+            scope="local" if current_project else None,
         )
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
@@ -109,13 +223,19 @@ def dataloader_rm(
 
 @dataloader_cli.command("ls")
 def dataloader_ls():
-    """List every defined dataloader."""
+    """List every defined dataloader (annotated with its scope)."""
     dataloaders = core.list_dataloaders()
     if not dataloaders:
         typer.echo("No dataloader defined.")
         return
-    for dl in dataloaders:
-        typer.echo(f"{dl.name}\t{dl.src}\t->\t{dl.dst}")
+    _print_columns(
+        headers=["NAME", "SRC", "DST", "SCOPE"],
+        rows=[
+            [dl.name, dl.src, dl.dst, f"[{_scope_tag(dl.scope)}]"]
+            for dl in sorted(dataloaders, key=lambda dl: dl.name.lower())
+        ],
+        max_width=_MAX_LS_COLUMN_WIDTH,
+    )
 
 
 @dataloader_cli.command("info")

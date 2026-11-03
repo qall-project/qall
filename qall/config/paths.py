@@ -17,5 +17,5 @@ QALL_CACHE_DIR = Path.home() / ".cache" / "qall"
 DEFAULT_BLOCK_REGISTRY_PATH = QALL_CACHE_DIR / "block-registry"
 DEFAULT_ARTIFACT_REGISTRY_PATH = QALL_CACHE_DIR / "artifact-registry"
 QALL_CONFIG_DIR = Path.home() / ".config" / "qall"
-CONFIG_PATH = QALL_CONFIG_DIR / "qall-config.json"
+CONFIG_PATH = QALL_CONFIG_DIR / "qall-config.yml"
 TASK_RUNTIME_WORKDIR = Path("/tmp")

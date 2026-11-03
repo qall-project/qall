@@ -34,7 +34,7 @@ from qall.codec import DEFAULT_CODEC
 
 @pytest.fixture
 def config_path(tmp_path: Path, monkeypatch):
-    path = tmp_path / "qall-config.json"
+    path = tmp_path / "qall-config.yml"
     monkeypatch.setenv("QALL_CONFIG_PATH", str(path))
     return path
 

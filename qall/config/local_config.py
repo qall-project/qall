@@ -18,7 +18,7 @@ from dataclasses_json import dataclass_json
 from pathlib import Path
 from typing import Dict, Optional
 
-from qall.object import ResourceProfile, AllowedResourceCollection
+from qall.object import ResourceProfile, AllowedResourceCollection, DataloaderEntry
 
 
 @dataclass_json
@@ -26,9 +26,11 @@ from qall.object import ResourceProfile, AllowedResourceCollection
 class LocalConfiguration:
     """
     Maps user-defined, dynamic profile keys (e.g., 'prod', 'dev', 'my-test')
+    and the project's dataloaders onto a single ``.qall.yml`` layout.
     """
 
     profiles: Dict[str, ResourceProfile] = field(default_factory=dict)
+    dataloaders: Dict[str, DataloaderEntry] = field(default_factory=dict)
     version: str = "1.0"
 
     @classmethod
@@ -95,7 +97,16 @@ class LocalConfiguration:
             # safe_load converts the YAML content into a standard Python dict structure
             yaml_data = yaml.safe_load(f)
 
-        if not yaml_data or "profiles" not in yaml_data:
+        if not yaml_data:
+            return cls()
+
+        if not isinstance(yaml_data, dict):
+            raise ValueError(f"Invalid qall configuration file layout: {path}")
+
+        # At least one known section is required so a dataloaders-only
+        # `.qall.yml` (e.g. created by `qall dataloader add --current-project`)
+        # parses; missing sections default to their empty value.
+        if "profiles" not in yaml_data and "dataloaders" not in yaml_data:
             raise ValueError(f"Invalid qall configuration file layout: {path}")
 
         return cls.from_dict(yaml_data)

@@ -8,13 +8,27 @@
    Run MinIO container (or its drop-in open replacement, pgsty/silo).
 
 2. Define the dataloader. `src` points at the bucket prefix to bind, `dst` is
-   the virtual mount point the task uses (`Path("local_minio")`):
+   the virtual mount point the task uses (`Path("local_minio")`). Credentials
+   are **prompted for by default** (so they never leak into your shell
+   history); flags are still supported for automation:
 
    ```sh
+   # interactive (default): stores in the global config, prompts for
+   # Access key / Secret key / optional Endpoint URL
+   qall dataloader add local_minio s3://qall-dataloader-demo/local_minio local_minio \
+     --endpoint_url=http://minio:9000 --use_ssl=false \
+     --no-validate
+
+   # non-interactive (automation): pass credentials as flags
    qall dataloader add local_minio s3://qall-dataloader-demo/local_minio local_minio \
      --key=minioadmin --secret=minioadmin \
      --endpoint_url=http://minio:9000 --use_ssl=false \
-     --no-validate
+     --no-validate --no-prompt
+
+   # store the dataloader in the current project's .qall.yml instead
+   qall dataloader add local_minio s3://qall-dataloader-demo/local_minio local_minio \
+     --current-project --key=minioadmin --secret=minioadmin \
+     --endpoint_url=http://minio:9000 --use_ssl=false --no-validate
    ```
 
    Use the MinIO root credentials you configured.

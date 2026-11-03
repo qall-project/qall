@@ -21,20 +21,29 @@ from pathlib import Path
 from typing import Optional
 
 from qall.credential import set_token, get_token, delete_token
-from qall.object import Dataloader
+from qall.object import Dataloader, DATALOADER_SCOPES
 
-from .paths import CONFIG_PATH
+from .local_config import LocalConfiguration
+from .paths import CONFIG_PATH, QALL_CONFIG_DIR
 
 logger = logging.getLogger(__name__)
 
 # Keyring service used to store the plaintext of sensitive dataloader
-# credentials. The user = dataloader name.
+# credentials. The keyring user is the scoped name ``"{scope}:{name}"`` so a
+# local and a global dataloader can share a name without keyring collisions.
 KEYRING_DATALOADER_SERVICE = "qall_dataloader"
 
-# Obfuscation placeholder written into qall-config.json for any sensitive
+# Obfuscation placeholder written into the config file for any sensitive
 # credential key (see Dataloader.is_secret_key). The runtime resolves it back
 # from the keyring, so plaintext secrets never hit the config file.
 _KEYRING_PLACEHOLDER_PREFIX = f"keyring://{KEYRING_DATALOADER_SERVICE}/"
+
+# Legacy (pre-scoping, JSON format) machine-wide config. Migrated once into the
+# new global YAML (``CONFIG_PATH``) and then left in place (never deleted).
+LEGACY_CONFIG_PATH = QALL_CONFIG_DIR / "qall-config.json"
+
+# Default filename of the per-project (local) config file.
+_DEFAULT_LOCAL_CONFIG_FILENAME = ".qall.yml"
 
 # Conventioned mount point where the client provisions one resolved-secrets
 # file per task (`<task_hash>.json`) that references dataloaders. The directory
@@ -54,44 +63,149 @@ _SECRETS_DIR_MODE = 0o700
 _SECRETS_FILE_MODE = 0o400
 
 
-def get_config_path() -> Path:
-    """Path of the project user config file (env-overridable for testing)."""
+def normalize_scope(scope: str) -> str:
+    """Validates a dataloader config scope identifier."""
+    if scope not in DATALOADER_SCOPES:
+        raise ValueError(
+            f"Unknown dataloader config scope {scope!r}. "
+            f"Expected one of {DATALOADER_SCOPES}."
+        )
+    return scope
+
+
+def global_config_path() -> Path:
+    """Path of the machine-wide (global) config file (env-overridable)."""
     override = os.environ.get("QALL_CONFIG_PATH")
     return Path(override) if override else CONFIG_PATH
 
 
-def ensure_config() -> Path:
+def local_config_path() -> Path:
+    """Path of the current-project config file (env-overridable)."""
+    override = os.environ.get("QALL_LOCAL_CONFIG_PATH")
+    return Path(override) if override else Path(_DEFAULT_LOCAL_CONFIG_FILENAME)
+
+
+def get_config_path() -> Path:
+    """Backward-compatible alias for the global config path."""
+    return global_config_path()
+
+
+def config_path_for_scope(scope: str) -> Path:
+    """Resolves a scope identifier to its config file path."""
+    scope = normalize_scope(scope)
+    if scope == "local":
+        return local_config_path()
+    return global_config_path()
+
+
+def legacy_config_path() -> Path:
+    """Path of the legacy (JSON) global config file, if any."""
+    return LEGACY_CONFIG_PATH
+
+
+def migrate_legacy_global_config() -> Optional[Path]:
     """
-    Transparently bootstraps the user config file (``qall-config.json``) if it
-    does not exist yet. Idempotent and called from every CLI/core entry point so
-    users never have to run an explicit ``init``.
+    Best-effort one-time migration of the legacy JSON global config
+    (``qall-config.json``) into the new global YAML (``qall-config.yml``).
+
+    Sensitive keyring entries are re-keyed from the legacy user ``<name>`` to
+    the scoped user ``global:<name>`` and placeholders are rewritten
+    accordingly. The legacy file is **left in place** and the migration runs at
+    most once (it is skipped as soon as the global YAML exists).
+
+    Returns the written global YAML path, or ``None`` when there is nothing to
+    migrate (either the global YAML already exists, no legacy file was found,
+    or the legacy file could not be read).
     """
-    path = get_config_path()
+    global_path = global_config_path()
+    if global_path.exists():
+        return None
+
+    legacy = legacy_config_path()
+    if not legacy.exists():
+        return None
+
+    try:
+        with legacy.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        logger.warning(f"Could not read legacy dataloader config {legacy}: {e}")
+        return None
+
+    dataloaders = data.get("dataloaders", {}) if isinstance(data, dict) else {}
+    if not dataloaders:
+        save_config({"dataloaders": {}})
+        logger.info(
+            f"Legacy config {legacy} holds no dataloaders; bootstrapped empty "
+            f"global config at {global_path}"
+        )
+        return global_path
+
+    migrated: dict = {}
+    for name, entry in dataloaders.items():
+        if not isinstance(entry, dict):
+            continue
+        creds = dict(entry.get("creds", {}) or {})
+        # Re-key the legacy keyring entry (stored under user == name) under the
+        # scoped user so the rewritten placeholders stay resolvable.
+        legacy_secrets = get_token(KEYRING_DATALOADER_SERVICE, name)
+        if isinstance(legacy_secrets, dict) and legacy_secrets:
+            set_token(KEYRING_DATALOADER_SERVICE, f"global:{name}", legacy_secrets)
+        migrated[name] = {
+            "src": entry.get("src", ""),
+            "dst": entry.get("dst", ""),
+            "creds": obfuscate_creds("global", name, creds),
+        }
+
+    save_config({"dataloaders": migrated})
+    logger.info(
+        f"Migrated {len(migrated)} dataloader(s) from legacy config {legacy} "
+        f"into {global_path}"
+    )
+    return global_path
+
+
+def ensure_config(scope: str = "global") -> Path:
+    """
+    Transparently bootstraps the requested scope's config file if it does not
+    exist yet. Idempotent and called from every CLI/core entry point so users
+    never have to run an explicit ``init``.
+    """
+    scope = normalize_scope(scope)
+    if scope == "global":
+        migrated = migrate_legacy_global_config()
+        if migrated is not None:
+            return migrated
+
+    path = config_path_for_scope(scope)
     if path.exists():
         return path
     path.parent.mkdir(parents=True, exist_ok=True)
-    save_config({"dataloaders": {}})
-    logger.info(f"Bootstrapped qall user config at {path}")
+    save_config({"dataloaders": {}}, scope)
+    logger.info(f"Bootstrapped qall config ({scope}) at {path}")
     return path
 
 
-def load_config() -> dict:
-    """Loads the user config as a dict (empty layout if the file is absent)."""
-    path = get_config_path()
+def load_config(scope: str = "global") -> dict:
+    """Loads the target scope's config as a dict (empty layout if absent)."""
+    scope = normalize_scope(scope)
+    path = config_path_for_scope(scope)
     if not path.exists():
         return {"dataloaders": {}}
-    with path.open("r", encoding="utf-8") as f:
-        data = json.load(f)
+    cfg = LocalConfiguration.from_yaml_file(path)
+    data = cfg.to_dict()
     data.setdefault("dataloaders", {})
     return data
 
 
-def save_config(data: dict) -> Path:
-    """Atomically writes the user config back to disk."""
-    path = get_config_path()
+def save_config(data: dict, scope: str = "global") -> Path:
+    """Atomically writes the target scope's config back to disk as YAML."""
+    scope = normalize_scope(scope)
+    path = config_path_for_scope(scope)
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    cfg = LocalConfiguration.from_dict(data)
+    tmp = path.with_suffix(".tmp")
+    cfg.to_yaml_file(tmp)
     tmp.replace(path)
     return path
 
@@ -100,14 +214,18 @@ def is_keyring_placeholder(value) -> bool:
     return isinstance(value, str) and value.startswith(_KEYRING_PLACEHOLDER_PREFIX)
 
 
-def obfuscate_creds(name: str, creds: dict) -> dict:
+def _keyring_user(scope: str, name: str) -> str:
+    return f"{scope}:{name}"
+
+
+def obfuscate_creds(scope: str, name: str, creds: dict) -> dict:
     """
     Maps a creds dict to its persisted form: sensitive values become keyring
-    placeholders, everything else stays plaintext.
+    placeholders (scoped by ``scope:name``), everything else stays plaintext.
     """
     return {
         key: (
-            f"{_KEYRING_PLACEHOLDER_PREFIX}{name}/{key}"
+            f"{_KEYRING_PLACEHOLDER_PREFIX}{scope}:{name}/{key}"
             if Dataloader.is_secret_key(key)
             else value
         )
@@ -115,13 +233,14 @@ def obfuscate_creds(name: str, creds: dict) -> dict:
     }
 
 
-def store_secrets(name: str, creds: dict) -> None:
+def store_secrets(scope: str, name: str, creds: dict) -> None:
     """Persists the plaintext of sensitive creds into the host keyring."""
     secrets = {k: v for k, v in creds.items() if Dataloader.is_secret_key(k)}
     if secrets:
-        set_token(KEYRING_DATALOADER_SERVICE, name, secrets)
+        set_token(KEYRING_DATALOADER_SERVICE, _keyring_user(scope, name), secrets)
         logger.info(
-            f"Stored {len(secrets)} sensitive credential(s) for dataloader {name!r} in keyring"
+            f"Stored {len(secrets)} sensitive credential(s) for dataloader "
+            f"{name!r} (scope {scope}) in keyring"
         )
 
 
@@ -133,13 +252,25 @@ def resolve_secrets(dl: Dataloader) -> dict:
     Fails loudly (``RuntimeError``) when a placeholder cannot be resolved, so a
     missing/obfuscated secret is never silently shipped to the runtime.
     """
+    user = _keyring_user(dl.scope or "global", dl.name)
     try:
-        stored = get_token(KEYRING_DATALOADER_SERVICE, dl.name)
+        stored = get_token(KEYRING_DATALOADER_SERVICE, user)
     except Exception as e:
         stored = None
         keyring_error = e
     else:
         keyring_error = None
+
+    if not isinstance(stored, dict):
+        # Also accept the legacy pre-scoping keyring user (plain name) so
+        # non-migrated placeholder leftovers still resolve.
+        try:
+            legacy = get_token(KEYRING_DATALOADER_SERVICE, dl.name)
+        except Exception:
+            legacy = None
+        if isinstance(legacy, dict):
+            stored = legacy
+
     stored = stored if isinstance(stored, dict) else {}
 
     merged = dict(dl.creds)
@@ -156,15 +287,17 @@ def resolve_secrets(dl: Dataloader) -> dict:
         detail = f" ({keyring_error})" if keyring_error else ""
         raise RuntimeError(
             f"Could not resolve sensitive credential(s) {unresolved} for "
-            f"dataloader {dl.name!r} from the host keyring{detail}. Re-run "
-            "`qall dataloader update --<key>=... <name>` to store them again."
+            f"dataloader {dl.name!r} (scope {dl.scope!r}) from the host "
+            f"keyring{detail}. Re-run `qall dataloader update --<key>=... "
+            f"{dl.name}` to store them again (add `--current-project` if the "
+            "dataloader is project-scoped)."
         )
     return merged
 
 
-def delete_secrets(name: str) -> None:
+def delete_secrets(scope: str, name: str) -> None:
     """Removes the dataloader's secrets from the host keyring."""
-    delete_token(KEYRING_DATALOADER_SERVICE, name)
+    delete_token(KEYRING_DATALOADER_SERVICE, _keyring_user(scope, name))
 
 
 ### Task-secrets provisioning (shared mount) ###

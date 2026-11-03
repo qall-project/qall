@@ -36,8 +36,8 @@ logger = logging.getLogger(__name__)
 
 
 def init_dataloader_config() -> Path:
-    """Transparently bootstraps the user config file (no-op if it exists)."""
-    return ensure_config()
+    """Transparently bootstraps the global config file (no-op if it exists)."""
+    return ensure_config("global")
 
 
 def add_dataloader(
@@ -46,6 +46,7 @@ def add_dataloader(
     dst: str,
     creds: Optional[dict] = None,
     validate: bool = True,
+    scope: str = "global",
 ) -> Dataloader:
     """Creates, validates and persists a new dataloader."""
     Dataloader.validate_name(name)
@@ -54,28 +55,39 @@ def add_dataloader(
     if not src or not dst:
         raise ValueError("dataloader 'src' and 'dst' are required.")
 
-    dataloader = Dataloader(name=name, src=src, dst=dst, creds=creds)
-
     if validate and not check_reachable(src, creds):
         raise ValueError(
             f"Source {src!r} is not reachable with the provided credentials."
         )
 
-    ensure_config()
-    config = load_config()
+    ensure_config(scope)
+    config = load_config(scope)
     if name in config["dataloaders"]:
-        raise ValueError(f"A dataloader named {name!r} already exists.")
+        raise ValueError(
+            f"A dataloader named {name!r} already exists in the {scope} config."
+        )
+    if scope == "local" and name in load_config("global")["dataloaders"]:
+        logger.info(
+            f"Dataloader {name!r} also exists in the global config; the local "
+            "entry will shadow it for this project."
+        )
 
-    store_secrets(name, creds)
+    store_secrets(scope, name, creds)
     config["dataloaders"][name] = {
         "src": src,
         "dst": dst,
-        "creds": obfuscate_creds(name, creds),
+        "creds": obfuscate_creds(scope, name, creds),
     }
-    save_config(config)
+    save_config(config, scope)
 
-    logger.info(f"Added dataloader {name!r} ({src} -> {dst}).")
-    return get_dataloader(name)
+    logger.info(f"Added dataloader {name!r} ({src} -> {dst}) [{scope}].")
+    return Dataloader(
+        name=name,
+        src=src,
+        dst=dst,
+        creds=config["dataloaders"][name]["creds"],
+        scope=scope,
+    )
 
 
 def update_dataloader(
@@ -84,70 +96,114 @@ def update_dataloader(
     dst: Optional[str] = None,
     creds: Optional[dict] = None,
     validate: bool = True,
+    scope: Optional[str] = None,
 ) -> Dataloader:
-    """Updates an existing dataloader (only provided fields are changed)."""
+    """
+    Updates an existing dataloader (only provided fields are changed).
+
+    ``scope=None`` targets the effective dataloader (local first, then global).
+    When ``creds`` is provided it is merged over the currently resolved
+    plaintext values, so credential keys simply omitted (e.g. an empty prompt
+    answer) keep their stored value.
+    """
     current = get_dataloader(name)
     if current is None:
         raise ValueError(f"No dataloader named {name!r} found.")
 
+    effective_scope = scope if scope is not None else current.scope
+    if scope is not None and scope != current.scope:
+        raise ValueError(f"No dataloader named {name!r} found in the {scope} config.")
+
     new_src = src if src is not None else current.src
     new_dst = dst if dst is not None else current.dst
-    new_creds = dict(creds) if creds is not None else current.creds
 
-    if validate and (src is not None or creds is not None):
-        if not check_reachable(new_src, new_creds):
+    if creds is not None:
+        # Merge the explicitly-provided plaintext over the currently resolved
+        # values so prompts left empty keep the stored credential.
+        stored_plain = resolve_secrets(current)
+        merged_plain = {
+            **stored_plain,
+            **{k: v for k, v in creds.items() if v != ""},
+        }
+        if validate and not check_reachable(new_src, merged_plain):
+            raise ValueError(
+                f"Source {new_src!r} is not reachable with the provided credentials."
+            )
+        store_secrets(effective_scope, name, merged_plain)
+        new_creds = obfuscate_creds(effective_scope, name, merged_plain)
+    else:
+        new_creds = current.creds
+        if (
+            validate
+            and src is not None
+            and not check_reachable(new_src, resolve_secrets(current))
+        ):
             raise ValueError(
                 f"Source {new_src!r} is not reachable with the provided credentials."
             )
 
-    if creds is not None:
-        store_secrets(name, creds)
-        new_creds = obfuscate_creds(name, creds)
-    else:
-        new_creds = current.creds
-
-    config = load_config()
+    config = load_config(effective_scope)
     config["dataloaders"][name] = {
         "src": new_src,
         "dst": new_dst,
         "creds": new_creds,
     }
-    save_config(config)
+    save_config(config, effective_scope)
 
-    logger.info(f"Updated dataloader {name!r}.")
-    return get_dataloader(name)
+    logger.info(f"Updated dataloader {name!r} [{effective_scope}].")
+    return Dataloader(
+        name=name,
+        src=new_src,
+        dst=new_dst,
+        creds=new_creds,
+        scope=effective_scope,
+    )
 
 
-def remove_dataloader(name: str) -> bool:
-    """Removes a dataloader (config entry + keyring secrets)."""
-    config = load_config()
+def remove_dataloader(name: str, scope: Optional[str] = None) -> bool:
+    """
+    Removes a dataloader (config entry + keyring secrets).
+
+    ``scope=None`` removes the effective dataloader (local first, then global).
+    """
+    current = get_dataloader(name)
+    if current is None:
+        return False
+    effective_scope = scope if scope is not None else current.scope
+    if scope is not None and scope != current.scope:
+        return False
+
+    config = load_config(effective_scope)
     if name not in config["dataloaders"]:
         return False
     del config["dataloaders"][name]
-    save_config(config)
-    delete_secrets(name)
-    logger.info(f"Removed dataloader {name!r}.")
+    save_config(config, effective_scope)
+    delete_secrets(effective_scope, name)
+    logger.info(f"Removed dataloader {name!r} [{effective_scope}].")
     return True
 
 
 def list_dataloaders() -> list[Dataloader]:
-    """Returns every persisted dataloader (obfuscated creds)."""
-    config = load_config()
-    result = []
-    for name, entry in config["dataloaders"].items():
-        result.append(
-            Dataloader(
+    """
+    Returns every defined dataloader (obfuscated creds) across scopes, with
+    local entries shadowing global ones of the same name.
+    """
+    merged: dict[str, Dataloader] = {}
+    for scope in ("global", "local"):
+        config = load_config(scope)
+        for name, entry in config["dataloaders"].items():
+            merged[name] = Dataloader(
                 name=name,
                 src=entry["src"],
                 dst=entry["dst"],
                 creds=entry.get("creds", {}),
+                scope=scope,
             )
-        )
-    return result
+    return list(merged.values())
 
 
 def get_dataloader(name: str) -> Optional[Dataloader]:
-    """Returns a single dataloader or ``None``."""
+    """Returns a single dataloader (local first, then global) or ``None``."""
     for dl in list_dataloaders():
         if dl.name == name:
             return dl

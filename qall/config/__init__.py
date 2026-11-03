@@ -14,12 +14,17 @@
 from pathlib import Path
 
 from .local_config import LocalConfiguration
+from .dataloader import global_config_path, local_config_path
 
 _DEFAULT_CONFIG_FILENAME = ".qall.yml"
 
 
 def get_local_configuration() -> LocalConfiguration:
-    return LocalConfiguration.from_yaml_file(_DEFAULT_CONFIG_FILENAME)
+    return LocalConfiguration.from_yaml_file(local_config_path())
+
+
+def get_global_configuration() -> LocalConfiguration:
+    return LocalConfiguration.from_yaml_file(global_config_path())
 
 
 def create_default_configuration(provider_name: str) -> LocalConfiguration:

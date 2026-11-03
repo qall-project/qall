@@ -46,7 +46,13 @@ from .resource_profile import (
     AllowedResourceCollection,
     apply_resource_overrides,
 )
-from .dataloader import Dataloader, SECRET_CREDENTIAL_KEYS
+from .dataloader import (
+    Dataloader,
+    DataloaderEntry,
+    DATALOADER_SCOPES,
+    SECRET_CREDENTIAL_KEYS,
+    credential_fields_for_protocol,
+)
 from .block import Block
 from .daemon import DaemonStatus, Daemon
 from .worker import (
