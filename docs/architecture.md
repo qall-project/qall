@@ -26,6 +26,37 @@ The Resource Profile determines where that task can run.
 This keeps workflow definitions independent from a specific infrastructure
 while allowing users or platform operators to control which resources are used.
 
+# Dataloader configuration
+
+Dataloaders are persisted through the same `LocalConfiguration` YAML machinery
+as resource profiles (both accept `profiles`, `dataloaders` and `version`
+sections), with an **opencode-style two-scope layering**:
+
+| Scope | File | Precedence |
+|---|---|---|
+| global | `~/.config/qall/qall-config.yml` (env: `QALL_CONFIG_PATH`) | fallback |
+| local | `./.qall.yml` (current project, env: `QALL_LOCAL_CONFIG_PATH`) | wins |
+
+Name resolution is **local-first, then global**: `qall dataloader get/info/...`
+looks for a required dataloader in the project's `.qall.yml` first and falls
+back to the global file; if neither scope defines the name it cannot be
+resolved. `qall dataloader add` writes to the **global** config by default; the
+`--current-project` flag scopes the entry to the project's `.qall.yml` (a local
+entry shadows a same-named global one).
+
+Sensitive credentials never land in either YAML file: they are stored in the
+host keyring under the scoped user `"{scope}:{name}"` and persisted as
+self-describing `keyring://qall_dataloader/{scope}:{name}/{key}` placeholders.
+A legacy single-file global JSON (`~/.config/qall/qall-config.json`) is
+migrated best-effort into the global YAML on first access (the old file is left
+in place).
+
+The `qall dataloader add/update` CLI prompts for each credential (Access key,
+Secret key, Endpoint URL...) by default instead of only accepting them as flags,
+so secrets don't leak into shell history. Flags still work for automation and
+skip their matching prompt; `--no-prompt` disables prompting entirely. For
+`update`, leaving a prompt empty keeps the currently stored value.
+
 # Package hierarchy
 
 `sdk`: SDK API used for workflow execution

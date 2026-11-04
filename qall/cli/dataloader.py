@@ -231,7 +231,7 @@ def dataloader_ls():
     _print_columns(
         headers=["NAME", "SRC", "DST", "SCOPE"],
         rows=[
-            [dl.name, dl.src, dl.dst, f"[{_scope_tag(dl.scope)}]"]
+            [dl.name, dl.src, dl.dst, f"{_scope_tag(dl.scope)}"]
             for dl in sorted(dataloaders, key=lambda dl: dl.name.lower())
         ],
         max_width=_MAX_LS_COLUMN_WIDTH,
