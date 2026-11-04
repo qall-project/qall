@@ -13,6 +13,22 @@
 # limitations under the License.
 from typing import List
 
+import typer
+
+
+def parse_daemon_backend(value: str) -> str:
+    """
+    Validate and normalize the ``--daemon-backend`` CLI value.
+    """
+    normalized = (value or "docker").strip().lower()
+
+    if normalized not in ("docker", "systemd"):
+        raise typer.BadParameter(
+            f"Invalid daemon backend: {normalized} (expected 'docker' or 'systemd')"
+        )
+
+    return normalized
+
 
 def parse_extra_args(args: list[str]) -> dict[str, str]:
     """

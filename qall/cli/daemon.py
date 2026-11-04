@@ -7,7 +7,7 @@
 #     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed an "AS IS" BASIS,
+# distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
@@ -23,6 +23,8 @@ from qall.core.daemon import (
     stop_daemon,
     restart_daemon,
 )
+from qall.cli.utils import parse_daemon_backend
+from qall.daemon.systemd_manager import SystemdDaemonManager
 
 daemon_cli = typer.Typer(
     name="daemon",
@@ -46,15 +48,22 @@ def daemon_start(
         "-a",
         help="Path to artifact registry directory",
     ),
+    backend: str = typer.Option(
+        "docker",
+        "--daemon-backend",
+        callback=parse_daemon_backend,
+        help="Daemon backend to use: 'docker' or 'systemd'.",
+    ),
 ):
     """
-    Start a local Qall daemon in a Docker container.
+    Start a local Qall daemon (Docker or systemd backend).
     """
     try:
         start_daemon(
             port=port,
             block_registry_path=block_registry,
             artifact_registry_path=artifact_registry,
+            backend=backend,
         )
     except KeyboardInterrupt:
         typer.echo("Daemon stopped.")
@@ -65,10 +74,15 @@ def daemon_start(
 
 @daemon_cli.command("stop")
 def daemon_stop(
-    # port: int = typer.Option(50053, "--port", "-p", help="gRPC port for the daemon"),
+    backend: str = typer.Option(
+        "docker",
+        "--daemon-backend",
+        callback=parse_daemon_backend,
+        help="Daemon backend to use: 'docker' or 'systemd'.",
+    ),
 ):
     try:
-        stop_daemon()
+        stop_daemon(backend=backend)
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(code=1)
@@ -77,9 +91,15 @@ def daemon_stop(
 @daemon_cli.command("restart")
 def daemon_restart(
     port: int = typer.Option(50053, "--port", "-p", help="gRPC port for the daemon"),
+    backend: str = typer.Option(
+        "docker",
+        "--daemon-backend",
+        callback=parse_daemon_backend,
+        help="Daemon backend to use: 'docker' or 'systemd'.",
+    ),
 ):
     try:
-        restart_daemon(port)
+        restart_daemon(port, backend=backend)
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(code=1)
@@ -117,6 +137,12 @@ def daemon_run(
     timeout: int = typer.Option(
         300, "--timeout", "-t", help="Timeout for the task execution."
     ),
+    backend: str = typer.Option(
+        "docker",
+        "--daemon-backend",
+        callback=parse_daemon_backend,
+        help="Daemon backend to use: 'docker' or 'systemd'.",
+    ),
 ):
     """
     Orders a local Daemon instance to start and execute a given task.
@@ -129,6 +155,7 @@ def daemon_run(
             block_registry=block_registry,
             artifact_registry=artifact_registry,
             timeout=timeout,
+            backend=backend,
         )
 
         if artifacts:
@@ -163,20 +190,73 @@ def daemon_status(
         "-a",
         help="Path to artifact registry directory",
     ),
+    backend: str = typer.Option(
+        "docker",
+        "--daemon-backend",
+        callback=parse_daemon_backend,
+        help="Daemon backend to use: 'docker' or 'systemd'.",
+    ),
 ):
     """
-    Check the status of the local daemon container.
+    Check the status of the local daemon (Docker or systemd backend).
     """
     try:
         status = get_daemon_status(
             daemon_address=daemon_address,
             block_registry=block_registry,
             artifact_registry=artifact_registry,
+            backend=backend,
         )
 
         if status:
             typer.echo(f"status: {status}")
 
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
+
+
+@daemon_cli.command("install")
+def daemon_install(
+    scope: str = typer.Option(
+        "system",
+        "--scope",
+        "-s",
+        help="systemd scope: 'user' or 'system' (default: system)",
+    ),
+    enable_now: bool = typer.Option(
+        True,
+        "--enable-now/--no-enable-now",
+        help="Enable and start the daemon right after installing the unit.",
+    ),
+):
+    """
+    Install the Qall daemon as a native systemd unit (systemd backend).
+    """
+    try:
+        manager = SystemdDaemonManager(scope=scope)
+        manager.install(enable_now=enable_now)
+        typer.echo(f"Installed systemd unit {manager.unit_file}.")
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
+
+
+@daemon_cli.command("uninstall")
+def daemon_uninstall(
+    scope: str = typer.Option(
+        "system",
+        "--scope",
+        "-s",
+        help="systemd scope: 'user' or 'system' (default: system)",
+    ),
+):
+    """
+    Remove the Qall daemon systemd unit for the given scope (systemd backend).
+    """
+    try:
+        SystemdDaemonManager(scope=scope).uninstall()
+        typer.echo("Uninstalled the Qall daemon systemd unit.")
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(code=1)

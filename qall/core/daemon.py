@@ -60,6 +60,7 @@ def start_daemon(
     port: int = 50053,
     block_registry_path: Optional[str | Path] = None,
     artifact_registry_path: Optional[str | Path] = None,
+    backend: Optional[str] = None,
 ):
     """
     Start a local Qall daemon (Docker or systemd backend), then stream its logs.
@@ -74,6 +75,7 @@ def start_daemon(
     artifact_path.mkdir(parents=True, exist_ok=True)
 
     daemon_mgr = get_daemon_manager(
+        backend=backend,
         grpc_port=port,
         host_block_registry_path=str(block_path),
         host_artifact_registry_path=str(artifact_path),
@@ -97,9 +99,10 @@ def start_daemon(
 def apply_resource_assignments(
     worker_definitions: Optional[list] = None,
     resource_assignments: Optional[dict] = None,
+    backend: Optional[str] = None,
 ):
     try:
-        daemon_mgr = get_daemon_manager()
+        daemon_mgr = get_daemon_manager(backend=backend)
 
         if worker_definitions:
             daemon_mgr.register_workers(worker_definitions)
@@ -113,13 +116,13 @@ def apply_resource_assignments(
         return
 
 
-def stop_daemon(port: int = 50053):
+def stop_daemon(port: int = 50053, backend: Optional[str] = None):
     """
     Stops an already running local Qall daemon.
     """
 
     try:
-        daemon_mgr = get_daemon_manager(grpc_port=port)
+        daemon_mgr = get_daemon_manager(backend=backend, grpc_port=port)
 
         if not daemon_mgr.is_running():
             logger.warning("No running daemon to stop.")
@@ -135,13 +138,14 @@ def stop_daemon(port: int = 50053):
 
 def restart_daemon(
     port: int = 50053,
+    backend: Optional[str] = None,
 ):
     """
     Restarts an already running local Qall daemon.
     """
 
     try:
-        daemon_mgr = get_daemon_manager(grpc_port=port)
+        daemon_mgr = get_daemon_manager(backend=backend, grpc_port=port)
         if not daemon_mgr.is_running():
             raise RuntimeError("No active daemon container running.")
 
@@ -161,6 +165,7 @@ def get_daemon_status(
     daemon_address: Optional[str] = None,
     block_registry: Optional[str] = None,
     artifact_registry: Optional[str] = None,
+    backend: Optional[str] = None,
 ) -> Daemon:
     """
     Retrieve the status of a daemon instance.
@@ -184,6 +189,7 @@ def get_daemon_status(
 
     try:
         daemon_mgr = get_daemon_manager(
+            backend=backend,
             grpc_port=port,
             host_block_registry_path=str(block_registry),
             host_artifact_registry_path=str(artifact_registry),
@@ -205,6 +211,7 @@ def run_task(
     block_registry: Optional[str] = None,
     artifact_registry: Optional[str] = None,
     timeout: int = 300,
+    backend: Optional[str] = None,
 ) -> list[Artifact]:
     """
     Orders a local Daemon instance to start and execute a given task.
@@ -231,6 +238,7 @@ def run_task(
         artifact_registry = Path(artifact_registry).resolve()
 
         daemon_mgr = get_daemon_manager(
+            backend=backend,
             grpc_port=port,
             host_block_registry_path=str(block_registry),
             host_artifact_registry_path=str(artifact_registry),
