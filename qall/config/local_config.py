@@ -16,7 +16,7 @@ import yaml
 from dataclasses import dataclass, field
 from dataclasses_json import dataclass_json
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 from qall.object import ResourceProfile, AllowedResourceCollection
 
@@ -33,7 +33,7 @@ class LocalConfiguration:
 
     @classmethod
     def create_default_configuration(
-        cls, filepath: Path | str, provider_name: str
+        cls, provider_name: str, filepath: Optional[Path | str] = None
     ) -> "LocalConfiguration":
         config = LocalConfiguration(
             version="1.0",
@@ -47,7 +47,8 @@ class LocalConfiguration:
             },
         )
 
-        config.to_yaml_file(filepath=filepath)
+        if filepath:
+            config.to_yaml_file(filepath=filepath)
 
         return config
 

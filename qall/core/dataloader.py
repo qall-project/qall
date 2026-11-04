@@ -18,7 +18,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from qall.object import Dataloader, TaskMetadata
+from qall.object import Dataloader
 from qall.config.dataloader import (
     ensure_config,
     load_config,
@@ -177,7 +177,7 @@ def validate_dataloader(name: str) -> bool:
     return check_reachable(dl.src, resolve_secrets(dl))
 
 
-### Task-secrets provisioning for the shared /dev/shm mount ###
+### Task-secrets provisioning for the shared /tmp mount ###
 
 
 def resolve_dataloader_specs(names: list[str]) -> dict:
@@ -218,7 +218,7 @@ def provision_dataloader_file_for_task(
         node = registry.get_node_from_local(hash=task_hash)
         if node is None:
             return None
-        names = TaskMetadata(**node.metadata).dataloaders
+        names = node.metadata.dataloaders
     if not names:
         return None
     return write_dataloader_secrets(task_hash, resolve_dataloader_specs(names))
@@ -233,7 +233,7 @@ def provision_dataloader_files_for_dag(dag) -> list[Path]:
     """
     written: list[Path] = []
     for node in dag.nodes:
-        names = TaskMetadata(**node.metadata).dataloaders
+        names = node.metadata.dataloaders
         if not names:
             continue
         written.append(

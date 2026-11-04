@@ -24,6 +24,7 @@ from qall.core.dataloader import (
     provision_dataloader_file_for_task,
     cleanup_dataloader_files,
 )
+from qall.provider import get_provider_login_credentials, ProviderCredentials
 from qall.config.paths import (
     DEFAULT_BLOCK_REGISTRY_PATH,
     DEFAULT_ARTIFACT_REGISTRY_PATH,
@@ -220,6 +221,7 @@ def run_task(
     daemon_address: Optional[str] = None,
     block_registry: Optional[str] = None,
     artifact_registry: Optional[str] = None,
+    provider_credentials: Optional[ProviderCredentials] = None,
     timeout: int = 300,
     backend: Optional[str] = None,
     **manager_kwargs,
@@ -260,7 +262,7 @@ def run_task(
         logger.info(f"Daemon ready at {daemon_address}")
 
     # Provision the resolved dataloader secrets for the requested task so its
-    # container finds them at the conventioned /dev/shm mount path. No-op when
+    # container finds them at the conventioned /tmp mount path. No-op when
     # the task references no dataloader. Cleaned up once the run completes.
     dataloader_files = []
     try:
@@ -284,9 +286,16 @@ def run_task(
             info = client.get_service_info()
             logger.info(f"Connected to daemon: {info.name} {info.version}")
 
+            provider_credentials = (
+                provider_credentials or get_provider_login_credentials()
+            )
+
             task_run = client.create_task_run(
                 task_hash=task_hash,
                 artifact_hash=input_artifact_hash,
+                provider_credentials=(
+                    provider_credentials.credentials if provider_credentials else None
+                ),
             )
 
             logger.info(f"Task run created: {task_run.id}")
@@ -310,10 +319,6 @@ def run_task(
                 raise RuntimeError(
                     f"Task ended with unexpected status: {task_run.status.name}"
                 )
-
-    # except Exception as e:
-    #     logger.error(f"Could not execute task {task_hash}: {e}")
-
     finally:
         cleanup_dataloader_files(dataloader_files)
         # Intentionally leave the daemon running after the task: subsequent

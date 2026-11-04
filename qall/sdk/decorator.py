@@ -61,7 +61,7 @@ def task(
         classical_resources = {
             "min_cpu": kwargs.pop("min_cpu", 0),
             "min_gpu": kwargs.pop("min_gpu", 0),
-            "min_ram_gb": kwargs.pop("min_ram_gb", 1),
+            "min_ram_gb": kwargs.pop("min_ram_gb", 0),
             "min_vram_gb": kwargs.pop("min_vram_gb", 0),
         }
 

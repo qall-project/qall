@@ -238,14 +238,22 @@ def test_build_fs_protocols(file_src: Path):
     from qall.runtime.dataloader import build_fs, _src_root_path
     from fsspec.implementations.dirfs import DirFileSystem
 
+    assert _src_root_path(f"file://{file_src}") == str(file_src)
     assert _src_root_path("s3://my/storage/") == "my/storage"
+    # Pure URL parsing (no gcsfs/adlfs imports), so these stay unconditional.
     assert _src_root_path("gcs://my/google/storage") == "my/google/storage"
     assert _src_root_path("az://container/path") == "container/path"
-    assert _src_root_path(f"file://{file_src}") == str(file_src)
 
     assert isinstance(build_fs(f"file://{file_src}"), DirFileSystem)
     assert isinstance(build_fs("s3://my/storage/"), DirFileSystem)
+
+    # gcsfs / adlfs are optional deps (see the `objects` dependency group in
+    # pyproject.toml): skip their protocol probes, don't fail or pass silently,
+    # when the provider package is not installed.
+    pytest.importorskip("gcsfs", reason="gcsfs is not installed")
     assert isinstance(build_fs("gcs://my/google/storage"), DirFileSystem)
+
+    pytest.importorskip("adlfs", reason="adlfs is not installed")
     assert isinstance(
         build_fs("az://container/path", {"account_name": "a", "account_key": "k"}),
         DirFileSystem,

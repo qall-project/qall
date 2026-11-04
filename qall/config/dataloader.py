@@ -42,12 +42,12 @@ _KEYRING_PLACEHOLDER_PREFIX = f"keyring://{KEYRING_DATALOADER_SERVICE}/"
 # task runtime reads its dataloaders from here. Secrets never pass through the
 # daemon's control plane nor appear in env vars / wrapper code.
 #
-# This is deliberately a TOP-LEVEL /dev/shm path, NOT a subdirectory of the
-# daemon's token dir (/dev/shm/qall-secrets). The daemon runs as root and owns
+# This is deliberately a TOP-LEVEL /tmp path, NOT a subdirectory of the
+# daemon's token dir (/tmp/qall-secrets). The daemon runs as root and owns
 # that token tree; a nested dataloaders subdirectory would be created root-owned
 # (0700) and become unusable by the unprivileged client. Being its own
 # client-owned directory, this path is never touched by the daemon.
-_DEFAULT_DATALOADERS_SECRETS_DIR = Path("/dev/shm/qall-dataloaders")
+_DEFAULT_DATALOADERS_SECRETS_DIR = Path("/tmp/qall-dataloaders")
 
 # Permissions of the secrets directory (0700) and of each secrets file (0400).
 _SECRETS_DIR_MODE = 0o700

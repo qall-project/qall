@@ -13,8 +13,6 @@
 # limitations under the License.
 import typer
 
-from typing import Optional
-
 from qall.core.runtime import execute_worker
 
 worker_cli = typer.Typer(

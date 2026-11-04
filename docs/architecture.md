@@ -53,3 +53,23 @@ others (`codec`, `daemon`, `provider`, `registry`, `specification`...):
 - Provide mid and low level implementation to be used by `core`
 - Mid level must use `object` object as possible
 - Can be technology dependant (`qall-registry-client`, `qall-daemon-client`, `lmdb`, `pip`...)
+
+## Call graph analysis (pyan3)
+
+The `specification` layer builds each workflow's call graph with **pyan3
+(`>= 2.9.0,<3`)** via its in-memory `from_sources` API: `qall/specification/utils.py`
+feeds the workflow's user sources as `(source_text, fully_qualified_module_name)`
+pairs derived from `sys.modules` (see `_discover_user_sources`). Discovery is
+import-based rather than path-glob based, so user helper modules anywhere on the
+filesystem that the workflow actually imports are included, while the stdlib,
+installed site-packages and `qall` itself are excluded. Node/edge identity is
+pyan's qualified name (`pkg.mod.func`); short task names are only used at the
+registry/graph boundary. `tests/test_pyan_shapes.py` pins the pyan data-shape
+contract.
+
+pyan3's loggers are routed through qall's own logger at package init
+(`qall/__init__.py::_configure_pyan_logging`): their output shares qall's
+`[...] LEVEL | name | message` format instead of leaking raw to the root logger.
+Verbosity is gated behind qall's — `QALL_LOGGING_LEVEL=DEBUG` surfaces pyan's
+INFO/DEBUG records, otherwise pyan is quiet at WARNING+. Pinned by
+`tests/test_pyan_logging.py`.

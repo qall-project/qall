@@ -31,6 +31,7 @@ from .base_manager import BaseDaemonManager
 
 logger = logging.getLogger(__name__)
 
+# _DEFAULT_IMAGE = "scw/qall-daemon:latest"
 _DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project/qall-daemon:latest"
 
 
@@ -171,13 +172,13 @@ class DockerDaemonManager(BaseDaemonManager):
                 return
 
             # Ensure the dataloaders secrets dir is owned by the current
-            # (client) user BEFORE the daemon starts. It is a top-level /dev/shm
+            # (client) user BEFORE the daemon starts. It is a top-level /tmp
             # path, deliberately separate from the daemon's root-owned token dir
-            # (/dev/shm/qall-secrets), so the client always retains write
+            # (/tmp/qall-secrets), so the client always retains write
             # access to provision per-task secrets files. The daemon container
             # mounts it (so its os.Stat guard sees the directory) but never
             # creates or owns it.
-            os.makedirs("/dev/shm/qall-dataloaders", mode=0o700, exist_ok=True)
+            os.makedirs("/tmp/qall-dataloaders", mode=0o700, exist_ok=True)
 
             dev_dir = os.environ.get("QALL_DEV_DIR")
 
@@ -194,12 +195,12 @@ class DockerDaemonManager(BaseDaemonManager):
                     "bind": "/var/run/docker.sock",
                     "mode": "rw",
                 },
-                "/dev/shm/qall-secrets": {
-                    "bind": "/dev/shm/qall-secrets",
+                "/tmp/qall-secrets": {
+                    "bind": "/tmp/qall-secrets",
                     "mode": "rw",
                 },
-                "/dev/shm/qall-dataloaders": {
-                    "bind": "/dev/shm/qall-dataloaders",
+                "/tmp/qall-dataloaders": {
+                    "bind": "/tmp/qall-dataloaders",
                     "mode": "rw",
                 },
             }
@@ -229,6 +230,57 @@ class DockerDaemonManager(BaseDaemonManager):
 
         except APIError as e:
             raise RuntimeError(f"Error launching the daemon: {e}")
+
+    def register_resource_assignments(self, resource_assigments: dict):
+        with self.client as client:
+            for task_hash, assignment in resource_assigments.items():
+                if not task_hash:
+                    raise RuntimeError(
+                        "resource assignment must have a target task hash"
+                    )
+
+                if not assignment.provider:
+                    raise RuntimeError(
+                        "resource assignment must have a target provider"
+                    )
+
+                resource_name = (
+                    assignment.qpu_name
+                    or assignment.gpu_name
+                    or assignment.cpu_name
+                    or ""
+                )
+
+                res_entry = client.create_resource_assignment(
+                    task_hash=task_hash,
+                    resource_provider=assignment.provider,
+                    resource_name=resource_name,
+                )
+
+                if not res_entry:
+                    raise RuntimeError(
+                        f"Failed to create resource assignment entry into daemon for task_hash '{task_hash}'"
+                    )
+
+    def register_workers(self, worker_definitions: list):
+        with self.client as client:
+            for wd in worker_definitions:
+                if len(wd.input_formats) == 0:
+                    raise RuntimeError("worker definition must have one input format")
+
+                if len(wd.input_formats) != 1:
+                    raise RuntimeError(
+                        "worker definition doesn't support multiple input formats"
+                    )
+
+                we = client.create_worker_entry(
+                    worker_hash=wd.hash,
+                    worker_provider=wd.provider,
+                    input_format=wd.input_formats[0],
+                )
+
+                if not we:
+                    raise RuntimeError("failed to create worker entry into daemon")
 
     def _ensure_image_exists(self):
         """

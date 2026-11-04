@@ -24,7 +24,13 @@ def get_local_configuration() -> LocalConfiguration:
 
 def create_default_configuration(provider_name: str) -> LocalConfiguration:
     return LocalConfiguration.create_default_configuration(
-        _DEFAULT_CONFIG_FILENAME, provider_name
+        filepath=_DEFAULT_CONFIG_FILENAME, provider_name=provider_name
+    )
+
+
+def get_default_configuration(provider_name: str) -> LocalConfiguration:
+    return LocalConfiguration.create_default_configuration(
+        filepath=None, provider_name=provider_name
     )
 
 

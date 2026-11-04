@@ -14,6 +14,7 @@
 
 import logging
 from pathlib import Path
+import shutil
 
 from qall.config.paths import TASK_RUNTIME_WORKDIR
 
@@ -29,3 +30,19 @@ def setup_unifs() -> Path:
         logger.info(f"Creating unified FS root directory : {UNIFIED_FS}")
         UNIFIED_FS.mkdir(0o777, parents=True, exist_ok=True)
     return UNIFIED_FS
+
+
+def cleanup_unifs() -> bool:
+    if not UNIFIED_FS.is_dir():
+        logger.warning(
+            f"The given unifs path '{UNIFIED_FS}' is not a directory or does not exist. Cleanup canceled."
+        )
+        return False
+
+    for item in UNIFIED_FS.iterdir():
+        if item.is_file() or item.is_symlink():
+            item.unlink()  # Remove files or symlinks
+        elif item.is_dir():
+            shutil.rmtree(item)  # Remove directories and their contents
+    logger.info(f"Unifs ({UNIFIED_FS}) cleaned.")
+    return True

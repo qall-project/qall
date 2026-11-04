@@ -6,6 +6,8 @@ import "google/api/annotations.proto";
 
 option go_package = "internal/server/protobuf/qc_worker_api_v1";
 
+import "google/protobuf/struct.proto";
+
 service Api {
   rpc CreateContext(CreateContextRequest)
       returns (QuantumContext);
@@ -48,18 +50,18 @@ message QuantumContext {
   string provider = 3;
 
   // Arbitrary execution configuration.
-  map<string, string> configuration = 5;
+  google.protobuf.Struct configuration = 5;
 
   // Attached metadata.
-  map<string, string> metadata = 6;
+  google.protobuf.Struct metadata = 6;
 }
 
 message CreateContextRequest {
   string resource = 1;
 
-  map<string, string> configuration = 2;
+  google.protobuf.Struct configuration = 2;
 
-  map<string, string> metadata = 3;
+  google.protobuf.Struct metadata = 3;
 }
 
 message CreateContextResponse {

@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import ast
+import signal
+import sys
 import textwrap
 from pathlib import Path
 from typing import Optional
@@ -21,7 +23,6 @@ from qio.core.program import Program
 from qall.object import (
     TaskNode,
     TaskPayload,
-    TaskMetadata,
     TaskRunOutput,
 )
 from qall.registry import BlockRegistry
@@ -32,6 +33,7 @@ from qall.config.dataloader import (
     read_dataloader_secrets,
     write_dataloader_secrets,
 )
+from qall.runtime.unifs import cleanup_unifs
 
 
 class TaskRuntimeExecutor:
@@ -95,8 +97,19 @@ class TaskRuntimeExecutor:
                 f"No Payload associated with task {self.__task_hash} in local store."
             )
 
-        metadata = TaskMetadata(**node.metadata)
+        metadata = node.metadata
         print(f"[Executor] Node's metadata and payload loaded: {metadata}")
+
+        # Ensure proper unifs cleanup in case of termination signal, avoiding data leakage
+        if metadata.entrypoint:
+
+            def term_handler(s, f):
+                cleanup_unifs()
+                sys.exit(0)
+
+            signal.signal(signal.SIGTERM, term_handler)
+            signal.signal(signal.SIGINT, term_handler)
+
         print("[Executor] Processing source...")
         source = _get_source(payload)
 
@@ -150,6 +163,8 @@ class TaskRuntimeExecutor:
             # which is responsible for cleaning it up.
             if dataloaders_file and dataloaders_provisioned:
                 dataloaders_file.unlink(missing_ok=True)
+            if metadata.entrypoint:
+                cleanup_unifs()
 
         output_artifact_hash = None
         output_artifact_bytes = None
@@ -175,7 +190,7 @@ class TaskRuntimeExecutor:
     ) -> tuple[Optional[Path], bool]:
         """
         Ensures the resolved-secrets file for this task exists at the
-        conventioned ``/dev/shm/qall-dataloaders/<task_hash>.json`` mount path
+        conventioned ``/tmp/qall-dataloaders/<task_hash>.json`` mount path
         and returns ``(path, provisioned_here)``.
 
         In the daemon/container path the file was already provisioned by the
@@ -313,8 +328,6 @@ def _child_task_is_async(
 
 
 def _get_source(payload: TaskPayload) -> str:
-    print("payload", payload)
-
     if payload.code_format == "raw":
         return payload.code
     elif payload.code_format == "qio.program":

@@ -13,11 +13,15 @@
 # limitations under the License.
 import typer
 import logging
-import os
 
 from typing import Optional
 
 import qall.core as core
+from qall import (
+    _configure_pyan_logging,
+    _resolve_logging_level,
+    logger as qall_logger,
+)
 
 from .artifact import artifact_cli
 from .provider import provider_cli
@@ -32,8 +36,6 @@ from .task import task_cli
 from .worker import worker_cli
 from .dataloader import dataloader_cli
 from .utils import parse_extra_args
-
-_DEFAULT_LOGGING_LEVEL = logging.INFO
 
 cli = typer.Typer(
     name="qall",
@@ -56,18 +58,15 @@ cli.add_typer(dataloader_cli)
 
 
 def _setup_logging():
-    logging_level_str = os.getenv("QALL_LOGGING_LEVEL")
+    logging_level = _resolve_logging_level()
 
-    if not logging_level_str and not _DEFAULT_LOGGING_LEVEL:
-        return
-
-    if logging_level_str:
-        mapping = logging.getLevelNamesMapping()
-        logging_level = mapping.get(logging_level_str.upper())
-    else:
-        logging_level = _DEFAULT_LOGGING_LEVEL
-
+    # Root logger for third-party libraries (typer, urllib3, ...). pyan3 is
+    # handled separately so its output is routed through qall's own logger.
     logging.basicConfig(level=logging_level)
+
+    # Keep qall's own logger and the pyan3 verbosity gate in sync with the knob.
+    qall_logger.setLevel(logging_level)
+    _configure_pyan_logging()
 
 
 _setup_logging()
@@ -79,16 +78,18 @@ def run(
         ..., help="Path to the Python script containing tasks."
     ),
     local: bool = typer.Option(
-        False, "--local", help="Wether to run locally or remotely"
+        False, "--local", "-l", help="Wether to run locally or remotely"
     ),
     input_artifact_hash: Optional[str] = typer.Option(
         None,
         "--input-artifact-hash",
+        "-i",
         help="The artifact's hash the entrypoint task may require to execute.",
     ),
     name: Optional[str] = typer.Option(
         None,
         "--name",
+        "-n",
         help="Name of the workflow to declare. Script file name if not provided",
     ),
     version: Optional[str] = typer.Option(
@@ -97,9 +98,28 @@ def run(
     profile: Optional[str] = typer.Option(
         None, "--profile", "-p", help="Target configuration profile name."
     ),
+    allowed_qpus: Optional[list[str]] = typer.Option(
+        None,
+        "--allowed-qpu",
+        "-q",
+        help="Override allowed QPU from provided profile",
+    ),
+    allowed_cpus: Optional[list[str]] = typer.Option(
+        None,
+        "--allowed-cpu",
+        "-c",
+        help="Override allowed CPU from provided profile",
+    ),
+    allowed_gpus: Optional[list[str]] = typer.Option(
+        None,
+        "--allowed-gpu",
+        "-g",
+        help="Override allowed GPU from provided profile",
+    ),
 ):
     """Compile, delta-push, provision hardware and run an arbitrary hybrid workflow script instantly."""
     typer.echo(f"Initiating compilation run for: {entrypoint}")
+
     run_obj = core.create_workflow_run(
         entrypoint=entrypoint,
         workflow_name=name,
@@ -107,6 +127,10 @@ def run(
         profile_name=profile,
         local_only=local,
         input_artifact_hash=input_artifact_hash,
+        allowed_cpus=allowed_cpus,
+        allowed_gpus=allowed_gpus,
+        allowed_qpus=allowed_qpus,
+        auto_start_daemon=True,
     )
     typer.echo(f"Workflow run ID: {run_obj.id}")
 

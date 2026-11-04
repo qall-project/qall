@@ -13,7 +13,9 @@
 # limitations under the License.
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from typing import List, Optional
+
+from dataclasses import dataclass, field, replace
 from dataclasses_json import dataclass_json
 
 
@@ -32,3 +34,25 @@ class ResourceProfile:
     match_strategy: str
     allowed: AllowedResourceCollection
     default: bool
+
+
+def apply_resource_overrides(
+    profile: ResourceProfile,
+    allowed_qpu: Optional[List[str]] = None,
+    allowed_cpu: Optional[List[str]] = None,
+    allowed_gpu: Optional[List[str]] = None,
+) -> ResourceProfile:
+    if not any([allowed_qpu, allowed_cpu, allowed_gpu]):
+        return profile
+
+    new_qpu = allowed_qpu if allowed_qpu is not None else profile.allowed.qpu
+    new_cpu = allowed_cpu if allowed_cpu is not None else profile.allowed.cpu
+    new_gpu = allowed_gpu if allowed_gpu is not None else profile.allowed.gpu
+
+    new_allowed = AllowedResourceCollection(
+        qpu=list(new_qpu),
+        cpu=list(new_cpu),
+        gpu=list(new_gpu),
+    )
+
+    return replace(profile, allowed=new_allowed)

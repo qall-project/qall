@@ -12,17 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import Any
+
 from qio.core import QuantumProgram, QuantumProgramResult
 
 CIRCUIT_TYPE_QISKIT = "qiskit.QuantumCircuit"
 CIRCUIT_TYPE_CIRQ = "cirq.Circuit"
 CIRCUIT_TYPE_CUDAQ = "cudaq.PyKernel"
+CIRCUIT_TYPE_PERCEVAL = "perceval.Experiment"
+CIRCUIT_TYPE_PULSER = "pulser.Sequence"
 CIRCUIT_TYPE_MIMIQ = "mimiqcircuits.Circuit"
 CIRCUIT_TYPE_QASM2 = "qasm2"
 CIRCUIT_TYPE_QIO = "qio.QuantumProgram"
 
 RESULT_TYPE_QISKIT = "qiskit.result.Result"
 RESULT_TYPE_CIRQ = "cirq.Result"
+RESULT_TYPE_PERCEVAL = "perceval.Result"
+RESULT_TYPE_PULSER = "pulser.Result"
 RESULT_TYPE_CUDAQ = "cudaq.SampleResult"
 RESULT_TYPE_MIMIQ = "mimiqcircuits.QCSResults"
 RESULT_TYPE_QIO = "qio.QuantumProgramResult"
@@ -42,6 +47,10 @@ QUANTUM_CIRCUIT_TYPE_MAPPING = {
     "qasm2": CIRCUIT_TYPE_QASM2,
     "qio": CIRCUIT_TYPE_QIO,
     "qio.QuantumProgram": CIRCUIT_TYPE_QIO,
+    "pulser": CIRCUIT_TYPE_PULSER,
+    "pulser.Sequence": CIRCUIT_TYPE_PULSER,
+    "perceval": CIRCUIT_TYPE_PERCEVAL,
+    "perceval.Experiment": CIRCUIT_TYPE_PERCEVAL,
 }
 
 QUANTUM_RESULT_TYPE_MAPPING = {
@@ -59,6 +68,10 @@ QUANTUM_RESULT_TYPE_MAPPING = {
     "mimiqcircuits.QCSResults": RESULT_TYPE_MIMIQ,
     "qio": RESULT_TYPE_QIO,
     "qio.QuantumProgramResult": RESULT_TYPE_QIO,
+    "pulser": RESULT_TYPE_PULSER,
+    "pulser.Result": RESULT_TYPE_PULSER,
+    "perceval": RESULT_TYPE_PERCEVAL,
+    "perceval.Result": RESULT_TYPE_PERCEVAL,
 }
 
 

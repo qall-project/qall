@@ -15,7 +15,7 @@
 Dataloader tests for the daemon/container credential-passing path.
 
 Cover:
-  1. Client-side provisioning of `/dev/shm/qall-dataloaders/<hash>.json`
+  1. Client-side provisioning of `/tmp/qall-dataloaders/<hash>.json`
      from a pushed workflow DAG (dir 0700, files 0400, resolved creds).
   2. The executor preferring a pre-provisioned mount file over the host config
      (this is what the task container sees — the host config is NOT mounted).
@@ -59,7 +59,7 @@ def config_path(tmp_path: Path, monkeypatch):
 
 @pytest.fixture
 def secrets_dir(tmp_path: Path, monkeypatch):
-    """Isolates the conventioned /dev/shm secrets dir under a temp path."""
+    """Isolates the conventioned /tmp secrets dir under a temp path."""
     path = tmp_path / "qall-secrets" / "dataloaders"
     monkeypatch.setenv("QALL_DATALOADERS_DIR", str(path))
     return path
@@ -123,7 +123,7 @@ def _push_task(
     node = TaskNode(
         payload_hash=payload_hash,
         children={},
-        metadata=metadata.to_dict(),
+        metadata=metadata,
     )
     node_block = node.to_block(DEFAULT_CODEC)
     store.put(node_block.hash, node_block.data)
@@ -233,6 +233,36 @@ def test_executor_missing_secret_fails(
         )
 
 
+def _sweep_root_owned(tmp_path: Path, image: str) -> None:
+    """
+    Remove a pytest tmp dir whose contents were written by the root-run daemon
+    container.
+
+    The daemon runs as root inside Docker and writes the block/artifact
+    registries into the bind-mounted host dir, leaving root-owned files the
+    test user cannot delete. pytest then fails to clean the tmp dir and leaves
+    ``(rm_rf)`` warnings on every later session. Deleting the dir as root via a
+    throwaway container removes those leftovers at the source. Best-effort: if
+    it fails, the only cost is the cosmetic pytest warning.
+    """
+    try:
+        from docker import from_env
+
+        # Mount the PARENT dir and delete the test dir as a plain subdirectory:
+        # removing the bind-mount root itself (`/clean`) fails with "Device or
+        # resource busy" while it is mounted. Override the image's own
+        # ENTRYPOINT (the daemon launcher) with `/bin/sh -c` so the sweep really
+        # runs `rm` instead of starting a daemon.
+        from_env().containers.run(
+            image=image,
+            entrypoint=["/bin/sh", "-c", f"rm -rf '/clean/{tmp_path.name}'"],
+            volumes={str(tmp_path.parent): {"bind": "/clean", "mode": "rw"}},
+            remove=True,
+        )
+    except Exception:
+        pass
+
+
 @pytest.mark.daemon_integration
 class TestDataloaderDaemonIntegration:
     """
@@ -243,7 +273,7 @@ class TestDataloaderDaemonIntegration:
 
     def test_dataloader_via_daemon(self, config_path: Path, file_src: Path, blockstore):
         from qall_daemon_client import GrpcDaemonClient, TaskRunStatus
-        from qall.daemon.docker_manager import DockerDaemonManager
+        from qall.daemon.docker_manager import DockerDaemonManager, _DEFAULT_IMAGE
 
         store, tmpdir = blockstore
         source_code = """
@@ -255,7 +285,7 @@ def process(input):
         core_dl.add_dataloader("mnist", f"file://{file_src}", "mnist")
 
         # NOTE: no QALL_DATALOADERS_DIR override here — the secrets file must
-        # land on the real conventioned mount (/dev/shm/qall-dataloaders)
+        # land on the real conventioned mount (/tmp/qall-dataloaders)
         # which is what the daemon bind-mounts into every task container.
         written = core_dl.provision_dataloader_file_for_task(
             task_hash, BlockRegistry(tmpdir)
@@ -300,3 +330,7 @@ def process(input):
                     assert output == "hello dataloader"
         finally:
             core_dl.cleanup_dataloader_files([written])
+            # The daemon leaves root-owned artifact/block files in `tmpdir` that
+            # the test user cannot delete; remove them via a root container so
+            # pytest does not warn about tmp cleanup on later sessions.
+            _sweep_root_owned(tmpdir, _DEFAULT_IMAGE)
