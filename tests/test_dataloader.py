@@ -418,7 +418,7 @@ def test_cli_ls_columns_aligned(
     # The src cell may be truncated (long paths are capped), so the contract is
     # checked on name + dst + scope landing on the header-derived offsets.
     expected = {
-        dl.name: (dl.dst, f"[{'(local)' if dl.scope == 'local' else '(global)'}]")
+        dl.name: (dl.dst, f"{'(local)' if dl.scope == 'local' else '(global)'}")
         for dl in core_dl.list_dataloaders()
     }
     assert len(lines) - 1 == len(expected)
@@ -460,7 +460,7 @@ def test_cli_ls_sorted_by_name_and_width_capped(
 
     # Trailing-slash dst values (e.g. "fruit/", "tropical/") still line up.
     expected = {
-        dl.name: (dl.dst, f"[{'(local)' if dl.scope == 'local' else '(global)'}]")
+        dl.name: (dl.dst, f"{'(local)' if dl.scope == 'local' else '(global)'}")
         for dl in core_dl.list_dataloaders()
     }
     for line in lines[1:]:
