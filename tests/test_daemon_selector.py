@@ -65,6 +65,39 @@ def test_get_daemon_manager_unknown_backend_raises():
         get_daemon_manager(backend="kubernetes")
 
 
+def test_get_daemon_manager_systemd_receives_scope():
+    mgr = get_daemon_manager(backend="systemd", scope="user")
+    assert isinstance(mgr, SystemdDaemonManager)
+    assert mgr.scope == "user"
+
+
+def test_get_daemon_manager_systemd_receives_unit_name_and_dir(tmp_path):
+    mgr = get_daemon_manager(
+        backend="systemd",
+        scope="user",
+        unit_name="customd",
+        unit_dir=str(tmp_path),
+    )
+    assert isinstance(mgr, SystemdDaemonManager)
+    assert mgr.unit_name == "customd"
+    assert mgr.unit_file == tmp_path / "customd.service"
+
+
+def test_get_daemon_manager_docker_ignores_systemd_only_kwargs():
+    with patch(
+        "qall.daemon.docker_manager.docker.from_env",
+        return_value=MagicMock(),
+    ):
+        mgr = get_daemon_manager(
+            backend="docker",
+            scope="system",
+            unit_name="qalld",
+            unit_dir="/tmp",
+        )
+
+    assert isinstance(mgr, DockerDaemonManager)
+
+
 # ensure_running
 
 

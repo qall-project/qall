@@ -23,6 +23,10 @@ from qall.daemon.systemd_manager import (
     SYSTEM_BLOCK_REGISTRY_PATH,
     SYSTEM_ARTIFACT_REGISTRY_PATH,
     SYSTEM_DAEMON_BINARY,
+    USER_BLOCK_REGISTRY_PATH,
+    USER_ARTIFACT_REGISTRY_PATH,
+    USER_DAEMON_BINARY,
+    USER_UNIT_DIR,
     SystemdDaemonManager,
     systemd_ctl_args,
     _SYSTEM_UNIT_TEMPLATE_RESOURCE,
@@ -60,15 +64,15 @@ def test_systemd_ctl_args():
         systemd_ctl_args("bogus")
 
 
-def test_system_scope_defaults():
+def test_default_scope_is_user():
     mgr = SystemdDaemonManager()
-    assert mgr.scope == "system"
+    assert mgr.scope == "user"
     assert mgr.unit_name == DEFAULT_UNIT_NAME
     assert mgr.grpc_port == 50053
-    assert mgr.daemon_binary == str(SYSTEM_DAEMON_BINARY)
-    assert mgr.host_block_registry_path == str(SYSTEM_BLOCK_REGISTRY_PATH)
-    assert mgr.host_artifact_registry_path == str(SYSTEM_ARTIFACT_REGISTRY_PATH)
-    assert mgr.unit_file == Path(f"/etc/systemd/system/{DEFAULT_UNIT_NAME}.service")
+    assert mgr.daemon_binary == str(USER_DAEMON_BINARY)
+    assert mgr.host_block_registry_path == str(USER_BLOCK_REGISTRY_PATH)
+    assert mgr.host_artifact_registry_path == str(USER_ARTIFACT_REGISTRY_PATH)
+    assert mgr.unit_file == USER_UNIT_DIR / f"{DEFAULT_UNIT_NAME}.service"
 
 
 def test_user_scope_defaults(tmp_path):
@@ -202,7 +206,7 @@ def test_unit_templates_shipped_and_rendered():
         assert resource.is_file(), f"missing systemd template {resource_name}"
         assert "{binary}" in resource.read_text(encoding="utf-8")
 
-    rendered = SystemdDaemonManager()._unit_file_content()
+    rendered = SystemdDaemonManager(scope="system")._unit_file_content()
     assert "{binary}" not in rendered
     assert "ExecStart=" in rendered
     for flag in (

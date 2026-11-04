@@ -23,7 +23,7 @@ from qall.core.daemon import (
     stop_daemon,
     restart_daemon,
 )
-from qall.cli.utils import parse_daemon_backend
+from qall.cli.utils import parse_daemon_backend, parse_systemd_scope
 from qall.daemon.systemd_manager import SystemdDaemonManager
 
 daemon_cli = typer.Typer(
@@ -31,6 +31,27 @@ daemon_cli = typer.Typer(
     help="Manage daemon",
     no_args_is_help=True,
 )
+
+
+def _manager_kwargs(
+    scope: Optional[str] = None,
+    unit_name: Optional[str] = None,
+    unit_dir: Optional[str] = None,
+) -> dict:
+    """
+    Collect optional daemon-manager keyword arguments, dropping unset ones.
+    The CLI does not interpret these: only the selected backend manager uses
+    them (systemd understands scope/unit_name/unit_dir; docker ignores them).
+    """
+    return {
+        key: value
+        for key, value in (
+            ("scope", scope),
+            ("unit_name", unit_name),
+            ("unit_dir", unit_dir),
+        )
+        if value is not None
+    }
 
 
 @daemon_cli.command("start")
@@ -54,6 +75,23 @@ def daemon_start(
         callback=parse_daemon_backend,
         help="Daemon backend to use: 'docker' or 'systemd'.",
     ),
+    scope: Optional[str] = typer.Option(
+        None,
+        "--scope",
+        "-s",
+        callback=parse_systemd_scope,
+        help="systemd scope: 'user' or 'system' (default: user; systemd backend only).",
+    ),
+    unit_name: Optional[str] = typer.Option(
+        None,
+        "--unit-name",
+        help="systemd unit name (default: qalld; systemd backend only).",
+    ),
+    unit_dir: Optional[str] = typer.Option(
+        None,
+        "--unit-dir",
+        help="systemd unit directory (systemd backend only).",
+    ),
 ):
     """
     Start a local Qall daemon (Docker or systemd backend).
@@ -64,6 +102,7 @@ def daemon_start(
             block_registry_path=block_registry,
             artifact_registry_path=artifact_registry,
             backend=backend,
+            **_manager_kwargs(scope, unit_name, unit_dir),
         )
     except KeyboardInterrupt:
         typer.echo("Daemon stopped.")
@@ -80,9 +119,26 @@ def daemon_stop(
         callback=parse_daemon_backend,
         help="Daemon backend to use: 'docker' or 'systemd'.",
     ),
+    scope: Optional[str] = typer.Option(
+        None,
+        "--scope",
+        "-s",
+        callback=parse_systemd_scope,
+        help="systemd scope: 'user' or 'system' (default: user; systemd backend only).",
+    ),
+    unit_name: Optional[str] = typer.Option(
+        None,
+        "--unit-name",
+        help="systemd unit name (default: qalld; systemd backend only).",
+    ),
+    unit_dir: Optional[str] = typer.Option(
+        None,
+        "--unit-dir",
+        help="systemd unit directory (systemd backend only).",
+    ),
 ):
     try:
-        stop_daemon(backend=backend)
+        stop_daemon(backend=backend, **_manager_kwargs(scope, unit_name, unit_dir))
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(code=1)
@@ -97,9 +153,28 @@ def daemon_restart(
         callback=parse_daemon_backend,
         help="Daemon backend to use: 'docker' or 'systemd'.",
     ),
+    scope: Optional[str] = typer.Option(
+        None,
+        "--scope",
+        "-s",
+        callback=parse_systemd_scope,
+        help="systemd scope: 'user' or 'system' (default: user; systemd backend only).",
+    ),
+    unit_name: Optional[str] = typer.Option(
+        None,
+        "--unit-name",
+        help="systemd unit name (default: qalld; systemd backend only).",
+    ),
+    unit_dir: Optional[str] = typer.Option(
+        None,
+        "--unit-dir",
+        help="systemd unit directory (systemd backend only).",
+    ),
 ):
     try:
-        restart_daemon(port, backend=backend)
+        restart_daemon(
+            port, backend=backend, **_manager_kwargs(scope, unit_name, unit_dir)
+        )
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(code=1)
@@ -143,6 +218,23 @@ def daemon_run(
         callback=parse_daemon_backend,
         help="Daemon backend to use: 'docker' or 'systemd'.",
     ),
+    scope: Optional[str] = typer.Option(
+        None,
+        "--scope",
+        "-s",
+        callback=parse_systemd_scope,
+        help="systemd scope: 'user' or 'system' (default: user; systemd backend only).",
+    ),
+    unit_name: Optional[str] = typer.Option(
+        None,
+        "--unit-name",
+        help="systemd unit name (default: qalld; systemd backend only).",
+    ),
+    unit_dir: Optional[str] = typer.Option(
+        None,
+        "--unit-dir",
+        help="systemd unit directory (systemd backend only).",
+    ),
 ):
     """
     Orders a local Daemon instance to start and execute a given task.
@@ -156,6 +248,7 @@ def daemon_run(
             artifact_registry=artifact_registry,
             timeout=timeout,
             backend=backend,
+            **_manager_kwargs(scope, unit_name, unit_dir),
         )
 
         if artifacts:
@@ -196,6 +289,23 @@ def daemon_status(
         callback=parse_daemon_backend,
         help="Daemon backend to use: 'docker' or 'systemd'.",
     ),
+    scope: Optional[str] = typer.Option(
+        None,
+        "--scope",
+        "-s",
+        callback=parse_systemd_scope,
+        help="systemd scope: 'user' or 'system' (default: user; systemd backend only).",
+    ),
+    unit_name: Optional[str] = typer.Option(
+        None,
+        "--unit-name",
+        help="systemd unit name (default: qalld; systemd backend only).",
+    ),
+    unit_dir: Optional[str] = typer.Option(
+        None,
+        "--unit-dir",
+        help="systemd unit directory (systemd backend only).",
+    ),
 ):
     """
     Check the status of the local daemon (Docker or systemd backend).
@@ -206,6 +316,7 @@ def daemon_status(
             block_registry=block_registry,
             artifact_registry=artifact_registry,
             backend=backend,
+            **_manager_kwargs(scope, unit_name, unit_dir),
         )
 
         if status:
@@ -219,10 +330,11 @@ def daemon_status(
 @daemon_cli.command("install")
 def daemon_install(
     scope: str = typer.Option(
-        "system",
+        "user",
         "--scope",
         "-s",
-        help="systemd scope: 'user' or 'system' (default: system)",
+        callback=parse_systemd_scope,
+        help="systemd scope: 'user' or 'system' (default: user)",
     ),
     enable_now: bool = typer.Option(
         True,
@@ -245,10 +357,11 @@ def daemon_install(
 @daemon_cli.command("uninstall")
 def daemon_uninstall(
     scope: str = typer.Option(
-        "system",
+        "user",
         "--scope",
         "-s",
-        help="systemd scope: 'user' or 'system' (default: system)",
+        callback=parse_systemd_scope,
+        help="systemd scope: 'user' or 'system' (default: user)",
     ),
 ):
     """

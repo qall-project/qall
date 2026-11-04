@@ -30,6 +30,20 @@ def parse_daemon_backend(value: str) -> str:
     return normalized
 
 
+def parse_systemd_scope(value: str) -> str:
+    """
+    Validate and normalize the ``--scope`` CLI value for the systemd backend.
+    """
+    normalized = (value or "user").strip().lower()
+
+    if normalized not in ("system", "user"):
+        raise typer.BadParameter(
+            f"Invalid systemd scope: {normalized} (expected 'user' or 'system')"
+        )
+
+    return normalized
+
+
 def parse_extra_args(args: list[str]) -> dict[str, str]:
     """
     Parses arbitrary extra CLI option flags into a clean Python dictionary.

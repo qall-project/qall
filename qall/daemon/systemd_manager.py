@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_UNIT_NAME = "qalld"
 
+# Default daemon binary locations baked into the generated systemd units.
 SYSTEM_DAEMON_BINARY = Path("/usr/local/bin/qall-daemon")
 USER_DAEMON_BINARY = Path.home() / ".local" / "bin" / "qall-daemon"
 
@@ -78,7 +79,7 @@ class SystemdDaemonManager(BaseDaemonManager):
         self,
         grpc_port: int = 50053,
         unit_name: str = DEFAULT_UNIT_NAME,
-        scope: str = "system",
+        scope: str = "user",
         daemon_binary: Optional[str | Path] = None,
         host_block_registry_path: Optional[str | Path] = None,
         host_artifact_registry_path: Optional[str | Path] = None,

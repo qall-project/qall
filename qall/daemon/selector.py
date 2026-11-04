@@ -16,6 +16,8 @@ from .base_manager import BaseDaemonManager
 from .docker_manager import DockerDaemonManager
 from .systemd_manager import SystemdDaemonManager
 
+_SYSTEMD_ONLY_KWARGS = ("scope", "unit_name", "unit_dir")
+
 
 def get_daemon_manager(
     backend: str | None = None,
@@ -27,7 +29,12 @@ def get_daemon_manager(
     backend = (backend or "docker").lower()
 
     if backend == "docker":
-        return DockerDaemonManager(**kwargs)
+        docker_kwargs = {
+            key: value
+            for key, value in kwargs.items()
+            if key not in _SYSTEMD_ONLY_KWARGS
+        }
+        return DockerDaemonManager(**docker_kwargs)
     if backend == "systemd":
         return SystemdDaemonManager(**kwargs)
 

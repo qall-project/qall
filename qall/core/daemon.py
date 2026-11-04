@@ -61,6 +61,7 @@ def start_daemon(
     block_registry_path: Optional[str | Path] = None,
     artifact_registry_path: Optional[str | Path] = None,
     backend: Optional[str] = None,
+    **manager_kwargs,
 ):
     """
     Start a local Qall daemon (Docker or systemd backend), then stream its logs.
@@ -79,6 +80,7 @@ def start_daemon(
         grpc_port=port,
         host_block_registry_path=str(block_path),
         host_artifact_registry_path=str(artifact_path),
+        **manager_kwargs,
     )
 
     if daemon_mgr.service_info():
@@ -100,9 +102,10 @@ def apply_resource_assignments(
     worker_definitions: Optional[list] = None,
     resource_assignments: Optional[dict] = None,
     backend: Optional[str] = None,
+    **manager_kwargs,
 ):
     try:
-        daemon_mgr = get_daemon_manager(backend=backend)
+        daemon_mgr = get_daemon_manager(backend=backend, **manager_kwargs)
 
         if worker_definitions:
             daemon_mgr.register_workers(worker_definitions)
@@ -116,13 +119,15 @@ def apply_resource_assignments(
         return
 
 
-def stop_daemon(port: int = 50053, backend: Optional[str] = None):
+def stop_daemon(port: int = 50053, backend: Optional[str] = None, **manager_kwargs):
     """
     Stops an already running local Qall daemon.
     """
 
     try:
-        daemon_mgr = get_daemon_manager(backend=backend, grpc_port=port)
+        daemon_mgr = get_daemon_manager(
+            backend=backend, grpc_port=port, **manager_kwargs
+        )
 
         if not daemon_mgr.is_running():
             logger.warning("No running daemon to stop.")
@@ -139,13 +144,16 @@ def stop_daemon(port: int = 50053, backend: Optional[str] = None):
 def restart_daemon(
     port: int = 50053,
     backend: Optional[str] = None,
+    **manager_kwargs,
 ):
     """
     Restarts an already running local Qall daemon.
     """
 
     try:
-        daemon_mgr = get_daemon_manager(backend=backend, grpc_port=port)
+        daemon_mgr = get_daemon_manager(
+            backend=backend, grpc_port=port, **manager_kwargs
+        )
         if not daemon_mgr.is_running():
             raise RuntimeError("No active daemon container running.")
 
@@ -166,6 +174,7 @@ def get_daemon_status(
     block_registry: Optional[str] = None,
     artifact_registry: Optional[str] = None,
     backend: Optional[str] = None,
+    **manager_kwargs,
 ) -> Daemon:
     """
     Retrieve the status of a daemon instance.
@@ -193,6 +202,7 @@ def get_daemon_status(
             grpc_port=port,
             host_block_registry_path=str(block_registry),
             host_artifact_registry_path=str(artifact_registry),
+            **manager_kwargs,
         )
 
         if daemon_mgr.service_info():
@@ -212,6 +222,7 @@ def run_task(
     artifact_registry: Optional[str] = None,
     timeout: int = 300,
     backend: Optional[str] = None,
+    **manager_kwargs,
 ) -> list[Artifact]:
     """
     Orders a local Daemon instance to start and execute a given task.
@@ -242,6 +253,7 @@ def run_task(
             grpc_port=port,
             host_block_registry_path=str(block_registry),
             host_artifact_registry_path=str(artifact_registry),
+            **manager_kwargs,
         )
         daemon_mgr.ensure_running()
 

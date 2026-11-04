@@ -97,6 +97,67 @@ def test_daemon_run_selects_systemd_backend():
     assert m_run.call_args.kwargs["backend"] == "systemd"
 
 
+# backend-scope passthrough
+
+
+def test_daemon_start_forwards_scope_to_core():
+    with patch("qall.cli.daemon.start_daemon") as m_start:
+        result = runner.invoke(
+            daemon_cli,
+            ["start", "--daemon-backend", "systemd", "--scope", "user"],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert m_start.call_args.kwargs["scope"] == "user"
+
+
+def test_daemon_start_forwards_unit_name_and_dir_to_core():
+    with patch("qall.cli.daemon.start_daemon") as m_start:
+        result = runner.invoke(
+            daemon_cli,
+            [
+                "start",
+                "--daemon-backend",
+                "systemd",
+                "--unit-name",
+                "customd",
+                "--unit-dir",
+                "/tmp/qall-units",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert m_start.call_args.kwargs["unit_name"] == "customd"
+    assert m_start.call_args.kwargs["unit_dir"] == "/tmp/qall-units"
+
+
+def test_daemon_start_defaults_to_user_scope():
+    with patch("qall.cli.daemon.start_daemon") as m_start:
+        result = runner.invoke(daemon_cli, ["start"])
+
+    assert result.exit_code == 0, result.output
+    assert m_start.call_args.kwargs["scope"] == "user"
+    assert "unit_name" not in m_start.call_args.kwargs
+    assert "unit_dir" not in m_start.call_args.kwargs
+
+
+def test_daemon_stop_forwards_scope_to_core():
+    with patch("qall.cli.daemon.stop_daemon") as m_stop:
+        result = runner.invoke(
+            daemon_cli, ["stop", "--daemon-backend", "systemd", "--scope", "system"]
+        )
+
+    assert result.exit_code == 0, result.output
+    assert m_stop.call_args.kwargs["scope"] == "system"
+
+
+def test_daemon_scope_rejects_unknown_value():
+    result = runner.invoke(daemon_cli, ["start", "--scope", "kubernetes"])
+
+    assert result.exit_code != 0
+    assert "kubernetes" in result.output
+
+
 # install / uninstall
 
 
@@ -110,6 +171,17 @@ def test_daemon_install_uses_systemd_manager_scope():
     assert result.exit_code == 0, result.output
     m_cls.assert_called_once_with(scope="user")
     fake_manager.install.assert_called_once_with(enable_now=True)
+
+
+def test_daemon_install_defaults_to_user_scope():
+    fake_manager = MagicMock()
+    with patch(
+        "qall.cli.daemon.SystemdDaemonManager", return_value=fake_manager
+    ) as m_cls:
+        result = runner.invoke(daemon_cli, ["install"])
+
+    assert result.exit_code == 0, result.output
+    m_cls.assert_called_once_with(scope="user")
 
 
 def test_daemon_install_no_enable_now():
