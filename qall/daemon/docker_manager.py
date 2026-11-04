@@ -11,17 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import logging
 import docker
 import os
-import time
 
 from pathlib import Path
+from typing import Iterator, Optional
 
 from docker.errors import DockerException, APIError, ImageNotFound, NotFound
 from docker.models.containers import Container
-
-from qall_daemon_client import GrpcDaemonClient
 
 from qall.config.paths import (
     DEFAULT_BLOCK_REGISTRY_PATH,
@@ -49,11 +48,11 @@ class DockerDaemonManager(BaseDaemonManager):
         host_block_registry_path: str | Path = DEFAULT_BLOCK_REGISTRY_PATH,
         host_artifact_registry_path: str | Path = DEFAULT_ARTIFACT_REGISTRY_PATH,
     ):
+        self.grpc_port = grpc_port
+        self.http_port = http_port
         self.__image = _DEFAULT_IMAGE
         self.__container_name = "qalld"
-        self.__grpc_port = grpc_port
-        self.__http_port = http_port
-        self.__ports = {"50053/tcp": self.__grpc_port, "8080/tcp": self.__http_port}
+        self.__ports = {"50053/tcp": self.grpc_port, "8080/tcp": self.http_port}
         self.__local = local
         self.__host_block_registry_path = str(host_block_registry_path)
         self.__host_artifact_registry_path = str(host_artifact_registry_path)
@@ -71,24 +70,16 @@ class DockerDaemonManager(BaseDaemonManager):
             ) from e
 
         self.__container = None
-        self.__client = None
-
-    @property
-    def client(self) -> GrpcDaemonClient:
-        if not self.__client:
-            addr = "localhost"
-            self.__client = GrpcDaemonClient(url=f"{addr}:{self.__grpc_port}")
-        return self.__client
 
     @property
     def container(self) -> Container | None:
         return self.__container
 
-    def __enter__(self):
-        return self.start()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        return self.stop()
+    def is_running(self) -> bool:
+        """
+        Return True when a daemon container is running and manageable.
+        """
+        return self.attach()
 
     def attach(self) -> bool:
         """
@@ -101,12 +92,6 @@ class DockerDaemonManager(BaseDaemonManager):
             self.__container = containers[0]
             return True
         return False
-
-    def start(self):
-        self._start_daemon()
-        self._wait_for_health()
-
-        return self
 
     def stop(self):
         """
@@ -122,13 +107,16 @@ class DockerDaemonManager(BaseDaemonManager):
                 logger.warning(f"Failed to cleanly remove the container: {e}")
             return
 
-    def logs(self):
+    def logs(self) -> Optional[Iterator[str]]:
         """
-        Stream the logs of the daemon container.
+        Stream the log lines of the daemon container.
         """
         if self.__container:
             try:
-                return self.__container.logs(stream=True)
+                return (
+                    line.decode("utf-8", errors="replace")
+                    for line in self.__container.logs(stream=True)
+                )
             except APIError as e:
                 logger.error(f"Failed to retrieve logs: {e}")
 
@@ -167,7 +155,11 @@ class DockerDaemonManager(BaseDaemonManager):
         self._ensure_image_exists()
 
         try:
-            command = [f"--host-task-dir={self.__host_block_registry_path}"]
+            command = [
+                f"--host-task-dir={self.__host_block_registry_path}",
+                "--block-registry-dir=/block-registry",
+                "--artifact-registry-dir=/artifact-registry",
+            ]
 
             if self.__local:
                 command.append("--local")
@@ -312,43 +304,6 @@ class DockerDaemonManager(BaseDaemonManager):
                 raise RuntimeError(
                     f"Failed to pull image {self.__image}. Check your connection or the image name. Details: {e}"
                 )
-
-    def _wait_for_health(self, timeout: int = 30, interval: float = 0.5):
-        """
-        Check the status of the daemon server until it is up and running.
-        """
-        logger.info(f"Waiting for daemon availability on port {self.__grpc_port}...")
-        start_time = time.time()
-
-        while time.time() - start_time < timeout:
-            with self.client as client:
-                try:
-                    info = client.get_service_info()
-                    if info:
-                        logger.info("Qall daemon gRPC is ready.")
-                        return True
-                except:
-                    pass
-
-            time.sleep(interval)
-
-        raise TimeoutError("The Qall daemon did not respond within the allocated time.")
-
-    def service_info(self) -> bool:
-        """
-        Check the status of the daemon server
-        """
-        logger.info(f"Checking for daemon availability on port {self.__grpc_port}...")
-        with self.client as client:
-            try:
-                info = client.get_service_info()
-                if info:
-                    logger.info("Qall daemon gRPC is ready.")
-                    return True
-                return False
-            except:
-                logger.info("Qall daemon gRPC is not running.")
-                return False
 
     def _cleanup_existing_container(self):
         """
