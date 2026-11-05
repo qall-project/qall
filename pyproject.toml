@@ -23,7 +23,7 @@ dependencies = [
     "s3fs>=2025.6.0",
     "scaleway-qaas-client>=0.1.0",
     "qall-registry-client>=0.1.0",
-    "qall-daemon-client>=0.1.6",
+    "qall-daemon-client>=0.1.7",
 ]
 
 ### Dependencies ###
@@ -43,6 +43,7 @@ objects = [
 markers = [
     "minio: requires a reachable MinIO instance (see infrastructure/local/docker-compose.yml)",
     "daemon_integration: requires a running qall daemon reachable at localhost:50053",
+    "daemon: requires Docker and a qall-daemon image built with the current runtime API; task-executing tests",
 ]
 
 ### CLI Tool ###

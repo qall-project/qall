@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import typer
+import uuid
 
 from typing import Optional
 
@@ -124,13 +125,28 @@ def daemon_run(
     timeout: int = typer.Option(
         300, "--timeout", "-t", help="Timeout for the task execution."
     ),
+    workflow_run_id: Optional[str] = typer.Option(
+        None,
+        "--workflow-run-id",
+        "-w",
+        help="Workflow run identifier. The daemon scopes the task's shared "
+        "filesystem (/workdir) per workflow run. When omitted, a fresh "
+        "identifier is generated so the task still gets its own isolated run.",
+    ),
 ):
     """
     Orders a local Daemon instance to start and execute a given task.
     """
+    if not workflow_run_id:
+        workflow_run_id = str(uuid.uuid4())
+        typer.echo(
+            f"No --workflow-run-id given; using a fresh run id: {workflow_run_id}"
+        )
+
     try:
         artifacts = run_task(
             task_hash=task_hash,
+            workflow_run_id=workflow_run_id,
             input_artifact_hash=artifact_hash,
             daemon_address=daemon_address,
             block_registry=block_registry,

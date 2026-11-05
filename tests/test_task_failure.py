@@ -120,6 +120,7 @@ def test_run_task_logs_stdout_stderr_on_error(caplog):
         with pytest.raises(RuntimeError, match="Task failed with status: ERROR"):
             daemon.run_task(
                 task_hash="hash123",
+                workflow_run_id="workflow-run-12345678",
                 daemon_address="127.0.0.1:50053",
             )
 

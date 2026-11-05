@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from pathlib import Path
+import os
 import subprocess
 import sys
 import textwrap
@@ -128,6 +129,25 @@ with open('{output_path}', 'wb') as f:
 
 {stop_workers_code}
 """
+        # Task execution only happens inside a qall task container, where the
+        # daemon mounts the shared per-workflow-run filesystem at /workdir. A
+        # host process cannot provide /workdir, so refuse loudly instead of
+        # letting setup_unifs() fail with a cryptic PermissionError.
+        try:
+            workdir_ok = TASK_RUNTIME_WORKDIR.is_dir() and os.access(
+                TASK_RUNTIME_WORKDIR, os.W_OK
+            )
+        except OSError:
+            workdir_ok = False
+        if not workdir_ok:
+            raise RuntimeError(
+                "Task execution requires the shared filesystem at "
+                f"{TASK_RUNTIME_WORKDIR}, which only exists inside a qall task "
+                "container. Run the task through the daemon (e.g. `qall "
+                "workflow run` / `qall daemon run`); direct host execution is "
+                "not supported."
+            )
+
         setup_unifs()
 
         process = subprocess.Popen(

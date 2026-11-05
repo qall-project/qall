@@ -212,6 +212,7 @@ def get_daemon_status(
 
 def run_task(
     task_hash: str,
+    workflow_run_id: str,
     input_artifact_hash: Optional[str] = None,
     daemon_address: Optional[str] = None,
     block_registry: Optional[str] = None,
@@ -221,7 +222,18 @@ def run_task(
 ) -> list[Artifact]:
     """
     Orders a local Daemon instance to start and execute a given task.
+
+    Args:
+        workflow_run_id: Identifier of the workflow run this task belongs to.
+            It is mandatory: the daemon scopes the task's shared filesystem
+            (/workdir) per workflow run and rejects requests that omit it.
     """
+    if not workflow_run_id:
+        raise ValueError(
+            "workflow_run_id is required: the daemon scopes each task's "
+            "shared filesystem (/workdir) per workflow run, so a run "
+            "identifier must be provided."
+        )
     block_registry = block_registry or str(DEFAULT_BLOCK_REGISTRY_PATH)
     artifact_registry = artifact_registry or str(DEFAULT_ARTIFACT_REGISTRY_PATH)
 
@@ -275,6 +287,7 @@ def run_task(
         with daemon_mgr.client as client:
 
             logger.info(f"Task hash: {task_hash}")
+            logger.info(f"Workflow run id: {workflow_run_id}")
             logger.info(f"Input artifact hash: {input_artifact_hash}")
             logger.info(f"Requesting daemon to execute task at {daemon_address}...")
 
@@ -287,6 +300,7 @@ def run_task(
 
             task_run = client.create_task_run(
                 task_hash=task_hash,
+                workflow_run_id=workflow_run_id,
                 artifact_hash=input_artifact_hash,
                 provider_credentials=(
                     provider_credentials.credentials if provider_credentials else None

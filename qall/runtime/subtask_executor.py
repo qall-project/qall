@@ -14,7 +14,6 @@
 
 import cloudpickle
 import os
-import uuid
 
 from abc import ABC, abstractmethod
 from typing import Optional
@@ -25,7 +24,6 @@ from qall.object import (
 )
 from qall.registry import BlockRegistry
 from qall.runtime.artifact_backend import ArtifactBackend
-from qall.runtime.task_executor import TaskRuntimeExecutor
 from qall.provider.login import get_credentials_from_env
 
 
@@ -35,43 +33,6 @@ class SubtaskExecutor(ABC):
         self, parent_task_run_id: str, input_data: dict
     ) -> TaskRunOutput:
         pass
-
-
-# Exists only to test behavior without relying on the Daemon, development purpose
-class LocalSubtaskExecutor(SubtaskExecutor):
-    def __init__(
-        self,
-        task_hash: str,
-        registry: BlockRegistry,
-        artifact_backend: ArtifactBackend,
-    ):
-        self.__task_hash = task_hash
-        self.__registry = registry
-        self.__artifact_backend = artifact_backend
-
-    def execute_subtask(
-        self,
-        parent_task_run_id: str,
-        input_data: dict,
-    ) -> TaskRunOutput:
-        executor = TaskRuntimeExecutor(
-            task_hash=self.__task_hash,
-            registry=self.__registry,
-            artifact_backend=self.__artifact_backend,
-        )
-        input_artifact = cloudpickle.dumps(input_data)
-        task_output = executor.execute(
-            task_run_id=str(uuid.uuid4()),
-            input_artifact=input_artifact,
-        )
-
-        return TaskRunOutput(
-            output_artifact_hash=task_output.output_artifact_hash,
-            output_artifact_bytes=task_output.output_artifact_bytes,
-            return_code=task_output.return_code,
-            stdout=task_output.stdout,
-            stderr=task_output.stderr,
-        )
 
 
 class DaemonSubtaskExecutor(SubtaskExecutor):
@@ -111,6 +72,12 @@ class DaemonSubtaskExecutor(SubtaskExecutor):
     ) -> TaskRunOutput:
         daemon_client = self._get_daemon_client()
 
+        # Child task submissions must stay in the same workflow run as their
+        # parent so the daemon keeps them on the same shared filesystem
+        # (/workdir). The workflow run id is injected by the daemon as a
+        # container env var; it is mandatory (see grpc_client.create_task_run).
+        workflow_run_id = os.environ.get("QALL_WORKFLOW_RUN_ID")
+
         input_artifact_hash = None
 
         if input_data:
@@ -129,6 +96,7 @@ class DaemonSubtaskExecutor(SubtaskExecutor):
 
         task_run = daemon_client.create_task_run(
             task_hash=self.__task_hash,
+            workflow_run_id=workflow_run_id,
             artifact_hash=input_artifact_hash,
             provider_credentials=get_credentials_from_env(),
         )

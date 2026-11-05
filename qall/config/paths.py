@@ -17,5 +17,8 @@ QALL_CACHE_DIR = Path.home() / ".cache" / "qall"
 DEFAULT_BLOCK_REGISTRY_PATH = QALL_CACHE_DIR / "block-registry"
 DEFAULT_ARTIFACT_REGISTRY_PATH = QALL_CACHE_DIR / "artifact-registry"
 QALL_CONFIG_DIR = Path.home() / ".config" / "qall"
-CONFIG_PATH = QALL_CONFIG_DIR / "qall-config.yml"
-TASK_RUNTIME_WORKDIR = Path("/tmp")
+CONFIG_PATH = QALL_CONFIG_DIR / "qall-config.yml"  # The global configuration file path
+TASK_RUNTIME_WORKDIR = Path("/workdir")  # Where a task starts at.
+HOST_VOLUMES_ROOT = Path(
+    "/tmp/qall/"
+)  # Where you create volumes on your host to bind into tasks (and/or daemon). Useful for unifs/dataloaders for instance.

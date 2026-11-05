@@ -2051,7 +2051,7 @@ requires-dist = [
     { name = "matplotlib", specifier = ">=3.11.0" },
     { name = "pyan3", specifier = ">=2.9.0,<3" },
     { name = "pyyaml", specifier = ">=6.0.3" },
-    { name = "qall-daemon-client", specifier = ">=0.1.6" },
+    { name = "qall-daemon-client", specifier = ">=0.1.7" },
     { name = "qall-registry-client", specifier = ">=0.1.0" },
     { name = "qio", specifier = ">=0.2.2" },
     { name = "retry", specifier = "==0.9.2" },
@@ -2075,7 +2075,7 @@ objects = [
 
 [[package]]
 name = "qall-daemon-client"
-version = "0.1.6"
+version = "0.1.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dataclasses" },
@@ -2083,9 +2083,9 @@ dependencies = [
     { name = "grpcio" },
     { name = "protobuf" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fb/71/ad202c819573de6cb613f7446f504d5b03724869788c8fce3536d1a883ee/qall_daemon_client-0.1.6.tar.gz", hash = "sha256:ba43d978bf622473903b46cf2853c2cd331fe97df9dab60685726739c2e67199", size = 13190, upload-time = "2026-10-29T16:23:22.424Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8e/01/328b0b710122e0cf0d2de08888d29c80c6ad3298d036ffb19fa133f30e85/qall_daemon_client-0.1.7.tar.gz", hash = "sha256:f003e5b9b89bb0ea37ad7692d98e9567cfc589d602b5a1ede196e8cb46fae325", size = 13351, upload-time = "2026-11-05T16:19:26.253Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a6/ab/5a2baa8b25a15a92271a5c5dcd4ad9ae2b1d3e7d5ae0b9836e9d2738a530/qall_daemon_client-0.1.6-py3-none-any.whl", hash = "sha256:8210858d4b3edd3230730f3beeaa1e0963284074620dda168da3b352b5085fe0", size = 20569, upload-time = "2026-10-29T16:23:21.345Z" },
+    { url = "https://files.pythonhosted.org/packages/75/4b/02af468cb82b33857e0ddb40e7b4624705732263e98e0267a08366959720/qall_daemon_client-0.1.7-py3-none-any.whl", hash = "sha256:e92865bf5a361a35d4e21f1cb0fd1af84352f7fc4955d0bbd07239c27a905b57", size = 20758, upload-time = "2026-11-05T16:19:24.956Z" },
 ]
 
 [[package]]

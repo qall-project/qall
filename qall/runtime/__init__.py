@@ -19,7 +19,6 @@ from .artifact_backend import (
 )
 from .subtask_executor import (
     DaemonSubtaskExecutor,
-    LocalSubtaskExecutor,
     SubtaskExecutor,
 )
 from .task_executor import TaskRuntimeExecutor

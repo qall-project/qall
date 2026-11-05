@@ -212,10 +212,17 @@ def create_workflow_run(
 
         dataloader_files = provision_dataloader_files_for_dag(dag)
 
+        # Mint the workflow run id up front: the daemon scopes the task's
+        # shared filesystem (/workdir) per workflow run, so every task of this
+        # run (including child tasks submitted by the workflow itself) must
+        # carry the same id.
+        workflow_run_id = str(uuid.uuid4())
+        logger.info(f"Starting workflow run {workflow_run_id}")
         start = datetime.datetime.now()
         try:
             artifacts = run_task(
                 task_hash=dag.root_hash,
+                workflow_run_id=workflow_run_id,
                 input_artifact_hash=input_artifact_hash,
                 provider_credentials=provider_credentials,
             )
@@ -237,7 +244,7 @@ def create_workflow_run(
                 logger.info(hints)
 
             workflow_run = WorkflowRun(
-                id=str(uuid.uuid4()),
+                id=workflow_run_id,
                 workflow_id=str(tag_uri),
                 status=WorkflowRunStatus.DONE,
                 created_at=start,
@@ -247,7 +254,7 @@ def create_workflow_run(
         except Exception as e:
             logger.error(f"Error running workflow `{entrypoint}`: {e}")
             workflow_run = WorkflowRun(
-                id=str(uuid.uuid4()),
+                id=workflow_run_id,
                 workflow_id=str(tag_uri),
                 status=WorkflowRunStatus.ERROR,
                 created_at=start,

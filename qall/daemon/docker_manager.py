@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import logging
+import shutil
 import docker
 import os
 import time
@@ -26,6 +27,7 @@ from qall_daemon_client import GrpcDaemonClient
 from qall.config.paths import (
     DEFAULT_BLOCK_REGISTRY_PATH,
     DEFAULT_ARTIFACT_REGISTRY_PATH,
+    HOST_VOLUMES_ROOT,
 )
 
 from .base_manager import BaseDaemonManager
@@ -34,6 +36,12 @@ logger = logging.getLogger(__name__)
 
 # _DEFAULT_IMAGE = "scw/qall-daemon:latest"
 _DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project/qall-daemon:latest"
+
+# In-container paths where the host block/artifact registries are bind-mounted.
+# The daemon reads its local block store / writes artifacts & its metadata DB
+# from these (flags `-block-registry-dir` / `-artifact-registry-dir`).
+_BLOCK_REGISTRY_MOUNT = "/block-registry"
+_ARTIFACT_REGISTRY_MOUNT = "/artifact-registry"
 
 
 class DockerDaemonManager(BaseDaemonManager):
@@ -58,10 +66,10 @@ class DockerDaemonManager(BaseDaemonManager):
         self.__host_block_registry_path = str(host_block_registry_path)
         self.__host_artifact_registry_path = str(host_artifact_registry_path)
 
-        # Temporary fix to create the necessary unifs volume while the daemon is still dockerized.
+        # Temporary fix to create the necessary unifs & dataloaders volume while the daemon is still dockerized.
         # Remove those two line once the daemon is out of its container and can run its own unifs creation logic.
-        self.__unifs = Path("/tmp/qall/unifs")
-        self.__unifs.mkdir(mode=0o777, parents=True, exist_ok=True)
+        self.__unifs = HOST_VOLUMES_ROOT / "unifs"
+        self.__dataloaders = HOST_VOLUMES_ROOT / "dataloaders"
 
         try:
             self.__docker_client = docker.from_env()
@@ -117,6 +125,7 @@ class DockerDaemonManager(BaseDaemonManager):
             try:
                 self.__container.stop(timeout=5)
                 self.__container.remove()
+                self._teardown_host_volumes()
                 logger.info("Cleanup complete.")
             except APIError as e:
                 logger.warning(f"Failed to cleanly remove the container: {e}")
@@ -167,7 +176,16 @@ class DockerDaemonManager(BaseDaemonManager):
         self._ensure_image_exists()
 
         try:
-            command = [f"--host-task-dir={self.__host_block_registry_path}"]
+            command = [
+                f"--host-task-dir={self.__host_block_registry_path}",
+                # The daemon's own block/artifact stores must resolve to the
+                # mounted volumes *inside* the daemon container (this is the
+                # dockerized daemon). -host-task-dir stays the host path:
+                # docker resolves that bind source on the host when it spawns
+                # task containers via /var/run/docker.sock.
+                f"--block-registry-dir={_BLOCK_REGISTRY_MOUNT}",
+                f"--artifact-registry-dir={_ARTIFACT_REGISTRY_MOUNT}",
+            ]
 
             if self.__local:
                 command.append("--local")
@@ -186,17 +204,17 @@ class DockerDaemonManager(BaseDaemonManager):
             # access to provision per-task secrets files. The daemon container
             # mounts it (so its os.Stat guard sees the directory) but never
             # creates or owns it.
-            os.makedirs("/tmp/qall-dataloaders", mode=0o700, exist_ok=True)
+            self._create_host_volumes()
 
             dev_dir = os.environ.get("QALL_DEV_DIR")
 
             volumes = {
                 self.__host_block_registry_path: {
-                    "bind": "/block-registry",
+                    "bind": _BLOCK_REGISTRY_MOUNT,
                     "mode": "rw",
                 },
                 self.__host_artifact_registry_path: {
-                    "bind": "/artifact-registry",
+                    "bind": _ARTIFACT_REGISTRY_MOUNT,
                     "mode": "rw",
                 },
                 "/var/run/docker.sock": {
@@ -207,8 +225,12 @@ class DockerDaemonManager(BaseDaemonManager):
                     "bind": "/tmp/qall-secrets",
                     "mode": "rw",
                 },
-                "/tmp/qall-dataloaders": {
-                    "bind": "/tmp/qall-dataloaders",
+                str(self.__dataloaders): {
+                    "bind": str(self.__dataloaders),
+                    "mode": "rw",
+                },
+                str(self.__unifs): {
+                    "bind": str(self.__unifs),
                     "mode": "rw",
                 },
             }
@@ -334,6 +356,28 @@ class DockerDaemonManager(BaseDaemonManager):
 
         raise TimeoutError("The Qall daemon did not respond within the allocated time.")
 
+    def _create_host_volumes(self):
+        self.__unifs.mkdir(mode=0o777, parents=True, exist_ok=True)
+        self.__dataloaders.mkdir(mode=0o777, parents=True, exist_ok=True)
+
+        # Pre-create the block registry shard root as the client user, before
+        # the (root) daemon container starts. The daemon's blockstore calls
+        # os.MkdirAll(<root>/blocks) on startup; if it creates that dir first it
+        # owns it and the unprivileged client's direct task pushes into the
+        # shared registry fail with PermissionError. With the dir pre-created
+        # (same layout as the client's LocalBlockstore), the daemon's
+        # MkdirAll becomes a no-op and client writes stay possible.
+        blocks_dir = Path(self.__host_block_registry_path) / "blocks"
+        blocks_dir.mkdir(parents=True, exist_ok=True)
+
+    def _teardown_host_volumes(self):
+        try:
+            shutil.rmtree(self.__unifs)
+        except FileNotFoundError:
+            pass
+        # We don't rm the dataloaders path to avoid accidently sending deletion request to the source object sotrages.
+        # TODO: write object storage unbinding logic.
+
     def service_info(self) -> bool:
         """
         Check the status of the daemon server
@@ -360,3 +404,5 @@ class DockerDaemonManager(BaseDaemonManager):
             old_container.remove()
         except NotFound:
             pass
+
+        self._teardown_host_volumes()

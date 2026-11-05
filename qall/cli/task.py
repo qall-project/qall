@@ -13,11 +13,10 @@
 # limitations under the License.
 import os
 import typer
-import os
 
 from typing import Optional
 
-from qall.core.runtime import execute_task, ExecutionMode
+from qall.core.runtime import execute_task
 
 task_cli = typer.Typer(
     name="task",
@@ -48,12 +47,6 @@ def run(
         "-d",
         help="Daemon gRPC address (default: localhost:50053)",
     ),
-    mode: Optional[str] = typer.Option(
-        "daemon",
-        "--mode",
-        "-m",
-        help="Execution mode: 'local' for daemonless, 'daemon' for daemon-based",
-    ),
     worker_addresses: Optional[list[str]] = typer.Option(
         None,
         "--worker-address",
@@ -62,22 +55,13 @@ def run(
     ),
 ):
     """
-    Execute a task. Made for intra-container execution.
+    Execute a task. Made for intra-container execution (daemon-provisioned task containers).
     """
-
-    try:
-        execution_mode = ExecutionMode(mode.lower())
-    except ValueError:
-        typer.echo(
-            f"Error: Invalid execution mode '{mode}'. Must be 'local' or 'daemon'.",
-            err=True,
-        )
-        raise typer.Exit(code=1)
-
-    typer.echo(f"[Runtime] Executing in {execution_mode} mode")
 
     if not daemon_address:
         daemon_address = os.environ.get("QALL_DAEMON_ADDRESS", "127.0.0.1:50053")
+
+    typer.echo("[Runtime] Executing task via daemon")
 
     task_output = execute_task(
         task_hash=task_hash,
@@ -85,7 +69,6 @@ def run(
         daemon_address=daemon_address,
         block_registry=block_registry,
         artifact_hash=artifact_hash,
-        mode=execution_mode,
         worker_addresses=worker_addresses,
     )
 

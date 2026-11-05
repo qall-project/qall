@@ -21,11 +21,14 @@ from qall.config.paths import TASK_RUNTIME_WORKDIR
 logger = logging.getLogger(__name__)
 
 
-UNIFIED_FS = TASK_RUNTIME_WORKDIR / "unifs"
+UNIFIED_FS = TASK_RUNTIME_WORKDIR  # / "unifs"
 
 
 def setup_unifs() -> Path:
-    """Run this in the parent process before spawning the subprocess"""
+    """
+    Run this in the parent process before spawning the subprocess to setup shared directory.
+    WARNING: IT IS NOT INTENDED TO BE RUN DIRECTLY ON HOST, ONLY INSIDE RUNTIME CONTAINER.
+    """
     if not UNIFIED_FS.exists():
         logger.info(f"Creating unified FS root directory : {UNIFIED_FS}")
         UNIFIED_FS.mkdir(0o777, parents=True, exist_ok=True)
@@ -33,6 +36,10 @@ def setup_unifs() -> Path:
 
 
 def cleanup_unifs() -> bool:
+    """
+    Run this in the runtime container to cleanup shared directory.
+    WARNING: IT IS NOT INTENDED TO BE RUN DIRECTLY ON HOST, ONLY INSIDE RUNTIME CONTAINER.
+    """
     if not UNIFIED_FS.is_dir():
         logger.warning(
             f"The given unifs path '{UNIFIED_FS}' is not a directory or does not exist. Cleanup canceled."
