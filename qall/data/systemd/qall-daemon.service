@@ -1,0 +1,16 @@
+[Unit]
+Description=Qall daemon
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User={user}
+SupplementaryGroups=docker
+ExecStart={binary} --local --host-task-dir={block_registry} --block-registry-dir={block_registry} --artifact-registry-dir={artifact_registry}
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

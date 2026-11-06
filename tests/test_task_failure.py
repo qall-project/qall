@@ -114,7 +114,7 @@ def test_run_task_logs_stdout_stderr_on_error(caplog):
     fake_mgr.client = client
 
     with patch(
-        "qall.core.daemon.DockerDaemonManager",
+        "qall.core.daemon.get_daemon_manager",
         return_value=fake_mgr,
     ):
         with pytest.raises(RuntimeError, match="Task failed with status: ERROR"):
@@ -127,3 +127,5 @@ def test_run_task_logs_stdout_stderr_on_error(caplog):
     assert "task stdout line" in caplog.text
     assert "task stderr line" in caplog.text
     fake_mgr.task_logs.assert_called_once_with("run-12345678")
+    fake_mgr.ensure_running.assert_called_once_with()
+    fake_mgr.stop.assert_not_called()

@@ -20,6 +20,12 @@ from pathlib import Path
 from qall.object import Artifact, DaemonStatus, Daemon, TaskRunStatus
 from qall.daemon import DockerDaemonManager
 from qall_daemon_client.v1.objects import DataloaderEntry
+from qall.daemon import get_daemon_manager
+from qall.registry import BlockRegistry
+from qall.core.dataloader import (
+    provision_dataloader_file_for_task,
+    cleanup_dataloader_files,
+)
 from qall.provider import get_provider_login_credentials, ProviderCredentials
 from qall.config.paths import (
     DEFAULT_BLOCK_REGISTRY_PATH,
@@ -57,12 +63,12 @@ def start_daemon(
     port: int = 50053,
     block_registry_path: Optional[str | Path] = None,
     artifact_registry_path: Optional[str | Path] = None,
-    detach: bool = False,
+    backend: Optional[str] = None,
+    **manager_kwargs,
 ):
     """
-    Start a local Qall daemon in a docker container.
+    Start a local Qall daemon (Docker or systemd backend), then stream its logs.
     """
-
     block_registry_path = block_registry_path or DEFAULT_BLOCK_REGISTRY_PATH
     artifact_registry_path = artifact_registry_path or DEFAULT_ARTIFACT_REGISTRY_PATH
 
@@ -72,11 +78,12 @@ def start_daemon(
     block_path.mkdir(parents=True, exist_ok=True)
     artifact_path.mkdir(parents=True, exist_ok=True)
 
-    daemon_mgr = DockerDaemonManager(
-        local=True,
+    daemon_mgr = get_daemon_manager(
+        backend=backend,
         grpc_port=port,
         host_block_registry_path=str(block_path),
         host_artifact_registry_path=str(artifact_path),
+        **manager_kwargs,
     )
 
     if daemon_mgr.service_info():
@@ -84,27 +91,24 @@ def start_daemon(
 
     daemon_mgr.start()
 
-    if not detach:
-        with DockerDaemonManager(
-            local=True,
-            grpc_port=port,
-            host_block_registry_path=str(block_path),
-            host_artifact_registry_path=str(artifact_path),
-        ) as daemon_mgr:
-            logs = daemon_mgr.logs()
+    logger.info(f"Daemon started on port {port}")
 
-            logger.info(f"Daemon started on port {port}")
+    logs = daemon_mgr.logs()
+    if logs is None:
+        return
 
-            while logs:
-                logger.info(logs.next())
+    for line in logs:
+        logger.info(line.rstrip())
 
 
 def apply_resource_assignments(
     worker_definitions: Optional[list] = None,
     resource_assignments: Optional[dict] = None,
+    backend: Optional[str] = None,
+    **manager_kwargs,
 ):
     try:
-        daemon_mgr = DockerDaemonManager(local=True)
+        daemon_mgr = get_daemon_manager(backend=backend, **manager_kwargs)
 
         if worker_definitions:
             daemon_mgr.register_workers(worker_definitions)
@@ -118,14 +122,17 @@ def apply_resource_assignments(
         return
 
 
-def stop_daemon():
+def stop_daemon(port: int = 50053, backend: Optional[str] = None, **manager_kwargs):
     """
     Stops an already running local Qall daemon.
     """
 
     try:
-        daemon_mgr = DockerDaemonManager(local=True)
-        if not daemon_mgr.attach():
+        daemon_mgr = get_daemon_manager(
+            backend=backend, grpc_port=port, **manager_kwargs
+        )
+
+        if not daemon_mgr.is_running():
             logger.warning("No running daemon to stop.")
             return
 
@@ -139,17 +146,18 @@ def stop_daemon():
 
 def restart_daemon(
     port: int = 50053,
+    backend: Optional[str] = None,
+    **manager_kwargs,
 ):
     """
     Restarts an already running local Qall daemon.
     """
 
     try:
-        daemon_mgr = DockerDaemonManager(
-            grpc_port=port,
-            local=True,
+        daemon_mgr = get_daemon_manager(
+            backend=backend, grpc_port=port, **manager_kwargs
         )
-        if not daemon_mgr.attach():
+        if not daemon_mgr.is_running():
             raise RuntimeError("No active daemon container running.")
 
         logger.info("Restarting daemon...")
@@ -168,6 +176,8 @@ def get_daemon_status(
     daemon_address: Optional[str] = None,
     block_registry: Optional[str] = None,
     artifact_registry: Optional[str] = None,
+    backend: Optional[str] = None,
+    **manager_kwargs,
 ) -> Daemon:
     """
     Retrieve the status of a daemon instance.
@@ -190,11 +200,12 @@ def get_daemon_status(
     artifact_registry = Path(artifact_registry).resolve()
 
     try:
-        daemon_mgr = DockerDaemonManager(
-            local=True,
+        daemon_mgr = get_daemon_manager(
+            backend=backend,
             grpc_port=port,
             host_block_registry_path=str(block_registry),
             host_artifact_registry_path=str(artifact_registry),
+            **manager_kwargs,
         )
 
         if daemon_mgr.service_info():
@@ -216,6 +227,8 @@ def run_task(
     provider_credentials: Optional[ProviderCredentials] = None,
     dataloaders: Optional[list] = None,
     timeout: int = 300,
+    backend: Optional[str] = None,
+    **manager_kwargs,
 ) -> list[Artifact]:
     """
     Orders a local Daemon instance to start and execute a given task.
@@ -256,16 +269,14 @@ def run_task(
         block_registry = Path(block_registry).resolve()
         artifact_registry = Path(artifact_registry).resolve()
 
-        daemon_mgr = DockerDaemonManager(
-            local=True,
+        daemon_mgr = get_daemon_manager(
+            backend=backend,
             grpc_port=port,
             host_block_registry_path=str(block_registry),
             host_artifact_registry_path=str(artifact_registry),
+            **manager_kwargs,
         )
-
-        if not daemon_mgr.service_info():
-            logger.info("Daemon not running, starting it...")
-            daemon_mgr.start()
+        daemon_mgr.ensure_running()
 
         logger.info(f"Daemon ready at {daemon_address}")
 
@@ -317,5 +328,9 @@ def run_task(
                     f"Task ended with unexpected status: {task_run.status.name}"
                 )
     finally:
-        if daemon_mgr:
-            daemon_mgr.stop()
+        # cleanup_dataloader_files(dataloader_files)
+        pass
+
+        # Intentionally leave the daemon running after the task: subsequent
+        # task runs reuse it, and only an explicit stop_daemon() /
+        # `qall daemon stop` stops it.
