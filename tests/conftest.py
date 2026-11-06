@@ -98,15 +98,22 @@ class DaemonStack:
         input_data=None,
         *,
         workflow_run_id: str | None = None,
+        dataloaders: list[dict] | None = None,
         timeout: float = 120.0,
     ):
         """
         Upload an optional input artifact and run ``task_hash`` via the daemon.
 
+        ``dataloaders`` is a flat list of ``{task_hash, name, src, dst,
+        credentials}`` dicts, forwarded on the root ``CreateTaskRun`` request
+        (the daemon turns each remote entry into an rclone-backed volume mounted
+        at ``/<dst>``).
+
         Returns the unpickled output value (or ``None`` when the task wrote no
         artifact). Raises ``AssertionError`` when the run does not complete.
         """
         from qall_daemon_client import GrpcDaemonClient, TaskRunStatus
+        from qall_daemon_client.v1.objects import DataloaderEntry
 
         workflow_run_id = workflow_run_id or str(uuid.uuid4())
 
@@ -123,6 +130,7 @@ class DaemonStack:
                 task_hash=task_hash,
                 workflow_run_id=workflow_run_id,
                 artifact_hash=artifact_hash,
+                dataloaders=[DataloaderEntry(**entry) for entry in (dataloaders or [])],
             )
 
             completed = client.wait_for_task_run(

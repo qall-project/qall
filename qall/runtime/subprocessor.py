@@ -12,6 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Run a task entrypoint in a dedicated subprocess.
+
+The subprocess only receives the task source (plus worker bootstrap code); it
+runs as-is inside the task container. Dataloaders need no in-process bootstrap:
+the daemon creates an rclone-backed Docker volume per
+``(workflow_run_id, dataloader_name)`` and mounts it at ``/<dst>`` in the task
+container, so ``Path("/<dst>")`` is served by the kernel.
+"""
+
 from pathlib import Path
 import os
 import subprocess
@@ -31,7 +41,6 @@ def run_task_in_subprocess(
     entrypoint_name: str,
     input_artifact: Optional[bytes] = None,
     worker_addresses: Optional[list[str]] = None,
-    dataloaders_file: Optional[str] = None,
     interpreter: Optional[str] = None,
 ) -> dict:
 
@@ -56,36 +65,6 @@ def run_task_in_subprocess(
             init_workers_code = ""
             stop_workers_code = "pass"
 
-        # Dataloaders are read by the subprocess from the resolved-secrets file
-        # whose path the executor already prepared — the daemon-mounted
-        # /run/secrets/qall_dataloaders (path passed via QALL_DATALOADERS_PATH)
-        # in the daemon path, or a local per-task file in the client-side
-        # fallback — which contains *resolved* credentials. The wrapper only
-        # references the file path, so plaintext credentials never appear in
-        # the wrapper code or in env vars, and no host keyring is needed inside
-        # the container.
-        dataloader_bootstrap_code = ""
-        if dataloaders_file:
-            dataloader_bootstrap_code = textwrap.dedent(f"""
-                _dl_path = {dataloaders_file!r}
-                if _dl_path and os.path.exists(_dl_path):
-                    import json as _json
-                    from qall.runtime.dataloader import bind_dataloaders as _bind
-                    with open(_dl_path, encoding="utf-8") as _f:
-                        _dl_map = _json.load(_f)
-                    _dl_specs = [
-                        {{
-                            "name": _name,
-                            "src": _spec["src"],
-                            "dst": _spec["dst"],
-                            "secrets": _spec.get("creds", {{}}),
-                        }}
-                        for _name, _spec in _dl_map.items()
-                    ]
-                    _bind(_dl_specs) #, sandbox_root=os.getcwd())
-                    print("[Executor] Bound dataloader(s) to task filesystem.")
-                """)
-
         wrapper_code = f"""
 import asyncio
 import cloudpickle
@@ -93,7 +72,6 @@ import os
 import qall
 import sys
 
-{dataloader_bootstrap_code}
 {source_code}
 
 {init_workers_code}

@@ -7,10 +7,22 @@
    Make sure to create a `qall-network` and attach it to the MinIO container.
    Run MinIO container (or its drop-in open replacement, pgsty/silo).
 
-2. Define the dataloader. `src` points at the bucket prefix to bind, `dst` is
-   the virtual mount point the task uses (`Path("local_minio")`). Credentials
-   are **prompted for by default** (so they never leak into your shell
-   history); flags are still supported for automation:
+2. Check/install the host prerequisites of remote dataloaders (`fuse` and the
+   `rclone` Docker volume plugin):
+
+   ```sh
+   qall dataloader setup --check   # report what is missing
+   qall dataloader setup           # install it (asks for confirmation)
+   ```
+
+3. Create the bucket **upfront** (`mc mb qall-dataloader-demo` or the console):
+   the rclone volume mounts an existing bucket, it does not create it.
+
+4. Define the dataloader. `src` points at the bucket prefix to bind, `dst` is
+   the mount point the task sees at the filesystem root: `dst=local_minio` is
+   available as **`/local_minio`** inside the task. Credentials are **prompted
+   for by default** (so they never leak into your shell history); flags are
+   still supported for automation:
 
    ```sh
    # interactive (default): stores in the global config, prompts for
@@ -32,13 +44,11 @@
    ```
 
    Use the MinIO root credentials you configured.
-   The bucket is created on first write (s3fs auto-creates it); you can also
-   create it upfront with `mc mb qall-dataloader-demo` or the console.
 
-3. Run the workflow locally (daemon path):
+5. Run the workflow locally (daemon path):
 
    ```sh
-   qall run qall/examples/6_minio_dataloader/main.py --local
+   qall run qall/examples/5_minio_dataloader/main.py --local
    ```
 
    The task downloads the image, writes it to

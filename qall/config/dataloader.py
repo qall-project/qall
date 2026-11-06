@@ -45,23 +45,6 @@ LEGACY_CONFIG_PATH = QALL_CONFIG_DIR / "qall-config.json"
 # Default filename of the per-project (local) config file.
 _DEFAULT_LOCAL_CONFIG_FILENAME = ".qall.yml"
 
-# Conventioned mount point where the client provisions one resolved-secrets
-# file per task (`<task_hash>.json`) that references dataloaders. The directory
-# is bind-mounted read-only into every task container by the daemon, so the
-# task runtime reads its dataloaders from here. Secrets never pass through the
-# daemon's control plane nor appear in env vars / wrapper code.
-#
-# This is deliberately a TOP-LEVEL /tmp path, NOT a subdirectory of the
-# daemon's token dir (/tmp/qall-secrets). The daemon runs as root and owns
-# that token tree; a nested dataloaders subdirectory would be created root-owned
-# (0700) and become unusable by the unprivileged client. Being its own
-# client-owned directory, this path is never touched by the daemon.
-_DEFAULT_DATALOADERS_SECRETS_DIR = Path("/tmp/qall-dataloaders")
-
-# Permissions of the secrets directory (0700) and of each secrets file (0400).
-_SECRETS_DIR_MODE = 0o700
-_SECRETS_FILE_MODE = 0o400
-
 
 def normalize_scope(scope: str) -> str:
     """Validates a dataloader config scope identifier."""
@@ -298,60 +281,3 @@ def resolve_secrets(dl: Dataloader) -> dict:
 def delete_secrets(scope: str, name: str) -> None:
     """Removes the dataloader's secrets from the host keyring."""
     delete_token(KEYRING_DATALOADER_SERVICE, _keyring_user(scope, name))
-
-
-### Task-secrets provisioning (shared mount) ###
-
-
-def dataloaders_secrets_dir() -> Path:
-    """
-    Root directory holding one resolved-secrets file per task that references
-    dataloaders. Env-overridable (``QALL_DATALOADERS_DIR``) for testing and for
-    non-standard container layouts.
-    """
-    override = os.environ.get("QALL_DATALOADERS_DIR")
-    return Path(override) if override else _DEFAULT_DATALOADERS_SECRETS_DIR
-
-
-def dataloader_secrets_path(task_hash: str) -> Path:
-    """Path of the resolved-secrets file for a given task hash."""
-    return dataloaders_secrets_dir() / f"{task_hash}.json"
-
-
-def write_dataloader_secrets(task_hash: str, specs: dict) -> Path:
-    """
-    Atomically writes the resolved dataloader specs of a task to the shared
-    mount (dir ``0700``, file ``0400``). ``specs`` maps each dataloader name to
-    ``{"src": ..., "dst": ..., "creds": {resolved...}}``.
-    """
-    path = dataloader_secrets_path(task_hash)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    os.chmod(path.parent, _SECRETS_DIR_MODE)
-    tmp = path.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(specs, indent=2) + "\n", encoding="utf-8")
-    os.chmod(tmp, _SECRETS_FILE_MODE)
-    tmp.replace(path)
-    logger.info(f"Provisioned dataloader secrets for task {task_hash} at {path}")
-    return path
-
-
-def read_dataloader_secrets(task_hash: str) -> Optional[dict]:
-    """
-    Reads the resolved dataloader specs provisioned for ``task_hash``, or
-    ``None`` when no such file exists (e.g. daemonless path, or task without
-    dataloaders).
-    """
-    path = dataloader_secrets_path(task_hash)
-    if not path.exists():
-        return None
-    with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def cleanup_dataloader_secrets(paths) -> None:
-    """Best-effort removal of the given provisioned secrets files."""
-    for path in paths:
-        try:
-            Path(path).unlink(missing_ok=True)
-        except OSError as e:
-            logger.warning(f"Failed to remove dataloader secrets {path}: {e}")

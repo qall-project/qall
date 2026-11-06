@@ -16,9 +16,9 @@ from __future__ import annotations
 import logging
 
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from qall.object import Dataloader
+from qall.object import Dataloader, normalize_dst
 from qall.config.dataloader import (
     ensure_config,
     load_config,
@@ -29,6 +29,9 @@ from qall.config.dataloader import (
     resolve_secrets,
 )
 from qall.runtime.dataloader import check_reachable
+
+if TYPE_CHECKING:
+    from qall.daemon.dependencies import DependencyReport
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +53,11 @@ def add_dataloader(
     Dataloader.validate_name(name)
     creds = dict(creds or {})
 
-    if not src or not dst:
-        raise ValueError("dataloader 'src' and 'dst' are required.")
+    if not src:
+        raise ValueError("dataloader 'src' is required.")
+    # The daemon mounts the normalised, relative form at "/<dst>". Store it so
+    # every consumer (CLI, daemon spec resolution) agrees on the same target.
+    dst = normalize_dst(dst)
 
     if validate and not check_reachable(src, creds):
         raise ValueError(
@@ -113,7 +119,7 @@ def update_dataloader(
         raise ValueError(f"No dataloader named {name!r} found in the {scope} config.")
 
     new_src = src if src is not None else current.src
-    new_dst = dst if dst is not None else current.dst
+    new_dst = normalize_dst(dst if dst is not None else current.dst)
 
     if creds is not None:
         # Merge the explicitly-provided plaintext over the currently resolved
@@ -231,6 +237,50 @@ def validate_dataloader(name: str) -> bool:
     return check_reachable(dl.src, resolve_secrets(dl))
 
 
+### Dataloader host dependencies (thin daemon-layer wrappers) ###
+
+
+def check_dataloader_host_dependencies() -> "DependencyReport":
+    """
+    Inspects the host prerequisites needed to mount dataloaders (Docker, FUSE
+    and the rclone Docker volume plugin) without changing anything.
+
+    Delegates to :mod:`qall.daemon.dependencies`, imported lazily so this module
+    stays importable without the Docker SDK.
+    """
+    from qall.daemon.dependencies import check_dataloader_dependencies
+
+    return check_dataloader_dependencies()
+
+
+def setup_dataloader_host_dependencies(
+    check_only: bool = False,
+    assume_yes: bool = False,
+    dry_run: bool = False,
+) -> "DependencyReport":
+    """
+    Checks the dataloader host dependencies and, unless ``check_only`` is set,
+    installs the fixable ones (FUSE package, rclone Docker volume plugin).
+
+    Installation is privileged and therefore requires ``assume_yes=True``.
+    ``dry_run`` reports the commands that would run without executing them.
+    Returns the final report after the optional installation.
+    """
+    from qall.daemon.dependencies import (
+        check_dataloader_dependencies,
+        install_dataloader_dependencies,
+    )
+
+    report = check_dataloader_dependencies()
+    if check_only:
+        return report
+
+    install_dataloader_dependencies(
+        report=report, assume_yes=assume_yes, dry_run=dry_run
+    )
+    return check_dataloader_dependencies()
+
+
 ### Dataloader resolution for daemon task execution ###
 
 
@@ -263,10 +313,11 @@ def resolve_dataloaders_by_task(dag) -> list[dict]:
     Resolves every dataloader referenced by a pushed workflow DAG into the flat
     list sent to the daemon on the run's root CreateTaskRunRequest:
     ``[{task_hash, name, src, dst, credentials}]``. ``credentials`` hold the
-    plaintext resolved from the host keyring; the daemon writes each task's own
-    entries into its per-task-run secrets file and mounts them into the task
-    container. Tasks that reference no dataloader contribute no entries. Raises
-    ``ValueError`` when a referenced dataloader is not defined.
+    plaintext resolved from the host keyring; the daemon creates one
+    rclone-backed volume per ``(workflow_run_id, dataloader_name)`` and mounts
+    each task's own entries at ``/<dst>`` in its container. Tasks that reference
+    no dataloader contribute no entries. Raises ``ValueError`` when a referenced
+    dataloader is not defined.
     """
     entries: list[dict] = []
     for node in dag.nodes:

@@ -7,7 +7,7 @@ Requires=docker.service
 Type=simple
 User={user}
 SupplementaryGroups=docker
-ExecStart={binary} --local --host-task-dir={block_registry} --block-registry-dir={block_registry} --artifact-registry-dir={artifact_registry}
+ExecStart={binary} --local --host-task-dir={block_registry} --block-registry-dir={block_registry} --artifact-registry-dir={artifact_registry} --host-volumes-root={host_volumes_root}
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=60

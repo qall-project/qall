@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import ast
-import json
 import os
 import signal
 import sys
@@ -30,11 +29,6 @@ from qall.object import (
 from qall.registry import BlockRegistry
 from qall.runtime import ArtifactBackend
 from qall.runtime.subprocessor import run_task_in_subprocess
-from qall.config.dataloader import (
-    dataloader_secrets_path,
-    read_dataloader_secrets,
-    write_dataloader_secrets,
-)
 from qall.runtime.unifs import cleanup_unifs
 
 
@@ -115,15 +109,12 @@ class TaskRuntimeExecutor:
         print("[Executor] Processing source...")
         source = _get_source(payload)
 
-        dataloaders_file = None
-        dataloaders_provisioned = False
+        # Dataloaders are kernel-mounted by the daemon at /<dst> in this
+        # container: nothing to provision or bootstrap here.
         if metadata.dataloaders:
-            dataloaders_file, dataloaders_provisioned = self._prepare_dataloaders_file(
-                metadata.dataloaders
-            )
             print(
-                f"[Executor] Resolved dataloader(s) {metadata.dataloaders} "
-                f"(secrets at {dataloaders_file})."
+                f"[Executor] Dataloader(s) {metadata.dataloaders} are mounted by "
+                "the daemon."
             )
 
         proxy_functions = []
@@ -156,15 +147,8 @@ class TaskRuntimeExecutor:
                 entrypoint_name=metadata.name,
                 input_artifact=input_artifact,
                 worker_addresses=self.__worker_addresses,
-                dataloaders_file=str(dataloaders_file) if dataloaders_file else None,
             )
         finally:
-            # In the daemonless path the executor provisioned the secrets file
-            # itself; remove it so nothing sensitive lingers after the run. In
-            # the daemon path the file was provisioned by the host client,
-            # which is responsible for cleaning it up.
-            if dataloaders_file and dataloaders_provisioned:
-                dataloaders_file.unlink(missing_ok=True)
             if metadata.entrypoint:
                 cleanup_unifs()
 
@@ -186,55 +170,6 @@ class TaskRuntimeExecutor:
             output_artifact_hash=output_artifact_hash,
             output_artifact_bytes=output_artifact_bytes,
         )
-
-    def _prepare_dataloaders_file(
-        self, names: list[str]
-    ) -> tuple[Optional[Path], bool]:
-        """
-        Ensures the resolved-secrets file for this task exists and returns
-        ``(path, provisioned_here)``.
-
-        In the daemon/container path the file was written by the daemon into
-        the per-task-run secrets store and its location is passed in
-        ``QALL_DATALOADERS_PATH`` (bind-mounted at
-        ``/run/secrets/qall_dataloaders``); it is read as-is
-        (``provisioned_here`` is ``False``), and a missing file is an error.
-        In the client-side fallback path it is resolved from the local config
-        + keyring and written here so the subprocess reads it uniformly.
-        Raises ``ValueError`` when a referenced dataloader is not defined.
-        """
-        daemon_path = os.environ.get("QALL_DATALOADERS_PATH")
-        if daemon_path:
-            path = Path(daemon_path)
-            if not path.is_file():
-                raise ValueError(
-                    f"Dataloader secrets file {path} is missing: expected the "
-                    "daemon to mount it at QALL_DATALOADERS_PATH."
-                )
-            with path.open("r", encoding="utf-8") as f:
-                secrets = json.load(f)
-            provisioned_here = False
-        else:
-            path = dataloader_secrets_path(self.__task_hash)
-            secrets = read_dataloader_secrets(self.__task_hash)
-            if secrets is None:
-                from qall.core.dataloader import resolve_dataloader_specs
-
-                write_dataloader_secrets(
-                    self.__task_hash, resolve_dataloader_specs(names)
-                )
-                secrets = read_dataloader_secrets(self.__task_hash) or {}
-                provisioned_here = True
-            else:
-                provisioned_here = False
-
-        missing = [name for name in names if name not in secrets]
-        if missing:
-            raise ValueError(
-                f"Task references dataloader(s) {missing} but no secrets were "
-                "provisioned for them (see `qall dataloader add`)."
-            )
-        return path, provisioned_here
 
     def _create_proxy_function(
         self,

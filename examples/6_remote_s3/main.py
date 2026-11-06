@@ -6,6 +6,11 @@ from PIL import Image
 
 from qall import task, workflow
 
+# This example needs a dataloader named 'scw_s3' bound to a bucket, with dst='bucket'
+# (i.e. `qall dataloader add scw_s3 s3://<your_bucket> bucket`). Remote dataloaders are
+# mounted by the daemon through the rclone Docker volume plugin, so dst='bucket' is
+# visible as '/bucket' inside every task of this workflow (run `qall dataloader setup` first).
+
 
 def write_img_array(arr: np.ndarray, filepath: Path):
     import io
@@ -19,7 +24,7 @@ def write_img_array(arr: np.ndarray, filepath: Path):
 @task(dataloaders=["scw_s3"])
 def download_images() -> list[str]:
 
-    remote_path = Path("dataloaders") / "bucket" / "SIDD"
+    remote_path = Path("/bucket") / "SIDD"
     local_path = Path("unifs") / "noisy_images"
     local_path.mkdir(exist_ok=True)
 
@@ -99,7 +104,7 @@ def process_images(images_files: list[str]) -> list[str]:
 @task(dataloaders=["scw_s3"])
 def upload_images(processed_images_files: list[str]) -> int:
 
-    path = Path("dataloaders") / "bucket" / "processed_images"
+    path = Path("/bucket") / "processed_images"
     path.mkdir(exist_ok=True)
 
     counter = 0

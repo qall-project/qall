@@ -26,21 +26,39 @@ from docker.models.containers import Container
 from qall.config.paths import (
     DEFAULT_BLOCK_REGISTRY_PATH,
     DEFAULT_ARTIFACT_REGISTRY_PATH,
-    HOST_VOLUMES_ROOT,
+    host_volumes_root,
 )
 
 from .base_manager import BaseDaemonManager
 
 logger = logging.getLogger(__name__)
 
-# _DEFAULT_IMAGE = "scw/qall-daemon:latest"
-_DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project/qall-daemon:latest"
+_DEFAULT_IMAGE = "scw/qall-daemon:latest"
+# _DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project/qall-daemon:latest"
 
 # In-container paths where the host block/artifact registries are bind-mounted.
 # The daemon reads its local block store / writes artifacts & its metadata DB
 # from these (flags `-block-registry-dir` / `-artifact-registry-dir`).
 _BLOCK_REGISTRY_MOUNT = "/block-registry"
 _ARTIFACT_REGISTRY_MOUNT = "/artifact-registry"
+
+# Docker daemon flag telling the daemon where the host volume root lives (both
+# on the host and at the exact same path inside the daemon container).
+_HOST_VOLUMES_ROOT_FLAG = "--host-volumes-root"
+
+
+def dataloader_volumes_dir(root: Path | None = None) -> Path:
+    """
+    Host directory under which the daemon creates one sub-directory per
+    ``(workflow_run_id, dataloader_name)`` pair backing its rclone volumes.
+
+    Single source of truth for the bind mount, the daemon flag and the tests:
+    it derives from :func:`qall.config.paths.host_volumes_root` (env-overridable
+    via ``QALL_HOST_VOLUMES_ROOT``) and canonicalises the resulting path so it
+    matches the string handed to Docker (macOS: ``/tmp`` -> ``/private/tmp``).
+    """
+    base = Path(root) if root is not None else host_volumes_root()
+    return base.resolve() / "dataloaders"
 
 
 class DockerDaemonManager(BaseDaemonManager):
@@ -65,9 +83,20 @@ class DockerDaemonManager(BaseDaemonManager):
         self.__host_block_registry_path = str(host_block_registry_path)
         self.__host_artifact_registry_path = str(host_artifact_registry_path)
 
+        # Ad-hoc host directories bind-mounted 1:1 into the daemon container.
+        # The root is canonicalised ONCE here: on macOS `/tmp` is a symlink to
+        # `/private/tmp`, and the very same string must be used as the bind
+        # source, the bind target and the daemon flag so the host, the
+        # containerised daemon and the containerd/rclone plugin all agree.
+        root = host_volumes_root().resolve()
+        self.__host_volumes_root = str(root)
+
         # Temporary fix to create the necessary unifs volume while the daemon is still dockerized.
         # Remove this line once the daemon is out of its container and can run its own unifs creation logic.
-        self.__unifs = HOST_VOLUMES_ROOT / "unifs"
+        self.__unifs = root / "unifs"
+        # Per-(workflow_run_id, dataloader_name) bookkeeping for the volumes the
+        # daemon creates through the rclone Docker volume plugin.
+        self.__dataloaders = dataloader_volumes_dir(root)
 
         try:
             self.__docker_client = docker.from_env()
@@ -172,6 +201,10 @@ class DockerDaemonManager(BaseDaemonManager):
                 # task containers via /var/run/docker.sock.
                 f"--block-registry-dir={_BLOCK_REGISTRY_MOUNT}",
                 f"--artifact-registry-dir={_ARTIFACT_REGISTRY_MOUNT}",
+                # Root under which the daemon creates its per-(run, dataloader)
+                # host directories. Mounted 1:1 below, so the same path is valid
+                # on the host, in the daemon and in the rclone plugin.
+                f"{_HOST_VOLUMES_ROOT_FLAG}={self.__host_volumes_root}",
             ]
 
             if self.__local:
@@ -185,9 +218,10 @@ class DockerDaemonManager(BaseDaemonManager):
                 return
 
             # Pre-create the host dirs the (root) daemon container needs but
-            # must not own: the shared per-workflow-run filesystem (unifs) and
-            # the block registry shard root, so client-side pushes stay
-            # possible after the daemon starts.
+            # must not own: the shared per-workflow-run filesystem (unifs), the
+            # per-(run, dataloader) volumes bookkeeping directory and the block
+            # registry shard root, so client-side pushes stay possible after
+            # the daemon starts.
             self._create_host_volumes()
 
             dev_dir = os.environ.get("QALL_DEV_DIR")
@@ -211,6 +245,10 @@ class DockerDaemonManager(BaseDaemonManager):
                 },
                 str(self.__unifs): {
                     "bind": str(self.__unifs),
+                    "mode": "rw",
+                },
+                str(self.__dataloaders): {
+                    "bind": str(self.__dataloaders),
                     "mode": "rw",
                 },
             }
@@ -337,7 +375,21 @@ class DockerDaemonManager(BaseDaemonManager):
     #     raise TimeoutError("The Qall daemon did not respond within the allocated time.")
 
     def _create_host_volumes(self):
-        self.__unifs.mkdir(mode=0o777, parents=True, exist_ok=True)
+        # Both dirs are created as the (unprivileged) client user, before the
+        # root daemon container starts: the daemon must be able to create
+        # children inside them, while cleanup after a run stays possible for
+        # the client (a root-owned parent would block that).
+        # The mode passed to mkdir() is masked by the process umask, so the
+        # 0777 intent is enforced explicitly afterwards.
+        for directory in (self.__unifs, self.__dataloaders):
+            directory.mkdir(mode=0o777, parents=True, exist_ok=True)
+            try:
+                os.chmod(directory, 0o777)
+            except OSError as e:
+                # A leftover root-owned dir from a previous daemon run cannot be
+                # chmodded by the unprivileged client; the root daemon can still
+                # use it, and it is recreated on the next successful teardown.
+                logger.warning(f"Could not relax permissions on {directory}: {e}")
 
         # Pre-create the block registry shard root as the client user, before
         # the (root) daemon container starts. The daemon's blockstore calls
@@ -350,10 +402,17 @@ class DockerDaemonManager(BaseDaemonManager):
         blocks_dir.mkdir(parents=True, exist_ok=True)
 
     def _teardown_host_volumes(self):
-        try:
-            shutil.rmtree(self.__unifs)
-        except FileNotFoundError:
-            pass
+        # Both trees are best-effort: sub-directories under `dataloaders/` are
+        # created by the root daemon / rclone plugin (and may hold root-owned
+        # FUSE cache entries), so an unprivileged rmtree legitimately fails
+        # sometimes. Never let cleanup raise out of a stop().
+        for directory in (self.__unifs, self.__dataloaders):
+            try:
+                shutil.rmtree(directory, ignore_errors=True)
+            except OSError as e:
+                logger.warning(
+                    f"Could not fully remove host volume directory {directory}: {e}"
+                )
 
     def service_info(self) -> bool:
         """

@@ -20,6 +20,8 @@ from importlib.resources import files as resource_files
 from pathlib import Path
 from typing import Iterator, Optional
 
+from qall.config.paths import host_volumes_root
+
 from .base_manager import BaseDaemonManager
 
 logger = logging.getLogger(__name__)
@@ -117,6 +119,11 @@ class SystemdDaemonManager(BaseDaemonManager):
             unit_dir or (SYSTEM_UNIT_DIR if system_scope else USER_UNIT_DIR)
         )
         self._ctl = systemd_ctl_args(scope)
+
+        # Canonicalised once: the daemon creates per-(run, dataloader) host
+        # directories under this root, so the value baked into the unit must be
+        # the real path (macOS: /tmp -> /private/tmp).
+        self.host_volumes_root = str(host_volumes_root().resolve())
 
     @property
     def unit_file(self) -> Path:
@@ -243,12 +250,14 @@ class SystemdDaemonManager(BaseDaemonManager):
                 binary=self.daemon_binary,
                 block_registry=self.host_block_registry_path,
                 artifact_registry=self.host_artifact_registry_path,
+                host_volumes_root=self.host_volumes_root,
             )
         template = _load_unit_template(_USER_UNIT_TEMPLATE_RESOURCE)
         return template.format(
             binary=self.daemon_binary,
             block_registry=self.host_block_registry_path,
             artifact_registry=self.host_artifact_registry_path,
+            host_volumes_root=self.host_volumes_root,
         )
 
     @staticmethod

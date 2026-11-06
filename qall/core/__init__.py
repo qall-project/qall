@@ -40,6 +40,8 @@ from .dataloader import (
     get_dataloader,
     get_dataloaders_for_names,
     validate_dataloader,
+    check_dataloader_host_dependencies,
+    setup_dataloader_host_dependencies,
     resolve_dataloader_specs,
     resolve_dataloaders_by_task,
 )

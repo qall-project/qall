@@ -57,6 +57,46 @@ so secrets don't leak into shell history. Flags still work for automation and
 skip their matching prompt; `--no-prompt` disables prompting entirely. For
 `update`, leaving a prompt empty keeps the currently stored value.
 
+# Dataloader runtime (mounting)
+
+A dataloader is bound into a task as a **real kernel mount**, so task code reads
+and writes plain POSIX paths — no import hooks, no monkeypatching.
+
+- `dst` is a root-based name: `qall dataloader add s3prod s3://bucket/prefix data`
+  exposes the bucket at **`/data`** inside every task that declares the
+  dataloader (`dst` is normalised: `./data/`, `data` and `/data/` are the same;
+  empty, `/` and `..` are rejected).
+- Mounting happens **exclusively in the daemon**, when a task run is created. The
+  client resolves the credentials from the host keyring and sends them on the
+  run's `CreateTaskRun` request; the daemon creates an `rclone` Docker volume for
+  each `(workflow_run_id, dataloader_name)` pair and mounts it into the task
+  container. The volume is released when the last task of the run using it ends.
+- `file://` (and bare absolute) sources are not remote: the daemon bind-mounts
+  them read-only at the same path, with no host dependency.
+
+Host prerequisites (only for remote sources):
+
+| Dependency | Why | Notes |
+|---|---|---|
+| `fuse3` (`/dev/fuse`, `fusermount3`) | rclone serves the volume through FUSE | On macOS it lives inside the Docker Desktop VM, nothing to install on the host |
+| `rclone` Docker volume plugin (alias `rclone`) | the volume driver | `docker plugin install rclone/docker-volume-rclone:<arch> --alias rclone --grant-all-permissions` |
+
+`qall dataloader setup --check` reports their state and `qall dataloader setup`
+installs whatever is missing (never implicit: running a workflow only *checks*
+and raises an actionable `DataloaderDependencyError`). The same is available
+programmatically through `qall.setup_dataloader_host_dependencies(...)` /
+`qall.daemon.dependencies.install_dataloader_dependencies(...)`. The daemon
+re-checks at runtime and reports a structured `FailedPrecondition` error if the
+plugin disappeared, so a broken host never turns into a raw Docker panic or a
+hang.
+
+The daemon gets a host directory for this bookkeeping at
+`<HOST_VOLUMES_ROOT>/dataloaders` (`/tmp/qall/dataloaders` by default,
+`QALL_HOST_VOLUMES_ROOT` to override), bind-mounted 1:1 into the containerised
+daemon (`-host-volumes-root`). The daemon creates one sub-directory per
+`(workflow_run_id, dataloader_name)` there and uses it as the rclone VFS cache
+directory.
+
 # Package hierarchy
 
 `sdk`: SDK API used for workflow execution

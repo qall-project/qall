@@ -93,5 +93,23 @@ def _configure_pyan_logging() -> None:
 _configure_pyan_logging()
 
 from qall.sdk import task, workflow, run
+from qall.exceptions import (
+    QallError,
+    DataloaderError,
+    DataloaderConfigError,
+    DataloaderDependencyError,
+    DataloaderMountError,
+)
+from qall.core.dataloader import setup_dataloader_host_dependencies
 
-__all__ = ["task", "workflow", "run"]
+__all__ = [
+    "task",
+    "workflow",
+    "run",
+    "QallError",
+    "DataloaderError",
+    "DataloaderConfigError",
+    "DataloaderDependencyError",
+    "DataloaderMountError",
+    "setup_dataloader_host_dependencies",
+]

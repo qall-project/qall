@@ -17,6 +17,8 @@ import dataclasses
 import re
 
 from dataclasses import dataclass, field
+from urllib.parse import urlparse
+
 from dataclasses_json import dataclass_json
 
 # Credential keys considered sensitive: their plaintext value never lands in the
@@ -171,3 +173,53 @@ def credential_fields_for_protocol(protocol: str) -> list[dict]:
     unknown scheme return ``[]`` (no prompts, credentials via flags only).
     """
     return list(_CREDENTIAL_FIELD_PROTOCOLS.get((protocol or "").lower(), []))
+
+
+### Mount-point normalisation (mirrored by the daemon) ###
+
+
+def normalize_dst(dst: str) -> str:
+    """
+    Normalises a dataloader mount point into a safe *relative* path.
+
+    ``"./my_data/"``, ``"my_data"`` and ``"/my_data/"`` are equivalent, and the
+    daemon mounts the result at ``/<normalised>`` inside the task container
+    (``dst="my_bucket"`` -> ``/my_bucket``). Empty targets, absolute-only
+    targets (``"/"``) and ``..`` traversal are rejected.
+
+    This is the single source of truth on the SDK side; the daemon implements
+    the exact same rule in ``normalizeDst`` (Go) because it builds the mount
+    target itself. Keep both in sync.
+    """
+    if dst is None or not str(dst).strip():
+        raise ValueError("dataloader dst must not be empty.")
+    norm = str(dst).replace("\\", "/").strip()
+    while norm.startswith("./"):
+        norm = norm[2:]
+    norm = norm.strip("/")
+    if not norm:
+        raise ValueError(
+            f"dataloader dst {dst!r} must point to a sub-directory, not the root."
+        )
+    parts = norm.split("/")
+    if ".." in parts:
+        raise ValueError(
+            f"dataloader dst {dst!r} must not contain '..' path traversal."
+        )
+    norm = "/".join(p for p in parts if p not in ("", "."))
+    if not norm:
+        raise ValueError(f"dataloader dst {dst!r} normalized to an empty mount point.")
+    return norm
+
+
+def is_remote_src(src: str) -> bool:
+    """
+    Returns True when ``src`` targets a *remote* object storage (``s3://``,
+    ``gs://``, ``az://``, ...), i.e. when binding it needs a kernel mount
+    (rclone/FUSE) rather than a plain host bind mount.
+
+    ``file://`` and bare local paths are not remote: the daemon bind-mounts them
+    read-only without any host dependency.
+    """
+    scheme = (urlparse(src or "").scheme or "").lower()
+    return bool(scheme) and scheme != "file"

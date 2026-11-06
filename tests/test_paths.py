@@ -56,3 +56,18 @@ def test_registry_defaults_to_single_source_of_truth():
     import qall.registry.block_registry as br
 
     assert br.BlockRegistry.__init__.__defaults__[0] == DEFAULT_BLOCK_REGISTRY_PATH
+
+
+def test_host_volumes_root_defaults_and_env_override(monkeypatch):
+    """The host volumes root is one env-overridable knob for unifs + dataloaders."""
+    from qall.config import paths
+
+    monkeypatch.delenv("QALL_HOST_VOLUMES_ROOT", raising=False)
+    assert paths.HOST_VOLUMES_ROOT == paths.DEFAULT_HOST_VOLUMES_ROOT
+    assert paths.host_volumes_root() == paths.DEFAULT_HOST_VOLUMES_ROOT
+
+    monkeypatch.setenv("QALL_HOST_VOLUMES_ROOT", "/tmp/other-qall")
+    assert paths.host_volumes_root() == Path("/tmp/other-qall")
+
+    monkeypatch.setenv("QALL_HOST_VOLUMES_ROOT", "~/qall-vols")
+    assert paths.host_volumes_root() == Path("~/qall-vols").expanduser()

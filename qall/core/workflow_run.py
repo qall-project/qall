@@ -216,8 +216,9 @@ def create_workflow_run(
         start = datetime.datetime.now()
         try:
             # Resolve the whole DAG's dataloader credentials and hand them to
-            # the daemon on the root CreateTaskRunRequest; the daemon mounts
-            # each task's own entries into its container's secrets file.
+            # the daemon on the root CreateTaskRunRequest; the daemon creates
+            # one rclone-backed volume per (run, dataloader) and mounts each
+            # task's own entries at /<dst> in its container.
             dataloaders = resolve_dataloaders_by_task(dag)
 
             artifacts = run_task(

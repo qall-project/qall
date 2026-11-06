@@ -17,9 +17,16 @@ import os
 from typing import Optional
 from pathlib import Path
 
-from qall.object import Artifact, DaemonStatus, Daemon, TaskRunStatus
+import grpc
+
+from qall.object import Artifact, DaemonStatus, Daemon, TaskRunStatus, is_remote_src
 from qall_daemon_client.v1.objects import DataloaderEntry
 from qall.daemon import get_daemon_manager
+from qall.exceptions import (
+    DataloaderError,
+    DATALOADER_ERROR_REASONS,
+    exception_for_reason,
+)
 from qall.provider import get_provider_login_credentials, ProviderCredentials
 from qall.config.paths import (
     DEFAULT_BLOCK_REGISTRY_PATH,
@@ -27,6 +34,77 @@ from qall.config.paths import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _dataloader_error_from_rpc(exc: grpc.RpcError) -> DataloaderError:
+    """
+    Turns a daemon gRPC failure into a clean :class:`DataloaderError`.
+
+    The daemon attaches a machine-readable ``google.rpc.ErrorInfo`` reason
+    (``QALL_DATALOADER_*``) plus a user-facing hint to the status details. When
+    the details cannot be decoded (older daemon, missing ``googleapis-common-
+    protos``), the plain gRPC message — which already carries the actionable
+    hint — is used instead.
+    """
+    message = exc.details() or str(exc)
+    reason = None
+    hint = None
+
+    raw_details = dict(getattr(exc, "trailing_metadata", lambda: ())() or ()).get(
+        "grpc-status-details-bin"
+    )
+    if raw_details:
+        try:
+            from google.rpc import error_details_pb2, status_pb2
+
+            status = status_pb2.Status()
+            status.ParseFromString(bytes(raw_details))
+            for detail in status.details:
+                if detail.Is(error_details_pb2.ErrorInfo.DESCRIPTOR):
+                    info = error_details_pb2.ErrorInfo()
+                    detail.Unpack(info)
+                    if info.reason in DATALOADER_ERROR_REASONS:
+                        reason = info.reason
+                        hint = (info.metadata or {}).get("hint") or hint
+                        break
+        except Exception:  # pragma: no cover - best-effort decoding
+            pass
+
+    if reason is None:
+        # Fall back to any dataloader reason carried in the message itself.
+        for candidate in DATALOADER_ERROR_REASONS:
+            if candidate in message:
+                reason = candidate
+                break
+
+    error = exception_for_reason(reason, message, hint)
+    logger.debug(f"Translated daemon dataloader failure ({reason}): {message}")
+    return error
+
+
+def _ensure_remote_dataloader_support(dataloaders: Optional[list]) -> None:
+    """
+    Pre-flight the host requirements of every *remote* dataloader referenced by
+    the run, before any container is started.
+
+    Only remote sources (``s3://``, ``gs://``, ...) need ``fuse`` and the
+    ``rclone`` Docker volume plugin; ``file://`` dataloaders are plain bind
+    mounts. Checks are side-effect free: a missing dependency raises a clean
+    :class:`DataloaderDependencyError` pointing at ``qall dataloader setup``.
+    """
+    remote = [
+        entry
+        for entry in (dataloaders or [])
+        if is_remote_src((entry or {}).get("src", ""))
+    ]
+    if not remote:
+        return
+
+    from qall.daemon.dependencies import ensure_dataloader_dependencies
+
+    names = ", ".join(sorted({entry.get("name", "?") for entry in remote}))
+    logger.info(f"Checking host dependencies for dataloader(s): {names}")
+    ensure_dataloader_dependencies()
 
 
 def _format_task_failure(
@@ -233,8 +311,11 @@ def run_task(
             (/workdir) per workflow run and rejects requests that omit it.
         dataloaders: Flat list of ``{task_hash, name, src, dst, credentials}``
             dicts covering the whole DAG. The daemon indexes them per
-            ``workflow_run_id`` and mounts each task's own entries into its
-            container's secrets file.
+            ``workflow_run_id``, creates one ``rclone`` Docker volume per
+            ``(workflow_run_id, dataloader_name)`` and mounts each task's own
+            entries at ``/<dst>`` in its container. Remote dataloaders require
+            the host ``fuse`` + ``rclone`` volume plugin, which is pre-flighted
+            here before the daemon is contacted.
     """
     if not workflow_run_id:
         raise ValueError(
@@ -256,6 +337,11 @@ def run_task(
         raise RuntimeError(
             "Remote daemon execution is not supported yet. Please use a local daemon."
         )
+
+    # Host prerequisites first: fail cleanly before starting the daemon or
+    # creating any container (fuse + the rclone Docker volume plugin are only
+    # needed by remote dataloaders; file:// mounts are plain bind mounts).
+    _ensure_remote_dataloader_support(dataloaders)
 
     # Start a local daemon instance if we cannot reach a running one locally.
     if is_local:
@@ -290,15 +376,31 @@ def run_task(
                 provider_credentials or get_provider_login_credentials()
             )
 
-            task_run = client.create_task_run(
-                task_hash=task_hash,
-                workflow_run_id=workflow_run_id,
-                artifact_hash=input_artifact_hash,
-                provider_credentials=(
-                    provider_credentials.credentials if provider_credentials else None
-                ),
-                dataloaders=[DataloaderEntry(**entry) for entry in (dataloaders or [])],
-            )
+            try:
+                task_run = client.create_task_run(
+                    task_hash=task_hash,
+                    workflow_run_id=workflow_run_id,
+                    artifact_hash=input_artifact_hash,
+                    provider_credentials=(
+                        provider_credentials.credentials
+                        if provider_credentials
+                        else None
+                    ),
+                    dataloaders=[
+                        DataloaderEntry(**entry) for entry in (dataloaders or [])
+                    ],
+                )
+            except grpc.RpcError as e:
+                # Dataloader volume creation/mounting is the synchronous part of
+                # the request: surface the daemon's structured error as a clean,
+                # typed exception instead of a raw gRPC traceback.
+                if dataloaders and e.code() in (
+                    grpc.StatusCode.FAILED_PRECONDITION,
+                    grpc.StatusCode.UNAVAILABLE,
+                    grpc.StatusCode.INTERNAL,
+                ):
+                    raise _dataloader_error_from_rpc(e) from e
+                raise
 
             logger.info(f"Task run created: {task_run.id}")
             logger.info(f"Waiting for task completion with timeout {timeout}...")

@@ -213,12 +213,15 @@ def test_unit_templates_shipped_and_rendered():
         "--host-task-dir=",
         "--block-registry-dir=",
         "--artifact-registry-dir=",
+        "--host-volumes-root=",
     ):
         assert flag in rendered
     assert "/var/cache/qall/block-registry" in rendered
 
     user_rendered = SystemdDaemonManager(scope="user")._unit_file_content()
     assert "{binary}" not in user_rendered
+    assert "{host_volumes_root}" not in user_rendered
+    assert "--host-volumes-root=" in user_rendered
     assert "WantedBy=default.target" in user_rendered
 
 

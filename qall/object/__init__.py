@@ -52,6 +52,8 @@ from .dataloader import (
     DATALOADER_SCOPES,
     SECRET_CREDENTIAL_KEYS,
     credential_fields_for_protocol,
+    is_remote_src,
+    normalize_dst,
 )
 from .block import Block
 from .daemon import DaemonStatus, Daemon

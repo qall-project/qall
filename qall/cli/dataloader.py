@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import json
+import sys
 import urllib.parse
 
 import typer
@@ -20,7 +21,8 @@ from typing import Optional
 
 import qall.core as core
 
-from qall.object import credential_fields_for_protocol
+from qall.exceptions import DataloaderError
+from qall.object import credential_fields_for_protocol, is_remote_src
 
 from .utils import parse_extra_args
 
@@ -29,6 +31,30 @@ dataloader_cli = typer.Typer(
     help="Manage dataloaders binding an object storage as a virtual POSIX mount point for tasks.",
     no_args_is_help=True,
 )
+
+
+def _warn_missing_host_dependencies(src: str) -> None:
+    """Prints a non-fatal warning when a remote dataloader cannot be mounted.
+
+    The check is best-effort: an unreachable Docker engine is reported by
+    ``check_dataloader_host_dependencies`` as a failed check (it never raises),
+    and any unexpected error is swallowed so ``add``/``update`` stay fast and
+    never fail because of it.
+    """
+    if not is_remote_src(src):
+        return
+    try:
+        report = core.check_dataloader_host_dependencies()
+    except Exception:  # noqa: BLE001 - purely advisory
+        return
+    if report.ok:
+        return
+    missing = ", ".join(check.name for check in report.missing)
+    typer.echo(
+        "Warning: missing host dependencies for remote dataloaders "
+        f"({missing}). Run `qall dataloader setup` to inspect and install them.",
+        err=True,
+    )
 
 
 def _protocol_of(src: str) -> str:
@@ -127,7 +153,7 @@ def dataloader_add(
                 creds[cred_key] = value
 
     try:
-        core.add_dataloader(
+        dataloader = core.add_dataloader(
             name=name,
             src=src,
             dst=dst,
@@ -139,7 +165,11 @@ def dataloader_add(
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(code=1)
 
-    typer.echo(f"Dataloader {name!r} added ({src} -> {dst}) [{_scope_label(scope)}].")
+    typer.echo(
+        f"Dataloader {name!r} added "
+        f"({dataloader.src} -> {dataloader.dst}) [{_scope_label(scope)}]."
+    )
+    _warn_missing_host_dependencies(dataloader.src)
 
 
 @dataloader_cli.command(
@@ -195,7 +225,7 @@ def dataloader_update(
     creds = {k: v for k, v in creds.items() if v != ""} or None
 
     try:
-        core.update_dataloader(
+        dataloader = core.update_dataloader(
             name=name,
             src=src,
             dst=dst,
@@ -208,6 +238,7 @@ def dataloader_update(
         raise typer.Exit(code=1)
 
     typer.echo(f"Dataloader {name!r} updated.")
+    _warn_missing_host_dependencies(dataloader.src)
 
 
 @dataloader_cli.command("rm")
@@ -263,3 +294,55 @@ def dataloader_validate(
     else:
         typer.echo(f"Dataloader {name!r} is NOT reachable.", err=True)
         raise typer.Exit(code=1)
+
+
+@dataloader_cli.command("setup")
+def dataloader_setup(
+    check: bool = typer.Option(
+        False,
+        "--check",
+        help="Only check the host dependencies; never install anything.",
+    ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Confirm privileged installations (FUSE package, rclone plugin).",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Report the commands that would run without executing them.",
+    ),
+):
+    """Check (and optionally install) the host dependencies needed by remote dataloaders."""
+    try:
+        if not check and not yes and not dry_run and sys.stdin.isatty():
+            if not typer.confirm(
+                "Install the missing host dependencies with elevated privileges?",
+                default=False,
+            ):
+                raise typer.Exit(code=1)
+            yes = True
+        report = core.setup_dataloader_host_dependencies(
+            check_only=check, assume_yes=yes, dry_run=dry_run
+        )
+    except (DataloaderError, ValueError) as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
+
+    for dependency in report.checks:
+        marker = "✓" if dependency.ok else "✗"
+        typer.echo(f"{marker} {dependency.name}  {dependency.detail}")
+        if not dependency.ok:
+            if dependency.hint:
+                typer.echo(f"    hint: {dependency.hint}")
+            if dependency.fix:
+                typer.echo(f"    fix: {dependency.fix}")
+
+    if report.ok:
+        typer.echo("All dataloader host dependencies are satisfied.")
+        return
+
+    typer.echo(f"{len(report.missing)} required dependency(ies) missing.")
+    raise typer.Exit(code=1)

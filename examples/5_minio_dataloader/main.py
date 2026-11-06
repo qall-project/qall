@@ -7,12 +7,15 @@ from qall import workflow
 # This example needs the prior setup of a dataloader named 'local_minio' binding to -> 'minio_path'
 # i.e.: qall dataloader add local_minio s3://<your_bucket> minio_path/ --key=minioadmin --secret=minioadmin --endpoint_url=http://127.0.0.1:9000
 # Above are default credentials when running a local minio instance, change them as needed.
+# Remote dataloaders are mounted by the daemon through the rclone Docker volume plugin:
+# dst='minio_path' is visible as '/minio_path' inside the task. Run `qall dataloader setup` once
+# to check/install the host prerequisites (fuse + rclone plugin).
 
 
 @workflow(dataloaders=["local_minio"])
 def main():
 
-    base_path = Path("dataloaders") / "minio_path"
+    base_path = Path("/minio_path")
 
     try:
         base_path.glob("*")

@@ -1,6 +1,6 @@
 [project]
 name = "qall"
-version = "0.1.14"
+version = "0.2.0"
 description = "A pythonic tool for modern hybrid and quantum workflows."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -41,7 +41,7 @@ objects = [
 
 [tool.pytest.ini_options]
 markers = [
-    "minio: requires a reachable MinIO instance (see infrastructure/local/docker-compose.yml)",
+    "minio: requires a reachable MinIO instance (QALL_MINIO_ENDPOINT, default http://127.0.0.1:9000)",
     "daemon_integration: requires a running qall daemon reachable at localhost:50053",
     "daemon: requires Docker and a qall-daemon image built with the current runtime API; task-executing tests",
 ]
