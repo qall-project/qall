@@ -1,6 +1,7 @@
 .tmp/
 .qall.yml
 .minio-data/
+AGENTS.md
 
 # User-defined Directories
 resources/
