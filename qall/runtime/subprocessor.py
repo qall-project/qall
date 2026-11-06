@@ -56,12 +56,14 @@ def run_task_in_subprocess(
             init_workers_code = ""
             stop_workers_code = "pass"
 
-        # Dataloaders are read by the subprocess from the conventioned secrets
-        # file (/tmp/qall-dataloaders/<task_hash>.json), which the
-        # executor (daemonless path) or the host client (daemon path) already
-        # populated with *resolved* credentials. The wrapper only references the
-        # file path, so plaintext credentials never appear in the wrapper code
-        # or in env vars, and no host keyring is needed inside the container.
+        # Dataloaders are read by the subprocess from the resolved-secrets file
+        # whose path the executor already prepared — the daemon-mounted
+        # /run/secrets/qall_dataloaders (path passed via QALL_DATALOADERS_PATH)
+        # in the daemon path, or a local per-task file in the client-side
+        # fallback — which contains *resolved* credentials. The wrapper only
+        # references the file path, so plaintext credentials never appear in
+        # the wrapper code or in env vars, and no host keyring is needed inside
+        # the container.
         dataloader_bootstrap_code = ""
         if dataloaders_file:
             dataloader_bootstrap_code = textwrap.dedent(f"""

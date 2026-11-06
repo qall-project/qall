@@ -27,8 +27,6 @@ from qall.config.dataloader import (
     delete_secrets,
     obfuscate_creds,
     resolve_secrets,
-    write_dataloader_secrets,
-    cleanup_dataloader_secrets,
 )
 from qall.runtime.dataloader import check_reachable
 
@@ -233,7 +231,7 @@ def validate_dataloader(name: str) -> bool:
     return check_reachable(dl.src, resolve_secrets(dl))
 
 
-### Task-secrets provisioning for the shared /tmp mount ###
+### Dataloader resolution for daemon task execution ###
 
 
 def resolve_dataloader_specs(names: list[str]) -> dict:
@@ -260,44 +258,29 @@ def resolve_dataloader_specs(names: list[str]) -> dict:
     return specs
 
 
-def provision_dataloader_file_for_task(
-    task_hash: str,
-    registry,
-    names: Optional[list[str]] = None,
-) -> Optional[Path]:
+def resolve_dataloaders_by_task(dag) -> list[dict]:
     """
-    Writes the resolved-secrets file for a single task. ``names`` may be passed
-    explicitly (e.g. from a DAG node); otherwise the node's metadata is read
-    from ``registry``. Returns ``None`` when the task references no dataloader.
+    Resolves every dataloader referenced by a pushed workflow DAG into the flat
+    list sent to the daemon on the run's root CreateTaskRunRequest:
+    ``[{task_hash, name, src, dst, credentials}]``. ``credentials`` hold the
+    plaintext resolved from the host keyring; the daemon writes each task's own
+    entries into its per-task-run secrets file and mounts them into the task
+    container. Tasks that reference no dataloader contribute no entries. Raises
+    ``ValueError`` when a referenced dataloader is not defined.
     """
-    if names is None:
-        node = registry.get_node_from_local(hash=task_hash)
-        if node is None:
-            return None
-        names = node.metadata.dataloaders
-    if not names:
-        return None
-    return write_dataloader_secrets(task_hash, resolve_dataloader_specs(names))
-
-
-def provision_dataloader_files_for_dag(dag) -> list[Path]:
-    """
-    Writes resolved-secrets files for every task node of a pushed workflow DAG
-    that references dataloaders. Called by the client on the host before a
-    ``--local`` run so each task container (entrypoint and subtasks) finds its
-    own secrets at the conventioned mount path.
-    """
-    written: list[Path] = []
+    entries: list[dict] = []
     for node in dag.nodes:
         names = node.metadata.dataloaders
         if not names:
             continue
-        written.append(
-            write_dataloader_secrets(node.hash, resolve_dataloader_specs(names))
-        )
-    return written
-
-
-def cleanup_dataloader_files(paths) -> None:
-    """Best-effort removal of previously provisioned secrets files."""
-    cleanup_dataloader_secrets(paths)
+        for name, spec in resolve_dataloader_specs(names).items():
+            entries.append(
+                {
+                    "task_hash": node.hash,
+                    "name": name,
+                    "src": spec["src"],
+                    "dst": spec["dst"],
+                    "credentials": spec["creds"],
+                }
+            )
+    return entries

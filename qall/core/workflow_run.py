@@ -44,10 +44,7 @@ from qall.core.daemon import (
     stop_daemon,
     apply_resource_assignments,
 )
-from qall.core.dataloader import (
-    provision_dataloader_files_for_dag,
-    cleanup_dataloader_files,
-)
+from qall.core.dataloader import resolve_dataloaders_by_task
 from qall.core.config import init_config
 from qall.config import (
     get_local_configuration,
@@ -210,8 +207,6 @@ def create_workflow_run(
                 resource_assignments=resource_assignments,
             )
 
-        dataloader_files = provision_dataloader_files_for_dag(dag)
-
         # Mint the workflow run id up front: the daemon scopes the task's
         # shared filesystem (/workdir) per workflow run, so every task of this
         # run (including child tasks submitted by the workflow itself) must
@@ -220,11 +215,17 @@ def create_workflow_run(
         logger.info(f"Starting workflow run {workflow_run_id}")
         start = datetime.datetime.now()
         try:
+            # Resolve the whole DAG's dataloader credentials and hand them to
+            # the daemon on the root CreateTaskRunRequest; the daemon mounts
+            # each task's own entries into its container's secrets file.
+            dataloaders = resolve_dataloaders_by_task(dag)
+
             artifacts = run_task(
                 task_hash=dag.root_hash,
                 workflow_run_id=workflow_run_id,
                 input_artifact_hash=input_artifact_hash,
                 provider_credentials=provider_credentials,
+                dataloaders=dataloaders,
             )
             stop = datetime.datetime.now()
 
@@ -262,8 +263,6 @@ def create_workflow_run(
                 finished_at=datetime.datetime.now(),
             )
         finally:
-            cleanup_dataloader_files(dataloader_files)
-
             if not daemon_is_already_running and auto_start_daemon:
                 stop_daemon()
 

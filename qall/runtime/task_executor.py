@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import ast
+import json
+import os
 import signal
 import sys
 import textwrap
@@ -189,26 +191,42 @@ class TaskRuntimeExecutor:
         self, names: list[str]
     ) -> tuple[Optional[Path], bool]:
         """
-        Ensures the resolved-secrets file for this task exists at the
-        conventioned ``/tmp/qall-dataloaders/<task_hash>.json`` mount path
-        and returns ``(path, provisioned_here)``.
+        Ensures the resolved-secrets file for this task exists and returns
+        ``(path, provisioned_here)``.
 
-        In the daemon/container path the file was already provisioned by the
-        host client (``provisioned_here`` is ``False``). In the daemonless path
-        it is resolved from the local config + keyring and written here so the
-        subprocess reads it uniformly. Raises ``ValueError`` when a referenced
-        dataloader is not defined.
+        In the daemon/container path the file was written by the daemon into
+        the per-task-run secrets store and its location is passed in
+        ``QALL_DATALOADERS_PATH`` (bind-mounted at
+        ``/run/secrets/qall_dataloaders``); it is read as-is
+        (``provisioned_here`` is ``False``), and a missing file is an error.
+        In the client-side fallback path it is resolved from the local config
+        + keyring and written here so the subprocess reads it uniformly.
+        Raises ``ValueError`` when a referenced dataloader is not defined.
         """
-        path = dataloader_secrets_path(self.__task_hash)
-        secrets = read_dataloader_secrets(self.__task_hash)
-        if secrets is None:
-            from qall.core.dataloader import resolve_dataloader_specs
-
-            write_dataloader_secrets(self.__task_hash, resolve_dataloader_specs(names))
-            secrets = read_dataloader_secrets(self.__task_hash) or {}
-            provisioned_here = True
-        else:
+        daemon_path = os.environ.get("QALL_DATALOADERS_PATH")
+        if daemon_path:
+            path = Path(daemon_path)
+            if not path.is_file():
+                raise ValueError(
+                    f"Dataloader secrets file {path} is missing: expected the "
+                    "daemon to mount it at QALL_DATALOADERS_PATH."
+                )
+            with path.open("r", encoding="utf-8") as f:
+                secrets = json.load(f)
             provisioned_here = False
+        else:
+            path = dataloader_secrets_path(self.__task_hash)
+            secrets = read_dataloader_secrets(self.__task_hash)
+            if secrets is None:
+                from qall.core.dataloader import resolve_dataloader_specs
+
+                write_dataloader_secrets(
+                    self.__task_hash, resolve_dataloader_specs(names)
+                )
+                secrets = read_dataloader_secrets(self.__task_hash) or {}
+                provisioned_here = True
+            else:
+                provisioned_here = False
 
         missing = [name for name in names if name not in secrets]
         if missing:

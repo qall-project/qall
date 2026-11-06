@@ -19,11 +19,7 @@ from pathlib import Path
 
 from qall.object import Artifact, DaemonStatus, Daemon, TaskRunStatus
 from qall.daemon import DockerDaemonManager
-from qall.registry import BlockRegistry
-from qall.core.dataloader import (
-    provision_dataloader_file_for_task,
-    cleanup_dataloader_files,
-)
+from qall_daemon_client.v1.objects import DataloaderEntry
 from qall.provider import get_provider_login_credentials, ProviderCredentials
 from qall.config.paths import (
     DEFAULT_BLOCK_REGISTRY_PATH,
@@ -218,6 +214,7 @@ def run_task(
     block_registry: Optional[str] = None,
     artifact_registry: Optional[str] = None,
     provider_credentials: Optional[ProviderCredentials] = None,
+    dataloaders: Optional[list] = None,
     timeout: int = 300,
 ) -> list[Artifact]:
     """
@@ -227,6 +224,10 @@ def run_task(
         workflow_run_id: Identifier of the workflow run this task belongs to.
             It is mandatory: the daemon scopes the task's shared filesystem
             (/workdir) per workflow run and rejects requests that omit it.
+        dataloaders: Flat list of ``{task_hash, name, src, dst, credentials}``
+            dicts covering the whole DAG. The daemon indexes them per
+            ``workflow_run_id`` and mounts each task's own entries into its
+            container's secrets file.
     """
     if not workflow_run_id:
         raise ValueError(
@@ -268,20 +269,6 @@ def run_task(
 
         logger.info(f"Daemon ready at {daemon_address}")
 
-    # Provision the resolved dataloader secrets for the requested task so its
-    # container finds them at the conventioned /tmp mount path. No-op when
-    # the task references no dataloader. Cleaned up once the run completes.
-    dataloader_files = []
-    try:
-        registry = BlockRegistry(block_registry, read_only=True)
-        file = provision_dataloader_file_for_task(task_hash, registry)
-        if file:
-            dataloader_files.append(file)
-    except Exception as e:
-        logger.warning(
-            f"Could not provision dataloader secrets for task {task_hash}: {e}"
-        )
-
     # Contact daemon to execute given task
     try:
         with daemon_mgr.client as client:
@@ -305,6 +292,7 @@ def run_task(
                 provider_credentials=(
                     provider_credentials.credentials if provider_credentials else None
                 ),
+                dataloaders=[DataloaderEntry(**entry) for entry in (dataloaders or [])],
             )
 
             logger.info(f"Task run created: {task_run.id}")
@@ -329,6 +317,5 @@ def run_task(
                     f"Task ended with unexpected status: {task_run.status.name}"
                 )
     finally:
-        cleanup_dataloader_files(dataloader_files)
         if daemon_mgr:
             daemon_mgr.stop()

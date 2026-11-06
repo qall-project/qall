@@ -66,10 +66,9 @@ class DockerDaemonManager(BaseDaemonManager):
         self.__host_block_registry_path = str(host_block_registry_path)
         self.__host_artifact_registry_path = str(host_artifact_registry_path)
 
-        # Temporary fix to create the necessary unifs & dataloaders volume while the daemon is still dockerized.
-        # Remove those two line once the daemon is out of its container and can run its own unifs creation logic.
+        # Temporary fix to create the necessary unifs volume while the daemon is still dockerized.
+        # Remove this line once the daemon is out of its container and can run its own unifs creation logic.
         self.__unifs = HOST_VOLUMES_ROOT / "unifs"
-        self.__dataloaders = HOST_VOLUMES_ROOT / "dataloaders"
 
         try:
             self.__docker_client = docker.from_env()
@@ -197,13 +196,10 @@ class DockerDaemonManager(BaseDaemonManager):
                 )
                 return
 
-            # Ensure the dataloaders secrets dir is owned by the current
-            # (client) user BEFORE the daemon starts. It is a top-level /tmp
-            # path, deliberately separate from the daemon's root-owned token dir
-            # (/tmp/qall-secrets), so the client always retains write
-            # access to provision per-task secrets files. The daemon container
-            # mounts it (so its os.Stat guard sees the directory) but never
-            # creates or owns it.
+            # Pre-create the host dirs the (root) daemon container needs but
+            # must not own: the shared per-workflow-run filesystem (unifs) and
+            # the block registry shard root, so client-side pushes stay
+            # possible after the daemon starts.
             self._create_host_volumes()
 
             dev_dir = os.environ.get("QALL_DEV_DIR")
@@ -223,10 +219,6 @@ class DockerDaemonManager(BaseDaemonManager):
                 },
                 "/tmp/qall-secrets": {
                     "bind": "/tmp/qall-secrets",
-                    "mode": "rw",
-                },
-                str(self.__dataloaders): {
-                    "bind": str(self.__dataloaders),
                     "mode": "rw",
                 },
                 str(self.__unifs): {
@@ -358,7 +350,6 @@ class DockerDaemonManager(BaseDaemonManager):
 
     def _create_host_volumes(self):
         self.__unifs.mkdir(mode=0o777, parents=True, exist_ok=True)
-        self.__dataloaders.mkdir(mode=0o777, parents=True, exist_ok=True)
 
         # Pre-create the block registry shard root as the client user, before
         # the (root) daemon container starts. The daemon's blockstore calls
@@ -375,8 +366,6 @@ class DockerDaemonManager(BaseDaemonManager):
             shutil.rmtree(self.__unifs)
         except FileNotFoundError:
             pass
-        # We don't rm the dataloaders path to avoid accidently sending deletion request to the source object sotrages.
-        # TODO: write object storage unbinding logic.
 
     def service_info(self) -> bool:
         """

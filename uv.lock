@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.12, <3.14"
 
 [[package]]
@@ -1513,11 +1513,11 @@ wheels = [
 
 [[package]]
 name = "oauthlib"
-version = "4.0.0"
+version = "4.0.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/7a/d8/a1bcc8ba112a627f8ffbdc212a78ce18d3ac07e91a5ca65d27918eee25a1/oauthlib-4.0.0.tar.gz", hash = "sha256:efb274799819440f95b4ab3b818869f1ce9ae26c5beacba0201d1a1b76b54f86", size = 187232, upload-time = "2026-09-28T06:01:18.77Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/33/17/2bb072de0b990303c985f26869fd47bb179024a051f47e7f9d208eb92f8e/oauthlib-4.0.1.tar.gz", hash = "sha256:3d73febdb6faa00f277c81fb04be7b7586fb96fc3b7f0b9c772dada69a25ede7", size = 191219, upload-time = "2026-10-31T09:52:58.008Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d9/f4/78229a1066068ca14fc60fb26cf7381cabe4382261392b90e5f9552722d4/oauthlib-4.0.0-py3-none-any.whl", hash = "sha256:624c28c13a0a59cabf9747dfa52af63be3e512a7f2714df16e91b5b3a145e6cd", size = 159715, upload-time = "2026-09-28T06:01:17.008Z" },
+    { url = "https://files.pythonhosted.org/packages/df/ef/3b8adde1b32a6f540758bff734d3442c621734c83708e5f02b0ba2f43b84/oauthlib-4.0.1-py3-none-any.whl", hash = "sha256:498a298876e996301950a5b053d12c31628bb7b895db03666430c69ce182eb61", size = 161934, upload-time = "2026-10-31T09:52:56.206Z" },
 ]
 
 [[package]]
@@ -2051,7 +2051,7 @@ requires-dist = [
     { name = "matplotlib", specifier = ">=3.11.0" },
     { name = "pyan3", specifier = ">=2.9.0,<3" },
     { name = "pyyaml", specifier = ">=6.0.3" },
-    { name = "qall-daemon-client", specifier = ">=0.1.7" },
+    { name = "qall-daemon-client", specifier = ">=0.1.8" },
     { name = "qall-registry-client", specifier = ">=0.1.0" },
     { name = "qio", specifier = ">=0.2.2" },
     { name = "retry", specifier = "==0.9.2" },
@@ -2075,7 +2075,7 @@ objects = [
 
 [[package]]
 name = "qall-daemon-client"
-version = "0.1.7"
+version = "0.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dataclasses" },
@@ -2083,9 +2083,9 @@ dependencies = [
     { name = "grpcio" },
     { name = "protobuf" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8e/01/328b0b710122e0cf0d2de08888d29c80c6ad3298d036ffb19fa133f30e85/qall_daemon_client-0.1.7.tar.gz", hash = "sha256:f003e5b9b89bb0ea37ad7692d98e9567cfc589d602b5a1ede196e8cb46fae325", size = 13351, upload-time = "2026-11-05T16:19:26.253Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/49/ec/b1fa1bf124909b340eb072affbcfe123dacaa8905cafa8505441c92de59c/qall_daemon_client-0.1.8.tar.gz", hash = "sha256:c2b3822c0f942c45fc6b389b01ecd49ec452adf4e06ab8a096a9dc1652ae9097", size = 13947, upload-time = "2026-11-06T09:42:01.972Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/75/4b/02af468cb82b33857e0ddb40e7b4624705732263e98e0267a08366959720/qall_daemon_client-0.1.7-py3-none-any.whl", hash = "sha256:e92865bf5a361a35d4e21f1cb0fd1af84352f7fc4955d0bbd07239c27a905b57", size = 20758, upload-time = "2026-11-05T16:19:24.956Z" },
+    { url = "https://files.pythonhosted.org/packages/23/83/58afb3580ab2962966dc78a7e9135af01ad0794aad38023905bcd99a2242/qall_daemon_client-0.1.8-py3-none-any.whl", hash = "sha256:19027b017dfdc29d5d47252c507647408d5944aaff315d46041ef8797bc5df57", size = 21854, upload-time = "2026-11-06T09:42:01.116Z" },
 ]
 
 [[package]]
