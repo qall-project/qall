@@ -125,7 +125,13 @@ class _StubManager(BaseDaemonManager):
 def test_ensure_running_starts_when_daemon_not_available():
     mgr = _StubManager()
 
-    with patch.object(BaseDaemonManager, "_wait_for_health", return_value=True):
+    # Must stub service_info (not just _wait_for_health): a real daemon may be
+    # listening on 50053 — e.g. left running by the session-scoped daemon_stack
+    # fixture — and this test intentionally simulates "daemon not available".
+    with (
+        patch.object(BaseDaemonManager, "_wait_for_health", return_value=True),
+        patch.object(mgr, "service_info", return_value=False),
+    ):
         result = mgr.ensure_running()
 
     assert result is mgr

@@ -274,12 +274,10 @@ def test_run_task_forwards_backend_and_ensures_running(tmp_path):
     client.list_artifacts.return_value = []
     fake.client = client
 
-    with (
-        patch("qall.core.daemon.get_daemon_manager", return_value=fake) as m_get,
-        patch("qall.core.daemon.provision_dataloader_file_for_task", return_value=None),
-    ):
+    with (patch("qall.core.daemon.get_daemon_manager", return_value=fake) as m_get,):
         artifacts = run_task(
             task_hash="hash123",
+            workflow_run_id="run_id123",
             block_registry=str(tmp_path / "blocks"),
             artifact_registry=str(tmp_path / "artifacts"),
             backend="systemd",
