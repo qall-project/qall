@@ -106,6 +106,7 @@ def daemon_start(
             **_manager_kwargs(scope, unit_name, unit_dir),
         )
     except KeyboardInterrupt:
+        stop_daemon(port=port, **_manager_kwargs(scope, unit_name, unit_dir))
         typer.echo("Daemon stopped.")
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)

@@ -14,6 +14,7 @@
 import asyncio
 import json
 import lzma
+import tempfile
 import cloudpickle
 import inspect
 import concurrent.futures
@@ -45,6 +46,9 @@ class WorkflowSpec:
         # Register this instance inside Task context during static initialization phase
         TaskSpec.compilation(self)
 
+        f = None
+        filepath = None
+
         try:
             # Resolve the filepath and name from the polymorphic target
             if isinstance(target, TaskSpec):
@@ -65,9 +69,15 @@ class WorkflowSpec:
                 filepath = Path(target.__file__)
                 self.name = name or target.__name__.split(".")[-1]
 
-            elif isinstance(target, (Path, str)):
+            elif isinstance(target, (Path, str)) and Path(target).exists():
                 filepath = Path(target)
                 self.name = name or filepath.stem
+
+            elif isinstance(target, str) and not Path(target).exists():
+                # This is the case where we interpret an input string as source code itself and not a file path.
+                f = tempfile.TemporaryFile()
+                filepath = Path(f.name)
+                f.write(target.encode())
 
             else:
                 raise TypeError(
@@ -83,8 +93,8 @@ class WorkflowSpec:
                         self._entrypoint_task = registered_task
                         break
         finally:
-            # FIXED: Calling reset clears global tracking contexts preventing
-            # leakage across sequential tests, even when graph building raises.
+            if f:
+                f.close()
             TaskSpec.reset()
 
     @property
