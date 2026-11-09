@@ -29,7 +29,7 @@ def do_quantum_stuff(size, repeat):
     return r
 
 
-@qall.workflow()
+@qall.workflow(min_cpu=2, min_gpu=2, min_vram=80)
 def main():
     a = prepare(5)
 

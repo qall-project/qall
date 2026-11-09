@@ -54,6 +54,9 @@ message QuantumContext {
 
   // Attached metadata.
   google.protobuf.Struct metadata = 6;
+
+  // Attached binary objects.
+  map<string, bytes> bin_metadata = 7;
 }
 
 message CreateContextRequest {

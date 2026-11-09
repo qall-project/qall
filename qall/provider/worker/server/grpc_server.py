@@ -44,10 +44,13 @@ def context_from_proto(
     )
     meta = MessageToDict(proto.metadata) if proto.HasField("metadata") else {}
 
+    bin_meta = dict(proto.bin_metadata)
+
     return QuantumContext(
         resource=proto.resource,
         configuration=config,
         metadata=meta,
+        bin_metadata=bin_meta,
     )
 
 
@@ -63,6 +66,9 @@ def context_to_proto(
 
     if context.metadata:
         ParseDict(context.metadata, pb_context.metadata)
+
+    if context.bin_metadata is not None:
+        pb_context.bin_metadata.update(context.bin_metadata)
 
     return pb_context
 
@@ -89,6 +95,7 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
             context = QuantumContext(
                 configuration=dict(request.configuration),
                 metadata=dict(request.metadata),
+                bin_metadata=dict(request.bin_metadata),
             )
 
             context = self.__worker.create_context(

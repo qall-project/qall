@@ -4,7 +4,6 @@
 # source: qc-worker-api-v1.proto
 # Protobuf Python Version: 5.29.0
 """Generated protocol buffer code."""
-
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import descriptor_pool as _descriptor_pool
 from google.protobuf import runtime_version as _runtime_version
@@ -22,8 +21,9 @@ _sym_db = _symbol_database.Default()
 from google.api import annotations_pb2 as google_dot_api_dot_annotations__pb2
 from google.protobuf import struct_pb2 as google_dot_protobuf_dot_struct__pb2
 
+
 DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(
-    b'\n\x16qc-worker-api-v1.proto\x12\x10qc_worker_api_v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1cgoogle/protobuf/struct.proto"\xf7\x01\n\x05\x45rror\x12*\n\x04\x63ode\x18\x01 \x01(\x0e\x32\x1c.qc_worker_api_v1.Error.Code\x12\x0f\n\x07message\x18\x02 \x01(\t"\xb0\x01\n\x04\x43ode\x12\x11\n\rUNKNOWN_ERROR\x10\x00\x12\x13\n\x0fINVALID_PROGRAM\x10\x01\x12\x16\n\x12UNSUPPORTED_FORMAT\x10\x02\x12\x14\n\x10INVALID_RESOURCE\x10\x03\x12\x13\n\x0fSESSION_EXPIRED\x10\x04\x12\x13\n\x0fQPU_UNAVAILABLE\x10\x05\x12\x12\n\x0ePROVIDER_ERROR\x10\x06\x12\x14\n\x10\x45XECUTION_FAILED\x10\x07"\x9b\x01\n\x0eQuantumContext\x12\n\n\x02id\x18\x01 \x01(\t\x12\x10\n\x08resource\x18\x02 \x01(\t\x12\x10\n\x08provider\x18\x03 \x01(\t\x12.\n\rconfiguration\x18\x05 \x01(\x0b\x32\x17.google.protobuf.Struct\x12)\n\x08metadata\x18\x06 \x01(\x0b\x32\x17.google.protobuf.Struct"\x83\x01\n\x14\x43reateContextRequest\x12\x10\n\x08resource\x18\x01 \x01(\t\x12.\n\rconfiguration\x18\x02 \x01(\x0b\x32\x17.google.protobuf.Struct\x12)\n\x08metadata\x18\x03 \x01(\x0b\x32\x17.google.protobuf.Struct"r\n\x15\x43reateContextResponse\x12\x31\n\x07\x63ontext\x18\x01 \x01(\x0b\x32 .qc_worker_api_v1.QuantumContext\x12&\n\x05\x65rror\x18\x02 \x01(\x0b\x32\x17.qc_worker_api_v1.Error"\xb2\x01\n\nRunRequest\x12\x31\n\x07program\x18\x01 \x01(\x0b\x32 .qc_worker_api_v1.QuantumProgram\x12>\n\nparameters\x18\x02 \x01(\x0b\x32*.qc_worker_api_v1.QuantumProgramParameters\x12\x31\n\x07\x63ontext\x18\x03 \x01(\x0b\x32 .qc_worker_api_v1.QuantumContext"\xa0\x01\n\x0bRunResponse\x12\x36\n\x06result\x18\x01 \x01(\x0b\x32&.qc_worker_api_v1.QuantumProgramResult\x12\x31\n\x07\x63ontext\x18\x02 \x01(\x0b\x32 .qc_worker_api_v1.QuantumContext\x12&\n\x05\x65rror\x18\x03 \x01(\x0b\x32\x17.qc_worker_api_v1.Error"B\n\x0eQuantumProgram\x12\x0e\n\x06\x66ormat\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\t\x12\x0f\n\x07payload\x18\x03 \x01(\x0c"L\n\x18QuantumProgramParameters\x12\x0e\n\x06\x66ormat\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\t\x12\x0f\n\x07payload\x18\x03 \x01(\x0c"H\n\x14QuantumProgramResult\x12\x0e\n\x06\x66ormat\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\t\x12\x0f\n\x07payload\x18\x03 \x01(\x0c"\x18\n\x16GetCapabilitiesRequest"M\n\x0c\x43\x61pabilities\x12\x10\n\x08provider\x18\x01 \x01(\t\x12\x14\n\x0cinput_format\x18\x02 \x01(\t\x12\x15\n\routput_format\x18\x03 \x01(\t"H\n\x13\x43loseContextRequest\x12\x31\n\x07\x63ontext\x18\x01 \x01(\x0b\x32 .qc_worker_api_v1.QuantumContext2\xda\x02\n\x03\x41pi\x12Y\n\rCreateContext\x12&.qc_worker_api_v1.CreateContextRequest\x1a .qc_worker_api_v1.QuantumContext\x12\x42\n\x03Run\x12\x1c.qc_worker_api_v1.RunRequest\x1a\x1d.qc_worker_api_v1.RunResponse\x12W\n\x0c\x43loseContext\x12%.qc_worker_api_v1.CloseContextRequest\x1a .qc_worker_api_v1.QuantumContext\x12[\n\x0fGetCapabilities\x12(.qc_worker_api_v1.GetCapabilitiesRequest\x1a\x1e.qc_worker_api_v1.CapabilitiesB+Z)internal/server/protobuf/qc_worker_api_v1b\x06proto3'
+    b'\n\x16qc-worker-api-v1.proto\x12\x10qc_worker_api_v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1cgoogle/protobuf/struct.proto"\xf7\x01\n\x05\x45rror\x12*\n\x04\x63ode\x18\x01 \x01(\x0e\x32\x1c.qc_worker_api_v1.Error.Code\x12\x0f\n\x07message\x18\x02 \x01(\t"\xb0\x01\n\x04\x43ode\x12\x11\n\rUNKNOWN_ERROR\x10\x00\x12\x13\n\x0fINVALID_PROGRAM\x10\x01\x12\x16\n\x12UNSUPPORTED_FORMAT\x10\x02\x12\x14\n\x10INVALID_RESOURCE\x10\x03\x12\x13\n\x0fSESSION_EXPIRED\x10\x04\x12\x13\n\x0fQPU_UNAVAILABLE\x10\x05\x12\x12\n\x0ePROVIDER_ERROR\x10\x06\x12\x14\n\x10\x45XECUTION_FAILED\x10\x07"\x98\x02\n\x0eQuantumContext\x12\n\n\x02id\x18\x01 \x01(\t\x12\x10\n\x08resource\x18\x02 \x01(\t\x12\x10\n\x08provider\x18\x03 \x01(\t\x12.\n\rconfiguration\x18\x05 \x01(\x0b\x32\x17.google.protobuf.Struct\x12)\n\x08metadata\x18\x06 \x01(\x0b\x32\x17.google.protobuf.Struct\x12G\n\x0c\x62in_metadata\x18\x07 \x03(\x0b\x32\x31.qc_worker_api_v1.QuantumContext.BinMetadataEntry\x1a\x32\n\x10\x42inMetadataEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x0c:\x02\x38\x01"\x83\x01\n\x14\x43reateContextRequest\x12\x10\n\x08resource\x18\x01 \x01(\t\x12.\n\rconfiguration\x18\x02 \x01(\x0b\x32\x17.google.protobuf.Struct\x12)\n\x08metadata\x18\x03 \x01(\x0b\x32\x17.google.protobuf.Struct"r\n\x15\x43reateContextResponse\x12\x31\n\x07\x63ontext\x18\x01 \x01(\x0b\x32 .qc_worker_api_v1.QuantumContext\x12&\n\x05\x65rror\x18\x02 \x01(\x0b\x32\x17.qc_worker_api_v1.Error"\xb2\x01\n\nRunRequest\x12\x31\n\x07program\x18\x01 \x01(\x0b\x32 .qc_worker_api_v1.QuantumProgram\x12>\n\nparameters\x18\x02 \x01(\x0b\x32*.qc_worker_api_v1.QuantumProgramParameters\x12\x31\n\x07\x63ontext\x18\x03 \x01(\x0b\x32 .qc_worker_api_v1.QuantumContext"\xa0\x01\n\x0bRunResponse\x12\x36\n\x06result\x18\x01 \x01(\x0b\x32&.qc_worker_api_v1.QuantumProgramResult\x12\x31\n\x07\x63ontext\x18\x02 \x01(\x0b\x32 .qc_worker_api_v1.QuantumContext\x12&\n\x05\x65rror\x18\x03 \x01(\x0b\x32\x17.qc_worker_api_v1.Error"B\n\x0eQuantumProgram\x12\x0e\n\x06\x66ormat\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\t\x12\x0f\n\x07payload\x18\x03 \x01(\x0c"L\n\x18QuantumProgramParameters\x12\x0e\n\x06\x66ormat\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\t\x12\x0f\n\x07payload\x18\x03 \x01(\x0c"H\n\x14QuantumProgramResult\x12\x0e\n\x06\x66ormat\x18\x01 \x01(\t\x12\x0f\n\x07version\x18\x02 \x01(\t\x12\x0f\n\x07payload\x18\x03 \x01(\x0c"\x18\n\x16GetCapabilitiesRequest"M\n\x0c\x43\x61pabilities\x12\x10\n\x08provider\x18\x01 \x01(\t\x12\x14\n\x0cinput_format\x18\x02 \x01(\t\x12\x15\n\routput_format\x18\x03 \x01(\t"H\n\x13\x43loseContextRequest\x12\x31\n\x07\x63ontext\x18\x01 \x01(\x0b\x32 .qc_worker_api_v1.QuantumContext2\xda\x02\n\x03\x41pi\x12Y\n\rCreateContext\x12&.qc_worker_api_v1.CreateContextRequest\x1a .qc_worker_api_v1.QuantumContext\x12\x42\n\x03Run\x12\x1c.qc_worker_api_v1.RunRequest\x1a\x1d.qc_worker_api_v1.RunResponse\x12W\n\x0c\x43loseContext\x12%.qc_worker_api_v1.CloseContextRequest\x1a .qc_worker_api_v1.QuantumContext\x12[\n\x0fGetCapabilities\x12(.qc_worker_api_v1.GetCapabilitiesRequest\x1a\x1e.qc_worker_api_v1.CapabilitiesB+Z)internal/server/protobuf/qc_worker_api_v1b\x06proto3'
 )
 
 _globals = globals()
@@ -34,32 +34,36 @@ if not _descriptor._USE_C_DESCRIPTORS:
     _globals["DESCRIPTOR"]._serialized_options = (
         b"Z)internal/server/protobuf/qc_worker_api_v1"
     )
+    _globals["_QUANTUMCONTEXT_BINMETADATAENTRY"]._loaded_options = None
+    _globals["_QUANTUMCONTEXT_BINMETADATAENTRY"]._serialized_options = b"8\001"
     _globals["_ERROR"]._serialized_start = 105
     _globals["_ERROR"]._serialized_end = 352
     _globals["_ERROR_CODE"]._serialized_start = 176
     _globals["_ERROR_CODE"]._serialized_end = 352
     _globals["_QUANTUMCONTEXT"]._serialized_start = 355
-    _globals["_QUANTUMCONTEXT"]._serialized_end = 510
-    _globals["_CREATECONTEXTREQUEST"]._serialized_start = 513
-    _globals["_CREATECONTEXTREQUEST"]._serialized_end = 644
-    _globals["_CREATECONTEXTRESPONSE"]._serialized_start = 646
-    _globals["_CREATECONTEXTRESPONSE"]._serialized_end = 760
-    _globals["_RUNREQUEST"]._serialized_start = 763
-    _globals["_RUNREQUEST"]._serialized_end = 941
-    _globals["_RUNRESPONSE"]._serialized_start = 944
-    _globals["_RUNRESPONSE"]._serialized_end = 1104
-    _globals["_QUANTUMPROGRAM"]._serialized_start = 1106
-    _globals["_QUANTUMPROGRAM"]._serialized_end = 1172
-    _globals["_QUANTUMPROGRAMPARAMETERS"]._serialized_start = 1174
-    _globals["_QUANTUMPROGRAMPARAMETERS"]._serialized_end = 1250
-    _globals["_QUANTUMPROGRAMRESULT"]._serialized_start = 1252
-    _globals["_QUANTUMPROGRAMRESULT"]._serialized_end = 1324
-    _globals["_GETCAPABILITIESREQUEST"]._serialized_start = 1326
-    _globals["_GETCAPABILITIESREQUEST"]._serialized_end = 1350
-    _globals["_CAPABILITIES"]._serialized_start = 1352
-    _globals["_CAPABILITIES"]._serialized_end = 1429
-    _globals["_CLOSECONTEXTREQUEST"]._serialized_start = 1431
-    _globals["_CLOSECONTEXTREQUEST"]._serialized_end = 1503
-    _globals["_API"]._serialized_start = 1506
-    _globals["_API"]._serialized_end = 1852
+    _globals["_QUANTUMCONTEXT"]._serialized_end = 635
+    _globals["_QUANTUMCONTEXT_BINMETADATAENTRY"]._serialized_start = 585
+    _globals["_QUANTUMCONTEXT_BINMETADATAENTRY"]._serialized_end = 635
+    _globals["_CREATECONTEXTREQUEST"]._serialized_start = 638
+    _globals["_CREATECONTEXTREQUEST"]._serialized_end = 769
+    _globals["_CREATECONTEXTRESPONSE"]._serialized_start = 771
+    _globals["_CREATECONTEXTRESPONSE"]._serialized_end = 885
+    _globals["_RUNREQUEST"]._serialized_start = 888
+    _globals["_RUNREQUEST"]._serialized_end = 1066
+    _globals["_RUNRESPONSE"]._serialized_start = 1069
+    _globals["_RUNRESPONSE"]._serialized_end = 1229
+    _globals["_QUANTUMPROGRAM"]._serialized_start = 1231
+    _globals["_QUANTUMPROGRAM"]._serialized_end = 1297
+    _globals["_QUANTUMPROGRAMPARAMETERS"]._serialized_start = 1299
+    _globals["_QUANTUMPROGRAMPARAMETERS"]._serialized_end = 1375
+    _globals["_QUANTUMPROGRAMRESULT"]._serialized_start = 1377
+    _globals["_QUANTUMPROGRAMRESULT"]._serialized_end = 1449
+    _globals["_GETCAPABILITIESREQUEST"]._serialized_start = 1451
+    _globals["_GETCAPABILITIESREQUEST"]._serialized_end = 1475
+    _globals["_CAPABILITIES"]._serialized_start = 1477
+    _globals["_CAPABILITIES"]._serialized_end = 1554
+    _globals["_CLOSECONTEXTREQUEST"]._serialized_start = 1556
+    _globals["_CLOSECONTEXTREQUEST"]._serialized_end = 1628
+    _globals["_API"]._serialized_start = 1631
+    _globals["_API"]._serialized_end = 1977
 # @@protoc_insertion_point(module_scope)

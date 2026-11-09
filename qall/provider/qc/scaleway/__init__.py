@@ -20,11 +20,11 @@ from qall.specification import WorkerSpec
 from ..catalog import WorkerCatalog, WorkerEntry
 
 __FILES = [
-    # "cirq_scaleway_qc_worker.py",
+    "cirq_scaleway_qc_worker.py",
     "qiskit_scaleway_qc_worker.py",
-    # "cudaq_scaleway_qc_worker.py",
-    # "pulser_scaleway_qc_worker.py",
-    # "perceval_scaleway_qc_worker.py",
+    "cudaq_scaleway_qc_worker.py",
+    "pulser_scaleway_qc_worker.py",
+    "perceval_scaleway_qc_worker.py",
 ]
 
 

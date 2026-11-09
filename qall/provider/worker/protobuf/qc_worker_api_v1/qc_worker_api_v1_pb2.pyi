@@ -1,5 +1,6 @@
 from google.api import annotations_pb2 as _annotations_pb2
 from google.protobuf import struct_pb2 as _struct_pb2
+from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -45,17 +46,37 @@ class Error(_message.Message):
     ) -> None: ...
 
 class QuantumContext(_message.Message):
-    __slots__ = ("id", "resource", "provider", "configuration", "metadata")
+    __slots__ = (
+        "id",
+        "resource",
+        "provider",
+        "configuration",
+        "metadata",
+        "bin_metadata",
+    )
+
+    class BinMetadataEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: bytes
+        def __init__(
+            self, key: _Optional[str] = ..., value: _Optional[bytes] = ...
+        ) -> None: ...
+
     ID_FIELD_NUMBER: _ClassVar[int]
     RESOURCE_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_FIELD_NUMBER: _ClassVar[int]
     CONFIGURATION_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
+    BIN_METADATA_FIELD_NUMBER: _ClassVar[int]
     id: str
     resource: str
     provider: str
     configuration: _struct_pb2.Struct
     metadata: _struct_pb2.Struct
+    bin_metadata: _containers.ScalarMap[str, bytes]
     def __init__(
         self,
         id: _Optional[str] = ...,
@@ -63,6 +84,7 @@ class QuantumContext(_message.Message):
         provider: _Optional[str] = ...,
         configuration: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
         metadata: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
+        bin_metadata: _Optional[_Mapping[str, bytes]] = ...,
     ) -> None: ...
 
 class CreateContextRequest(_message.Message):

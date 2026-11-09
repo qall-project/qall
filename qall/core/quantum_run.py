@@ -18,6 +18,7 @@ import logging
 from typing import Any
 
 from qall.provider.worker import QuantumWorkerManager
+from qall.provider.worker.context import QuantumContext
 
 logger = logging.getLogger(__name__)
 
@@ -73,3 +74,11 @@ def stop_quantum_worker_manager():
     __qw_manager.stop()
 
     __qw_manager = None
+
+
+def get_quantum_context() -> QuantumContext:
+    global __qw_manager
+    if __qw_manager is None:
+        raise RuntimeError("QuantumWorkerManager has not been initialized.")
+
+    return __qw_manager.context
