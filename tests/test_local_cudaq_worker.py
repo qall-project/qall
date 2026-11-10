@@ -24,7 +24,11 @@ pytest.importorskip("cudaq")
 
 from qall.object import Tag
 from qall.registry import BlockRegistry
-from qall.runtime import TaskRuntimeExecutor, WorkerRuntimeExecutor, LocalArtifactBackend
+from qall.runtime import (
+    TaskRuntimeExecutor,
+    WorkerRuntimeExecutor,
+    LocalArtifactBackend,
+)
 from qall.specification import WorkerSpec, WorkflowSpec
 
 
@@ -58,11 +62,12 @@ def test_cudaq_local_worker_end_to_end(tmp_path: Path):
     )
     worker_thread = threading.Thread(target=worker_executor.execute, daemon=True)
     worker_thread.start()
-    time.sleep(0.6)
+    time.sleep(3)
 
     task_file = tmp_path / "task_cudaq.py"
     task_file.write_text(
-        textwrap.dedent("""
+        textwrap.dedent(
+            """
         import qall
         import cudaq
 
@@ -76,7 +81,8 @@ def test_cudaq_local_worker_end_to_end(tmp_path: Path):
 
             res = qall.run(kernel, shots=400)
             return len(res) > 0
-    """)
+    """
+        )
     )
 
     task_spec = WorkflowSpec(task_file)

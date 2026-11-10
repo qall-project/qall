@@ -15,14 +15,16 @@ from typing import Any
 
 from qio.core import QuantumProgram, QuantumProgramResult
 
-CIRCUIT_TYPE_QISKIT = "qiskit.QuantumCircuit"
-CIRCUIT_TYPE_CIRQ = "cirq.Circuit"
-CIRCUIT_TYPE_CUDAQ = "cudaq.PyKernel"
-CIRCUIT_TYPE_PERCEVAL = "perceval.Experiment"
-CIRCUIT_TYPE_PULSER = "pulser.Sequence"
-CIRCUIT_TYPE_MIMIQ = "mimiqcircuits.Circuit"
+CIRCUIT_TYPE_QISKIT_CIRCUIT = "qiskit.QuantumCircuit"
+CIRCUIT_TYPE_CIRQ_CIRCUIT = "cirq.Circuit"
+CIRCUIT_TYPE_CUDAQ_KERNEL = "cudaq.PyKernel"
+CIRCUIT_TYPE_PERCEVAL_EXPERIMENT = "perceval.Experiment"
+CIRCUIT_TYPE_PERCEVAL_CIRCUIT = "perceval.Circuit"
+CIRCUIT_TYPE_PULSER_SEQUENCE = "pulser.Sequence"
+CIRCUIT_TYPE_MIMIQ_CIRCUIT = "mimiqcircuits.Circuit"
 CIRCUIT_TYPE_QASM2 = "qasm2"
-CIRCUIT_TYPE_QIO = "qio.QuantumProgram"
+CIRCUIT_TYPE_QASM3 = "qasm3"
+CIRCUIT_TYPE_QIO_PROGRAM = "qio.QuantumProgram"
 
 RESULT_TYPE_QISKIT = "qiskit.result.Result"
 RESULT_TYPE_CIRQ = "cirq.Result"
@@ -33,24 +35,26 @@ RESULT_TYPE_MIMIQ = "mimiqcircuits.QCSResults"
 RESULT_TYPE_QIO = "qio.QuantumProgramResult"
 
 QUANTUM_CIRCUIT_TYPE_MAPPING = {
-    "qiskit": CIRCUIT_TYPE_QISKIT,
-    "qiskit.QuantumCircuit": CIRCUIT_TYPE_QISKIT,
-    "qiskit.circuit.quantumcircuit.QuantumCircuit": CIRCUIT_TYPE_QISKIT,
-    "cirq": CIRCUIT_TYPE_CIRQ,
-    "cirq.Circuit": CIRCUIT_TYPE_CIRQ,
-    "cirq.circuits.circuit.Circuit": CIRCUIT_TYPE_CIRQ,
-    "cudaq": CIRCUIT_TYPE_CUDAQ,
-    "cudaq.PyKernel": CIRCUIT_TYPE_CUDAQ,
-    "mimiq": CIRCUIT_TYPE_MIMIQ,
-    "mimiqcircuits": CIRCUIT_TYPE_MIMIQ,
-    "mimiqcircuits.Circuit": CIRCUIT_TYPE_MIMIQ,
+    "qiskit": CIRCUIT_TYPE_QISKIT_CIRCUIT,
+    "qiskit.QuantumCircuit": CIRCUIT_TYPE_QISKIT_CIRCUIT,
+    "qiskit.circuit.quantumcircuit.QuantumCircuit": CIRCUIT_TYPE_QISKIT_CIRCUIT,
+    "cirq": CIRCUIT_TYPE_CIRQ_CIRCUIT,
+    "cirq.Circuit": CIRCUIT_TYPE_CIRQ_CIRCUIT,
+    "cirq.circuits.circuit.Circuit": CIRCUIT_TYPE_CIRQ_CIRCUIT,
+    "cudaq": CIRCUIT_TYPE_CUDAQ_KERNEL,
+    "cudaq.PyKernel": CIRCUIT_TYPE_CUDAQ_KERNEL,
+    "mimiq": CIRCUIT_TYPE_MIMIQ_CIRCUIT,
+    "mimiqcircuits": CIRCUIT_TYPE_MIMIQ_CIRCUIT,
+    "mimiqcircuits.Circuit": CIRCUIT_TYPE_MIMIQ_CIRCUIT,
     "qasm2": CIRCUIT_TYPE_QASM2,
-    "qio": CIRCUIT_TYPE_QIO,
-    "qio.QuantumProgram": CIRCUIT_TYPE_QIO,
-    "pulser": CIRCUIT_TYPE_PULSER,
-    "pulser.Sequence": CIRCUIT_TYPE_PULSER,
-    "perceval": CIRCUIT_TYPE_PERCEVAL,
-    "perceval.Experiment": CIRCUIT_TYPE_PERCEVAL,
+    "qasm3": CIRCUIT_TYPE_QASM3,
+    "qio": CIRCUIT_TYPE_QIO_PROGRAM,
+    "qio.QuantumProgram": CIRCUIT_TYPE_QIO_PROGRAM,
+    "pulser": CIRCUIT_TYPE_PULSER_SEQUENCE,
+    "pulser.Sequence": CIRCUIT_TYPE_PULSER_SEQUENCE,
+    "perceval": CIRCUIT_TYPE_PERCEVAL_EXPERIMENT,
+    "perceval.Experiment": CIRCUIT_TYPE_PERCEVAL_EXPERIMENT,
+    "perceval.Circuit": CIRCUIT_TYPE_PERCEVAL_CIRCUIT,
 }
 
 QUANTUM_RESULT_TYPE_MAPPING = {
@@ -101,14 +105,20 @@ def native_program_to_qio_program(program: Any) -> QuantumProgram:
 
     c_type = normalize_circuit_type(program)
 
-    if c_type == CIRCUIT_TYPE_QISKIT:
+    if c_type == CIRCUIT_TYPE_QISKIT_CIRCUIT:
         return QuantumProgram.from_qiskit_circuit(program)
-    elif c_type == CIRCUIT_TYPE_CIRQ:
+    elif c_type == CIRCUIT_TYPE_CIRQ_CIRCUIT:
         return QuantumProgram.from_cirq_circuit(program)
-    elif c_type == CIRCUIT_TYPE_CUDAQ:
+    elif c_type == CIRCUIT_TYPE_CUDAQ_KERNEL:
         return QuantumProgram.from_cudaq_kernel(program)
-    elif c_type == CIRCUIT_TYPE_MIMIQ:
+    elif c_type == CIRCUIT_TYPE_MIMIQ_CIRCUIT:
         return QuantumProgram.from_mimiq_circuit(program)
+    elif c_type == CIRCUIT_TYPE_PERCEVAL_EXPERIMENT:
+        return QuantumProgram.from_perceval_experiment(program)
+    elif c_type == CIRCUIT_TYPE_PERCEVAL_CIRCUIT:
+        return QuantumProgram.from_perceval_circuit(program)
+    elif c_type == CIRCUIT_TYPE_PULSER_SEQUENCE:
+        return QuantumProgram.from_pulser_sequence(program)
 
     return program
 
@@ -116,16 +126,23 @@ def native_program_to_qio_program(program: Any) -> QuantumProgram:
 def qio_program_to_native_program(program: QuantumProgram, target_format: str) -> Any:
     c_type = normalize_circuit_type(target_format)
 
-    if c_type == CIRCUIT_TYPE_QISKIT:
+    if c_type == CIRCUIT_TYPE_QISKIT_CIRCUIT:
         return program.to_qiskit_circuit()
-    elif c_type == CIRCUIT_TYPE_CIRQ:
+    elif c_type == CIRCUIT_TYPE_CIRQ_CIRCUIT:
         return program.to_cirq_circuit()
-    elif c_type == CIRCUIT_TYPE_CUDAQ:
+    elif c_type == CIRCUIT_TYPE_CUDAQ_KERNEL:
         return program.to_cudaq_kernel()
-    elif c_type == CIRCUIT_TYPE_MIMIQ:
+    elif c_type == CIRCUIT_TYPE_MIMIQ_CIRCUIT:
         return program.to_mimiq_circuit()
     elif c_type == CIRCUIT_TYPE_QASM2:
         return program.to_qasm2_circuit()
+    elif c_type == CIRCUIT_TYPE_PERCEVAL_EXPERIMENT:
+        return program.to_perceval_experiment()
+    elif c_type == CIRCUIT_TYPE_PERCEVAL_CIRCUIT:
+        return program.to_perceval_circuit()
+    elif c_type == CIRCUIT_TYPE_PULSER_SEQUENCE:
+        return program.to_pulser_sequence()
+
     return program
 
 
@@ -143,6 +160,10 @@ def native_result_to_qio_result(result: Any) -> QuantumProgramResult:
         return QuantumProgramResult.from_cudaq_sample_result(result)
     elif r_type == RESULT_TYPE_MIMIQ:
         return QuantumProgramResult.from_mimiq_qcsr(result)
+    elif r_type == RESULT_TYPE_PERCEVAL:
+        return QuantumProgramResult.from_perceval_result(result)
+    elif r_type == RESULT_TYPE_PULSER:
+        return QuantumProgramResult.from_pulser_result(result)
 
     return result
 
@@ -160,5 +181,9 @@ def qio_result_to_native_result(
         return result.to_cudaq_sample_result()
     elif r_type == RESULT_TYPE_MIMIQ:
         return result.to_mimiq_qcsr()
+    elif r_type == RESULT_TYPE_PERCEVAL:
+        return result.to_perceval_result()
+    elif r_type == RESULT_TYPE_PULSER:
+        return result.to_pulser_result()
 
     return result

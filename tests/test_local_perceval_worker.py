@@ -24,7 +24,11 @@ pytest.importorskip("perceval")
 
 from qall.object import Tag
 from qall.registry import BlockRegistry
-from qall.runtime import TaskRuntimeExecutor, WorkerRuntimeExecutor, LocalArtifactBackend
+from qall.runtime import (
+    TaskRuntimeExecutor,
+    WorkerRuntimeExecutor,
+    LocalArtifactBackend,
+)
 from qall.specification import WorkflowSpec, WorkerSpec
 
 
@@ -58,11 +62,12 @@ def test_perceval_local_worker_end_to_end(tmp_path: Path):
     )
     worker_thread = threading.Thread(target=worker_executor.execute, daemon=True)
     worker_thread.start()
-    time.sleep(0.6)
+    time.sleep(3)
 
     task_file = tmp_path / "task_perceval.py"
     task_file.write_text(
-        textwrap.dedent("""
+        textwrap.dedent(
+            """
         import qall
         import perceval as pcvl
 
@@ -77,7 +82,8 @@ def test_perceval_local_worker_end_to_end(tmp_path: Path):
             
             res = qall.run(exp, shots=100)
             return len(res) > 0
-    """)
+    """
+        )
     )
 
     task_spec = WorkflowSpec(task_file)

@@ -26,7 +26,11 @@ pytest.importorskip("pulser_simulation")
 import qall
 from qall.object import Tag
 from qall.registry import BlockRegistry
-from qall.runtime import TaskRuntimeExecutor, WorkerRuntimeExecutor, LocalArtifactBackend
+from qall.runtime import (
+    TaskRuntimeExecutor,
+    WorkerRuntimeExecutor,
+    LocalArtifactBackend,
+)
 from qall.specification import WorkflowSpec, WorkerSpec
 
 
@@ -60,11 +64,12 @@ def test_pulser_local_worker_end_to_end(tmp_path: Path):
     )
     worker_thread = threading.Thread(target=worker_executor.execute, daemon=True)
     worker_thread.start()
-    time.sleep(0.6)
+    time.sleep(3)
 
     task_file = tmp_path / "task_pulser.py"
     task_file.write_text(
-        textwrap.dedent("""
+        textwrap.dedent(
+            """
         import qall
         import numpy as np
         from pulser import Pulse, Sequence, BlackmanWaveform, RampWaveform
@@ -85,7 +90,8 @@ def test_pulser_local_worker_end_to_end(tmp_path: Path):
 
             res = qall.run(seq, shots=50)
             return len(res) > 0
-    """)
+    """
+        )
     )
 
     task_spec = WorkflowSpec(task_file)
