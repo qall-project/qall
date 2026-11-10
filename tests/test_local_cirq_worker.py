@@ -11,19 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import cloudpickle
 import socket
 import textwrap
 import threading
 import time
-from pathlib import Path
 import pytest
+from pathlib import Path
 
 pytest.importorskip("cirq")
 pytest.importorskip("qsimcirq")
 
-import qall
 from qall.object import Tag
 from qall.registry import BlockRegistry
 from qall.runtime import (
@@ -45,7 +43,6 @@ def test_cirq_local_worker_end_to_end(tmp_path: Path):
     artifact_backend = LocalArtifactBackend(tmp_path / "artifacts")
     port = _get_free_port()
 
-    # 1. Enregistrement du worker Cirq local
     worker_file = (
         Path(__file__).parents[1]
         / "qall"
@@ -58,7 +55,6 @@ def test_cirq_local_worker_end_to_end(tmp_path: Path):
     worker_dag = registry.create_worker_dag(worker_spec)
     registry.push(tag=Tag(name="cirq_worker", version="local"), dag=worker_dag)
 
-    # 2. Démarrage du runtime worker gRPC en tâche de fond
     worker_executor = WorkerRuntimeExecutor(
         worker_hash=worker_dag.root_hash,
         registry=registry,
@@ -66,7 +62,7 @@ def test_cirq_local_worker_end_to_end(tmp_path: Path):
     )
     worker_thread = threading.Thread(target=worker_executor.execute, daemon=True)
     worker_thread.start()
-    time.sleep(0.6)
+    time.sleep(3)
 
     task_file = tmp_path / "task_cirq.py"
     task_file.write_text(
@@ -95,7 +91,6 @@ def test_cirq_local_worker_end_to_end(tmp_path: Path):
     task_dag = registry.create_workflow_dag(task_spec)
     registry.push(tag=Tag(name="cirq_task", version="v1"), dag=task_dag)
 
-    # 4. Exécution
     task_executor = TaskRuntimeExecutor(
         task_hash=task_dag.root_hash,
         registry=registry,
@@ -105,7 +100,6 @@ def test_cirq_local_worker_end_to_end(tmp_path: Path):
 
     output = task_executor.execute(task_run_id="run_cirq_test")
 
-    # 5. Assertions
     assert output.return_code == 0, f"Task execution failed: {output.stderr}"
     assert output.output_artifact_bytes is not None
 

@@ -16,8 +16,9 @@ import socket
 import textwrap
 import threading
 import time
-from pathlib import Path
 import pytest
+
+from pathlib import Path
 
 pytest.importorskip("qiskit")
 pytest.importorskip("qiskit_aer")
@@ -29,7 +30,7 @@ from qall.runtime import (
     WorkerRuntimeExecutor,
     LocalArtifactBackend,
 )
-from qall.specification import TaskSpec, WorkerSpec, WorkflowSpec
+from qall.specification import WorkerSpec, WorkflowSpec
 
 
 def _get_free_port() -> int:
