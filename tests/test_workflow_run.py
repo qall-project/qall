@@ -19,9 +19,11 @@ workflow run, annotated with the entrypoint task that produced the artifacts.
 """
 
 from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
-from qall.core.workflow_run import _artifact_show_hints
-from qall.object import TaskDag, TaskMetadata, TaskNode
+from qall.core.workflow_run import _artifact_show_hints, create_workflow_run
+from qall.exceptions import DataloaderDependencyError
+from qall.object import DaemonStatus, TaskDag, TaskMetadata, TaskNode, WorkflowRunStatus
 
 
 def _node(name: str) -> TaskNode:
@@ -65,3 +67,65 @@ def test_artifact_show_hints_skips_hashless_and_empty_inputs():
 
     assert _artifact_show_hints([]) == ""
     assert _artifact_show_hints(None) == ""
+
+
+def test_local_run_preflights_dataloaders_before_starting_the_daemon(tmp_path):
+    """A missing fuse/rclone must fail before any daemon is started.
+
+    Regression: the local auto-start path started the daemon (and then followed
+    its logs forever) before the dataloader pre-flight, so the dependency error
+    was never surfaced when the daemon was down.
+    """
+    dag = SimpleNamespace(nodes=[], root_hash="root-hash")
+    profile = SimpleNamespace(provider="local")
+    local_config = MagicMock()
+    local_config.get_default_profile.return_value = profile
+
+    with (
+        patch("qall.core.workflow_run.WorkflowSpec"),
+        patch(
+            "qall.core.workflow_run.push_workflow_on_registry",
+            return_value=("workflow:latest", dag),
+        ),
+        patch(
+            "qall.core.workflow_run.get_provider_login_credentials",
+            return_value=None,
+        ),
+        patch("qall.core.workflow_run.config_exists", return_value=True),
+        patch(
+            "qall.core.workflow_run.get_local_configuration",
+            return_value=local_config,
+        ),
+        patch(
+            "qall.core.workflow_run.apply_resource_overrides",
+            side_effect=lambda profile, **_: profile,
+        ),
+        patch("qall.core.workflow_run.resolve_workflow_resources", return_value={}),
+        patch("qall.core.workflow_run._get_provider_workers", return_value=[]),
+        patch(
+            "qall.core.workflow_run.get_daemon_status",
+            return_value=SimpleNamespace(status=DaemonStatus.STOPPED),
+        ),
+        patch(
+            "qall.core.workflow_run.resolve_dataloaders_by_task",
+            return_value=[{"name": "bucket", "src": "s3://bucket", "task_hash": "h"}],
+        ),
+        patch(
+            "qall.core.workflow_run.ensure_remote_dataloader_support",
+            side_effect=DataloaderDependencyError("fuse is missing"),
+        ) as m_preflight,
+        patch("qall.core.workflow_run.start_daemon") as m_start,
+        patch("qall.core.workflow_run.run_task") as m_run,
+        patch("qall.core.workflow_run.stop_daemon") as m_stop,
+    ):
+        result = create_workflow_run(
+            entrypoint=str(tmp_path / "workflow.py"),
+            local_only=True,
+            auto_start_daemon=True,
+        )
+
+    assert result.status == WorkflowRunStatus.ERROR
+    m_preflight.assert_called_once()
+    m_start.assert_not_called()
+    m_run.assert_not_called()
+    m_stop.assert_not_called()

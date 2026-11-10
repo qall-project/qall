@@ -29,7 +29,7 @@ from google.rpc import error_details_pb2, status_pb2
 
 from qall.core.daemon import (
     _dataloader_error_from_rpc,
-    _ensure_remote_dataloader_support,
+    ensure_remote_dataloader_support,
 )
 from qall.exceptions import (
     DataloaderDependencyError,
@@ -141,9 +141,9 @@ def test_preflight_is_skipped_for_local_dataloaders(monkeypatch):
     monkeypatch.setattr(deps, "ensure_dataloader_dependencies", _boom)
 
     # No dataloader at all, and local (file:// / bare path) ones.
-    _ensure_remote_dataloader_support(None)
-    _ensure_remote_dataloader_support([])
-    _ensure_remote_dataloader_support(
+    ensure_remote_dataloader_support(None)
+    ensure_remote_dataloader_support([])
+    ensure_remote_dataloader_support(
         [
             {"name": "local", "src": "file:///home/me/data"},
             {"name": "bare", "src": "/srv/data"},
@@ -161,7 +161,7 @@ def test_preflight_runs_for_remote_dataloaders(monkeypatch):
 
     monkeypatch.setattr(deps, "ensure_dataloader_dependencies", _fake)
 
-    _ensure_remote_dataloader_support(
+    ensure_remote_dataloader_support(
         [
             {"name": "local", "src": "file:///home/me/data"},
             {"name": "bucket", "src": "s3://my-bucket/prefix"},
@@ -180,4 +180,4 @@ def test_preflight_propagates_dependency_errors(monkeypatch):
     monkeypatch.setattr(deps, "ensure_dataloader_dependencies", _raise)
 
     with pytest.raises(DataloaderDependencyError):
-        _ensure_remote_dataloader_support([{"name": "bucket", "src": "gs://my-bucket"}])
+        ensure_remote_dataloader_support([{"name": "bucket", "src": "gs://my-bucket"}])

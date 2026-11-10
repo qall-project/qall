@@ -19,6 +19,7 @@ from typing import Optional
 
 from qall.core.daemon import (
     start_daemon,
+    follow_daemon_logs,
     run_task,
     get_daemon_status,
     stop_daemon,
@@ -95,13 +96,18 @@ def daemon_start(
     ),
 ):
     """
-    Start a local Qall daemon (Docker or systemd backend).
+    Start a local Qall daemon (Docker or systemd backend) and follow its logs.
     """
     try:
         start_daemon(
             port=port,
             block_registry_path=block_registry,
             artifact_registry_path=artifact_registry,
+            backend=backend,
+            **_manager_kwargs(scope, unit_name, unit_dir),
+        )
+        follow_daemon_logs(
+            port=port,
             backend=backend,
             **_manager_kwargs(scope, unit_name, unit_dir),
         )

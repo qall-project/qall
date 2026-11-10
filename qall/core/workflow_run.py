@@ -43,6 +43,7 @@ from qall.core.daemon import (
     start_daemon,
     stop_daemon,
     apply_resource_assignments,
+    ensure_remote_dataloader_support,
 )
 from qall.core.dataloader import resolve_dataloaders_by_task
 from qall.core.config import init_config
@@ -193,18 +194,11 @@ def create_workflow_run(
         daemon_status = get_daemon_status()
         daemon_is_already_running = daemon_status.status == DaemonStatus.RUNNING
 
-        if not daemon_is_already_running:
-            if not auto_start_daemon:
-                raise RuntimeError(
-                    "No qall daemon running. Start it first, or set auto_start_daemon=True."
-                )
-            logger.info("Daemon not running. Starting local daemon...")
-            start_daemon(detach=True)
-
-        if worker_definitions or resource_assignments:
-            apply_resource_assignments(
-                worker_definitions=worker_definitions,
-                resource_assignments=resource_assignments,
+        # Keep the "no daemon + no auto-start" configuration error immediate:
+        # this is a caller mistake, not a workflow failure.
+        if not daemon_is_already_running and not auto_start_daemon:
+            raise RuntimeError(
+                "No qall daemon running. Start it first, or set auto_start_daemon=True."
             )
 
         # Mint the workflow run id up front: the daemon scopes the task's
@@ -212,15 +206,34 @@ def create_workflow_run(
         # run (including child tasks submitted by the workflow itself) must
         # carry the same id.
         workflow_run_id = str(uuid.uuid4())
-        logger.info(f"Starting workflow run {workflow_run_id}")
         start = datetime.datetime.now()
+        daemon_startup_attempted = False
         try:
-            # Resolve the whole DAG's dataloader credentials and hand them to
-            # the daemon on the root CreateTaskRunRequest; the daemon creates
-            # one rclone-backed volume per (run, dataloader) and mounts each
-            # task's own entries at /<dst> in its container.
+            # Resolve the whole DAG's dataloader credentials and pre-flight the
+            # host requirements *before* starting the daemon. A missing fuse /
+            # rclone must surface as a clean DataloaderDependencyError instead
+            # of launching a container, and the resolved entries are handed to
+            # the daemon on the root CreateTaskRunRequest: it creates one
+            # rclone-backed volume per (run, dataloader) and mounts each task's
+            # own entries at /<dst> in its container.
             dataloaders = resolve_dataloaders_by_task(dag)
+            ensure_remote_dataloader_support(dataloaders)
 
+            # Start a local daemon instance if we cannot reach a running one.
+            if not daemon_is_already_running:
+                logger.info("Daemon not running. Starting local daemon...")
+                # Set before the call so a partially started daemon is still
+                # cleaned up by the finally block.
+                daemon_startup_attempted = True
+                start_daemon()
+
+            if worker_definitions or resource_assignments:
+                apply_resource_assignments(
+                    worker_definitions=worker_definitions,
+                    resource_assignments=resource_assignments,
+                )
+
+            logger.info(f"Starting workflow run {workflow_run_id}")
             artifacts = run_task(
                 task_hash=dag.root_hash,
                 workflow_run_id=workflow_run_id,
@@ -264,7 +277,7 @@ def create_workflow_run(
                 finished_at=datetime.datetime.now(),
             )
         finally:
-            if not daemon_is_already_running and auto_start_daemon:
+            if daemon_startup_attempted:
                 stop_daemon()
 
     else:

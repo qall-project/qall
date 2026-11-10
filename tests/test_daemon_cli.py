@@ -18,6 +18,7 @@ from typer.testing import CliRunner
 
 from qall.cli.daemon import daemon_cli
 from qall.core.daemon import (
+    follow_daemon_logs,
     get_daemon_status,
     run_task,
     start_daemon,
@@ -32,7 +33,10 @@ runner = CliRunner()
 
 
 def test_daemon_start_defaults_to_docker_backend():
-    with patch("qall.cli.daemon.start_daemon") as m_start:
+    with (
+        patch("qall.cli.daemon.start_daemon") as m_start,
+        patch("qall.cli.daemon.follow_daemon_logs"),
+    ):
         result = runner.invoke(daemon_cli, ["start", "--port", "53000"])
 
     assert result.exit_code == 0, result.output
@@ -40,8 +44,29 @@ def test_daemon_start_defaults_to_docker_backend():
     assert m_start.call_args.kwargs["backend"] == "docker"
 
 
+def test_daemon_start_follows_logs_after_start():
+    with (
+        patch("qall.cli.daemon.start_daemon") as m_start,
+        patch("qall.cli.daemon.follow_daemon_logs") as m_follow,
+    ):
+        result = runner.invoke(
+            daemon_cli,
+            ["start", "--daemon-backend", "systemd", "--scope", "user"],
+        )
+
+    assert result.exit_code == 0, result.output
+    m_start.assert_called_once()
+    m_follow.assert_called_once()
+    assert m_follow.call_args.kwargs["backend"] == "systemd"
+    assert m_follow.call_args.kwargs["scope"] == "user"
+    assert m_start.call_args.kwargs["port"] == m_follow.call_args.kwargs["port"]
+
+
 def test_daemon_start_selects_systemd_backend():
-    with patch("qall.cli.daemon.start_daemon") as m_start:
+    with (
+        patch("qall.cli.daemon.start_daemon") as m_start,
+        patch("qall.cli.daemon.follow_daemon_logs"),
+    ):
         result = runner.invoke(daemon_cli, ["start", "--daemon-backend", "systemd"])
 
     assert result.exit_code == 0, result.output
@@ -49,7 +74,10 @@ def test_daemon_start_selects_systemd_backend():
 
 
 def test_daemon_backend_is_case_insensitive():
-    with patch("qall.cli.daemon.start_daemon") as m_start:
+    with (
+        patch("qall.cli.daemon.start_daemon") as m_start,
+        patch("qall.cli.daemon.follow_daemon_logs"),
+    ):
         result = runner.invoke(daemon_cli, ["start", "--daemon-backend", "SYSTEMD"])
 
     assert result.exit_code == 0, result.output
@@ -101,7 +129,10 @@ def test_daemon_run_selects_systemd_backend():
 
 
 def test_daemon_start_forwards_scope_to_core():
-    with patch("qall.cli.daemon.start_daemon") as m_start:
+    with (
+        patch("qall.cli.daemon.start_daemon") as m_start,
+        patch("qall.cli.daemon.follow_daemon_logs"),
+    ):
         result = runner.invoke(
             daemon_cli,
             ["start", "--daemon-backend", "systemd", "--scope", "user"],
@@ -112,7 +143,10 @@ def test_daemon_start_forwards_scope_to_core():
 
 
 def test_daemon_start_forwards_unit_name_and_dir_to_core():
-    with patch("qall.cli.daemon.start_daemon") as m_start:
+    with (
+        patch("qall.cli.daemon.start_daemon") as m_start,
+        patch("qall.cli.daemon.follow_daemon_logs"),
+    ):
         result = runner.invoke(
             daemon_cli,
             [
@@ -132,7 +166,10 @@ def test_daemon_start_forwards_unit_name_and_dir_to_core():
 
 
 def test_daemon_start_defaults_to_user_scope():
-    with patch("qall.cli.daemon.start_daemon") as m_start:
+    with (
+        patch("qall.cli.daemon.start_daemon") as m_start,
+        patch("qall.cli.daemon.follow_daemon_logs"),
+    ):
         result = runner.invoke(daemon_cli, ["start"])
 
     assert result.exit_code == 0, result.output
@@ -235,6 +272,62 @@ def test_start_daemon_forwards_backend_to_selector(tmp_path):
     assert m_get.call_args.kwargs["backend"] == "systemd"
     assert m_get.call_args.kwargs["grpc_port"] == 50053
     fake.start.assert_called_once()
+
+
+def test_start_daemon_does_not_follow_logs(tmp_path):
+    """The programmatic start (``qall run --local``) must return immediately.
+
+    Both backends' ``logs()`` are follow streams that only end when the daemon
+    stops; consuming them here used to hang the auto-start path forever.
+    """
+    fake = _fake_manager()
+    fake.logs.return_value = iter(["never read\n"])
+
+    with patch("qall.core.daemon.get_daemon_manager", return_value=fake):
+        start_daemon(
+            block_registry_path=str(tmp_path / "blocks"),
+            artifact_registry_path=str(tmp_path / "artifacts"),
+        )
+
+    fake.start.assert_called_once()
+    fake.logs.assert_not_called()
+
+
+def test_follow_daemon_logs_streams_running_daemon(monkeypatch):
+    fake = _fake_manager()
+    fake.is_running.return_value = True
+    fake.logs.return_value = iter(["line 1\n", "line 2\n"])
+
+    logged = []
+    monkeypatch.setattr(
+        "qall.core.daemon.logger.info", lambda message: logged.append(message)
+    )
+
+    with patch("qall.core.daemon.get_daemon_manager", return_value=fake) as m_get:
+        follow_daemon_logs(backend="systemd", port=50053)
+
+    m_get.assert_called_once()
+    assert m_get.call_args.kwargs["backend"] == "systemd"
+    assert m_get.call_args.kwargs["grpc_port"] == 50053
+    fake.is_running.assert_called_once()
+    fake.logs.assert_called_once()
+    assert logged == ["line 1", "line 2"]
+
+
+def test_follow_daemon_logs_warns_when_daemon_not_running(monkeypatch):
+    fake = _fake_manager()
+    fake.is_running.return_value = False
+
+    warnings = []
+    monkeypatch.setattr(
+        "qall.core.daemon.logger.warning", lambda message: warnings.append(message)
+    )
+
+    with patch("qall.core.daemon.get_daemon_manager", return_value=fake):
+        follow_daemon_logs()
+
+    fake.logs.assert_not_called()
+    assert warnings == ["No running daemon to stream logs from."]
 
 
 def test_stop_daemon_forwards_backend_to_selector():

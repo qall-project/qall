@@ -24,9 +24,14 @@ from qall.exceptions import DataloaderDependencyError
 
 
 class _FakePlugin:
-    def __init__(self, name: str, enabled: bool = True):
+    def __init__(self, name: str, enabled: bool = True, reference: str = ""):
         self.name = name
         self.enabled = enabled
+        self.attrs = {
+            "Name": name,
+            "Enabled": enabled,
+            "PluginReference": reference,
+        }
 
 
 class _FakePlugins:
@@ -37,9 +42,9 @@ class _FakePlugins:
     def list(self):
         return list(self._plugins)
 
-    def install(self, image, alias=None, grant_all_permissions=False):
-        self.installed.append((image, alias, grant_all_permissions))
-        self._plugins.append(_FakePlugin(alias or image, True))
+    def install(self, image, local_name=None):
+        self.installed.append((image, local_name))
+        self._plugins.append(_FakePlugin(local_name or image, True))
 
 
 class _FakeClient:
@@ -72,7 +77,16 @@ class _FakeClient:
 
 
 def _ok_client(**kwargs):
-    return _FakeClient(plugins=[_FakePlugin("rclone")], **kwargs)
+    # Docker stores ``--alias rclone`` as ``rclone:latest`` (reference.TagNameOnly).
+    return _FakeClient(
+        plugins=[
+            _FakePlugin(
+                "rclone:latest",
+                reference="docker.io/rclone/docker-volume-rclone:amd64",
+            )
+        ],
+        **kwargs,
+    )
 
 
 @pytest.fixture
@@ -117,6 +131,30 @@ def test_all_dependencies_ok_on_linux(linux):
     assert checks["rclone-plugin"].ok
     assert checks["fuse"].ok
     assert "installed and enabled" in checks["rclone-plugin"].detail
+
+
+def test_plugin_matched_by_aliased_name_without_reference(linux):
+    """Docker stores ``--alias rclone`` as ``rclone:latest``."""
+    client = _FakeClient(plugins=[_FakePlugin("rclone:latest")])
+    report = deps.check_dataloader_dependencies(client=client, platform="Linux")
+
+    assert report.ok
+    assert _by_name(report)["rclone-plugin"].ok
+
+
+def test_plugin_matched_by_remote_reference(linux):
+    client = _FakeClient(
+        plugins=[
+            _FakePlugin(
+                "some-alias",
+                reference="docker.io/rclone/docker-volume-rclone:amd64",
+            )
+        ]
+    )
+    report = deps.check_dataloader_dependencies(client=client, platform="Linux")
+
+    assert report.ok
+    assert _by_name(report)["rclone-plugin"].ok
 
 
 def test_missing_fuse(linux, monkeypatch):
@@ -194,6 +232,24 @@ def test_unknown_architecture_fails_the_plugin_check(linux):
 def test_plugin_architecture_mismatch(linux):
     client = _FakeClient(
         plugins=[_FakePlugin("rclone/docker-volume-rclone:arm64")], arch="amd64"
+    )
+    report = deps.check_dataloader_dependencies(client=client, platform="Linux")
+    plugin = _by_name(report)["rclone-plugin"]
+
+    assert not plugin.ok
+    assert "arm64" in plugin.detail and "amd64" in plugin.detail
+    assert plugin.fix.endswith(":amd64 --alias rclone --grant-all-permissions")
+
+
+def test_remote_reference_architecture_wins_over_alias_tag(linux):
+    client = _FakeClient(
+        plugins=[
+            _FakePlugin(
+                "rclone:latest",
+                reference="docker.io/rclone/docker-volume-rclone:arm64",
+            )
+        ],
+        arch="amd64",
     )
     report = deps.check_dataloader_dependencies(client=client, platform="Linux")
     plugin = _by_name(report)["rclone-plugin"]
@@ -349,9 +405,7 @@ def test_install_plugin_with_assume_yes(linux):
     assert result.installed == ["rclone-plugin"]
     assert "rclone-plugin" not in result.skipped
     assert "docker" in result.skipped and "fuse" in result.skipped
-    assert client.plugins.installed == [
-        ("rclone/docker-volume-rclone:amd64", "rclone", True)
-    ]
+    assert client.plugins.installed == [("rclone/docker-volume-rclone:amd64", "rclone")]
 
 
 def test_install_fuse_with_assume_yes(linux, monkeypatch):
@@ -421,9 +475,7 @@ def test_install_falls_back_to_cli_when_sdk_signature_differs(linux, monkeypatch
     client = _FakeClient()
 
     def _unsupported(*args, **kwargs):
-        raise TypeError(
-            "install() got an unexpected keyword argument 'grant_all_permissions'"
-        )
+        raise TypeError("install() got an unexpected keyword argument 'local_name'")
 
     client.plugins.install = _unsupported
     report = deps.check_dataloader_dependencies(client=client, platform="Linux")

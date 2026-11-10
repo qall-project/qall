@@ -52,6 +52,9 @@ DEFAULT_PLUGIN_IMAGE = "rclone/docker-volume-rclone"
 # with ``--driver rclone``.
 PLUGIN_ALIAS = "rclone"
 
+# Architecture tags published for the rclone Docker volume plugin.
+_PLUGIN_ARCHITECTURES = frozenset({"amd64", "arm64"})
+
 _MACOS_FUSE_DETAIL = "provided by the Docker Desktop Linux VM"
 
 
@@ -209,15 +212,46 @@ def _plugin_install_command(arch: Optional[str]) -> str:
     )
 
 
-def _is_rclone_plugin_name(name: str) -> bool:
-    return name == PLUGIN_ALIAS or name.startswith(DEFAULT_PLUGIN_IMAGE)
+def _plugin_reference(plugin: Any) -> str:
+    """Returns the remote image reference (``PluginReference``) of a plugin."""
+    attrs = getattr(plugin, "attrs", None) or {}
+    reference = attrs.get("PluginReference")
+    if reference is None:
+        reference = getattr(plugin, "plugin_reference", None)
+    return str(reference or "")
 
 
-def _plugin_tag(name: str) -> Optional[str]:
-    """Returns the tag of a full plugin reference (``None`` for an alias)."""
-    if ":" not in name:
-        return None
-    return name.rsplit(":", 1)[1]
+def _is_rclone_plugin_name(name: str, reference: str = "") -> bool:
+    """Matches the plugin by install alias, image name or remote reference.
+
+    Docker normalises plugin names with ``reference.TagNameOnly``, so an
+    install with ``--alias rclone`` is stored as ``rclone:latest``. The remote
+    reference (e.g. ``docker.io/rclone/docker-volume-rclone:amd64``) is the
+    most reliable identifier when the alias carries a tag.
+    """
+    name = name.strip().lower()
+    if name == PLUGIN_ALIAS or name.startswith(f"{PLUGIN_ALIAS}:"):
+        return True
+    if name.startswith(DEFAULT_PLUGIN_IMAGE):
+        return True
+    return DEFAULT_PLUGIN_IMAGE in reference.strip().lower()
+
+
+def _plugin_tag(name: str, reference: str = "") -> Optional[str]:
+    """Returns the *architecture* tag of the plugin image, if discoverable.
+
+    Alias names also carry a tag (``rclone:latest``), which says nothing about
+    the architecture. Prefer the remote reference, and only report tags that
+    are actual architecture tags.
+    """
+    for candidate in (reference, name):
+        candidate = candidate.strip().lower()
+        if DEFAULT_PLUGIN_IMAGE not in candidate or ":" not in candidate:
+            continue
+        tag = candidate.rsplit(":", 1)[1]
+        if tag in _PLUGIN_ARCHITECTURES:
+            return tag
+    return None
 
 
 def _is_rootless(info: dict) -> bool:
@@ -281,7 +315,9 @@ def _plugin_check(
     matches = [
         plugin
         for plugin in plugins
-        if _is_rclone_plugin_name(str(getattr(plugin, "name", "")))
+        if _is_rclone_plugin_name(
+            str(getattr(plugin, "name", "")), _plugin_reference(plugin)
+        )
     ]
     # Prefer an enabled match when several versions are installed.
     plugin = next(
@@ -349,7 +385,7 @@ def _plugin_check(
             fixable=True,
         )
 
-    tag = _plugin_tag(str(getattr(plugin, "name", "")))
+    tag = _plugin_tag(str(getattr(plugin, "name", "")), _plugin_reference(plugin))
     if tag is not None and tag != arch:
         return DependencyCheck(
             name="rclone-plugin",
@@ -680,9 +716,7 @@ def install_dataloader_dependencies(
                         hint="start Docker (or check your docker context)",
                     ) from error
             try:
-                plugin_client.plugins.install(
-                    image, alias=PLUGIN_ALIAS, grant_all_permissions=True
-                )
+                plugin_client.plugins.install(image, local_name=PLUGIN_ALIAS)
             except (TypeError, AttributeError):
                 # Older/newer Docker SDKs may not accept this signature: fall
                 # back to the exact CLI command we already advertise.

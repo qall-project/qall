@@ -82,7 +82,7 @@ def _dataloader_error_from_rpc(exc: grpc.RpcError) -> DataloaderError:
     return error
 
 
-def _ensure_remote_dataloader_support(dataloaders: Optional[list]) -> None:
+def ensure_remote_dataloader_support(dataloaders: Optional[list]) -> None:
     """
     Pre-flight the host requirements of every *remote* dataloader referenced by
     the run, before any container is started.
@@ -139,7 +139,14 @@ def start_daemon(
     **manager_kwargs,
 ):
     """
-    Start a local Qall daemon (Docker or systemd backend), then stream its logs.
+    Start a local Qall daemon (Docker or systemd backend) and return once it is
+    healthy.
+
+    This never follows the daemon logs: both backends' ``logs()`` are *follow*
+    streams that only end when the daemon stops, so consuming them here would
+    block every caller (e.g. the ``qall run --local`` auto-start path) forever.
+    Log following is opt-in through :func:`follow_daemon_logs`, used by
+    ``qall daemon start``.
     """
     block_registry_path = block_registry_path or DEFAULT_BLOCK_REGISTRY_PATH
     artifact_registry_path = artifact_registry_path or DEFAULT_ARTIFACT_REGISTRY_PATH
@@ -164,6 +171,32 @@ def start_daemon(
     daemon_mgr.start()
 
     logger.info(f"Daemon started on port {port}")
+
+
+def follow_daemon_logs(
+    port: int = 50053,
+    backend: Optional[str] = None,
+    **manager_kwargs,
+):
+    """
+    Stream the log lines of an already running local daemon.
+
+    This is a blocking call: the stream ends when the daemon stops (or the
+    caller interrupts it). Only ``qall daemon start`` uses it, to let the user
+    watch the daemon it just launched; programmatic callers must not, or they
+    would hang forever (see :func:`start_daemon`).
+    """
+    daemon_mgr = get_daemon_manager(
+        backend=backend,
+        grpc_port=port,
+        **manager_kwargs,
+    )
+
+    # The Docker manager must attach to its container before it can stream
+    # anything; the systemd manager checks the unit state itself in logs().
+    if not daemon_mgr.is_running():
+        logger.warning("No running daemon to stream logs from.")
+        return
 
     logs = daemon_mgr.logs()
     if logs is None:
@@ -341,7 +374,7 @@ def run_task(
     # Host prerequisites first: fail cleanly before starting the daemon or
     # creating any container (fuse + the rclone Docker volume plugin are only
     # needed by remote dataloaders; file:// mounts are plain bind mounts).
-    _ensure_remote_dataloader_support(dataloaders)
+    ensure_remote_dataloader_support(dataloaders)
 
     # Start a local daemon instance if we cannot reach a running one locally.
     if is_local:
