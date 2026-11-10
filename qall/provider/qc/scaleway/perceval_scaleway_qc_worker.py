@@ -109,10 +109,10 @@ class PercevalScalewayQuantumWorker(QuantumWorker):
             )
 
             results = factory.samples(max_samples=shots)
-
-            return results
         finally:
             self.__backend.noise = None
+
+        return results
 
     def close_context(
         self,

@@ -53,6 +53,7 @@ class PercevalLocalQuantumWorker(QuantumWorker):
     def get_context_status(self, context: str):
         if self.__backend is None:
             raise RuntimeError("No local backend has been initialized yet.")
+
         return True
 
     def run(
@@ -62,17 +63,22 @@ class PercevalLocalQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> Any:
-        max_shots_per_call = kwargs.get("max_shots_per_call", 10_000)
+        max_shots_per_call = kwargs.get("max_shots_per_call", shots)
+        noise_model = kwargs.get("noise", None)
 
-        factory = pcvl.ExecutionFactory(
-            self.__backend, program, max_shots_per_call=max_shots_per_call
-        )
+        try:
+            if noise_model is not None:
+                self.__backend.noise = noise_model
 
-        if hasattr(self.__backend, "acquire"):
-            with self.__backend.acquire():
-                results = factory.samples(max_samples=shots)
-        else:
+            factory = pcvl.ExecutionFactory(
+                computer=self.__backend,
+                experiment=program,
+                max_shots_per_call=max_shots_per_call,
+            )
+
             results = factory.samples(max_samples=shots)
+        finally:
+            self.__backend.noise = None
 
         return results
 
