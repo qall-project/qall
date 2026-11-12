@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from collections import deque
+
 import rustworkx as rx
 
 from urllib.parse import urlparse
@@ -85,7 +87,10 @@ def _get_task_spec_payload(spec: TaskSpec) -> TaskPayload:
         code=qio_program.to_json_dict(),
         code_format="qio.program",
         environment=TaskEnvironment(image=spec.image, requirements=spec.requirements),
-        metadata={"quantum_runs": spec.quantum_runs},
+        metadata={
+            "quantum_runs": spec.quantum_runs,
+            "external_runs": spec.external_runs,
+        },
         runtime={"qall_version": spec.runtime_qall_version},
     )
 
@@ -136,6 +141,31 @@ class BlockRegistry:
 
         return True
 
+    def resolve_reference(self, ref: str) -> str:
+        """Resolves a tag ('qaoa:v1') or verifies an existing block hash ('bafy...')."""
+        cleaned = ref.strip()
+        if ":" in cleaned:
+            root_hash = self.pull(Tag.parse(cleaned))
+            if not root_hash:
+                raise RuntimeError(f"Workflow tag '{cleaned}' not found in registry.")
+            return root_hash
+
+        # Direct CID / block hash lookup (local first, then remote fallback)
+        if self.__local_client and not self.__local_client.check([cleaned]):
+            return cleaned
+        if self.__remote_client:
+            blocks = self.__remote_client.get([cleaned])
+            if blocks:
+                if self.__local_client:
+                    self.__local_client.push(blocks)
+                return cleaned
+
+        # Fallback: bare tag name -> "<name>:latest"
+        root_hash = self.pull(Tag.parse(cleaned))
+        if not root_hash:
+            raise RuntimeError(f"Reference '{cleaned}' not found as hash or tag.")
+        return root_hash
+
     def create_workflow_dag(self, spec: WorkflowSpec) -> TaskDag:
         """
         Compiles the call graph into decoupled registry-compliant blocks.
@@ -150,34 +180,33 @@ class BlockRegistry:
         registry_payloads = []
         task_to_p_hash = {}
 
-        # 1. Compile immutable building blocks for all tasks
         for name, task in spec.tasks.items():
             p_reg = _get_task_spec_payload(task)
             registry_payloads.append(p_reg)
             task_to_p_hash[name] = p_reg.to_block(self.__codec).hash
 
-        # 2. Trace execution edges from leaves up to the root element
         registry_nodes = []
         node_name_to_node_hash = {}
+        external_roots: list[str] = []
 
-        # Reversed topological sort guarantees children hashes are computed before their callers
-        topological_order = rx.topological_sort(spec.graph)
-
-        for node_idx in reversed(topological_order):
+        for node_idx in reversed(rx.topological_sort(spec.graph)):
             task_name = spec.graph.get_node_data(node_idx)
             task = spec.tasks.get(task_name)
-
-            # Find downstream successors to link as children hashes
             children_mapping = {}
 
-            # spec.graph.successors yields task name strings directly
+            # 1. Local children from the call graph
             for child_task_name in spec.graph.successors(node_idx):
                 if child_task_name in node_name_to_node_hash:
                     children_mapping[child_task_name] = node_name_to_node_hash[
                         child_task_name
                     ]
 
-            # Reconstruct the decoupled registry architecture mapping layout
+            # 2. External workflows or tasks pinned via qall.run("<ref>", ...)
+            for ref in task.external_runs:
+                resolved_hash = self.resolve_reference(ref)
+                children_mapping[ref] = resolved_hash
+                external_roots.append(resolved_hash)
+
             reg_node = TaskNode(
                 payload_hash=task_to_p_hash[task_name],
                 children=children_mapping,
@@ -189,7 +218,14 @@ class BlockRegistry:
             registry_nodes.append(reg_node)
             node_name_to_node_hash[task_name] = node_block.hash
 
-        # The global workflow tracker root hash maps onto the entrypoint element
+        # Include external subgraph nodes so resource & dataloader resolution cover them
+        if external_roots:
+            known_hashes = {n.hash for n in registry_nodes}
+            for ext_node in self._collect_external_nodes(external_roots):
+                if ext_node.hash not in known_hashes:
+                    registry_nodes.append(ext_node)
+                    known_hashes.add(ext_node.hash)
+
         root_hash = node_name_to_node_hash[spec.entrypoint_task.name]
 
         return TaskDag(registry_nodes, registry_payloads, root_hash)
@@ -237,7 +273,6 @@ class BlockRegistry:
             "provider": spec.provider,
             "input_format": spec.input_format,
             "output_format": spec.output_format,
-            # "resources": sorted(spec.resources),
         }
 
         node = WorkerNode(
@@ -292,6 +327,20 @@ class BlockRegistry:
             return push_result.tag_uri
 
         return None
+
+    def has_block(self, block_hash: str) -> bool:
+        """True if block_hash exists locally or can be fetched remotely."""
+        if self.__local_client and not self.__local_client.check([block_hash]):
+            return True
+
+        if self.__remote_client:
+            fetched = self.__remote_client.get([block_hash])
+            if fetched:
+                if self.__local_client:
+                    self.__local_client.push(fetched)
+                return True
+
+        return False
 
     def get_node_from_local(self, hash: str) -> TaskNode:
         block = self._get_local_block(hash)
@@ -384,3 +433,23 @@ class BlockRegistry:
             )
 
         return block
+
+    def _collect_external_nodes(self, root_hashes: list[str]) -> list[TaskNode]:
+        """Traverses external Merkle subgraphs (BFS) so resolvers/dataloaders see all nodes."""
+        visited: set[str] = set()
+        nodes: list[TaskNode] = []
+        queue: deque[str] = deque(root_hashes)
+
+        while queue:
+            h = queue.popleft()
+            if h in visited:
+                continue
+            visited.add(h)
+            node = self.get_node_from_local(hash=h)
+            nodes.append(node)
+
+            for child_hash in (node.children or {}).values():
+                if child_hash not in visited:
+                    queue.append(child_hash)
+
+        return nodes

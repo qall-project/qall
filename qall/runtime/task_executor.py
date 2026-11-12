@@ -125,22 +125,32 @@ class TaskRuntimeExecutor:
             )
 
         proxy_functions = []
+        child_bindings = []
 
-        for child_name, child_hash in node.children.items():
+        for idx, (child_key, child_hash) in enumerate(node.children.items()):
+            # Resolve actual entrypoint function name from the target node metadata
+            child_node = self.__block_registry.get_node_from_local(hash=child_hash)
             is_async = _child_task_is_async(
                 registry=self.__block_registry,
                 child_hash=child_hash,
-                child_name=child_name,
+                child_name=child_node.metadata.name,
             )
+            proxy_fn_name = f"_qall_child_{idx}"
+            proxy_functions.append(
+                self._create_proxy_function(
+                    child_name=proxy_fn_name,
+                    child_hash=child_hash,
+                    parent_task_id=task_run_id,
+                    is_async=is_async,
+                    worker_addresses=self.__worker_addresses,
+                )
+            )
+            if child_key.isidentifier():
+                proxy_functions.append(f"{child_key} = {proxy_fn_name}")
+            child_bindings.append(f"{child_key!r}: {proxy_fn_name}")
 
-            proxy_code = self._create_proxy_function(
-                child_name=child_name,
-                child_hash=child_hash,
-                parent_task_id=task_run_id,
-                is_async=is_async,
-                worker_addresses=self.__worker_addresses,
-            )
-            proxy_functions.append(proxy_code)
+        if child_bindings:
+            proxy_functions.append(f"_QALL_CHILDREN = {{{', '.join(child_bindings)}}}")
 
         if proxy_functions:
             source = "\n".join(proxy_functions) + "\n" + source

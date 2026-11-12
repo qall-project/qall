@@ -39,7 +39,8 @@ from .imports import (
     lenient_imports,
     merge_requirements,
 )
-from .quantum_run import extract_quantum_runs
+
+from .run_analyzer import extract_runs
 
 
 @dataclass_json
@@ -63,6 +64,7 @@ class TaskSpec:
     name: Optional[str] = None
     source: Optional[str] = None
     quantum_runs: list[dict[str, Any]] = field(default_factory=list)
+    external_runs: list[str] = field(default_factory=list)
     # Names of dataloaders (see `qall dataloader add`) bound as virtual
     # POSIX mount points when the task executes.
     dataloaders: list[str] = field(default_factory=list)
@@ -98,12 +100,15 @@ class TaskSpec:
                 synthesized=synthesized,
             )
             merge_synthesized_imports(self.imports, synthesized)
-            self.quantum_runs = extract_quantum_runs(
+
+            analysis = extract_runs(
                 self.func,
                 self.source,
                 self.local_dependencies,
                 self.imports,
             )
+            self.quantum_runs = analysis.quantum_runs
+            self.external_runs = analysis.external_runs
 
             # Auto-populate requirements with the third-party packages
             # discovered for the workflow being compiled (if any).
@@ -248,6 +253,7 @@ class TaskSpec:
             "source",
             "requirements",
             "quantum_runs",
+            "external_runs",
             "dataloaders",
         ]:
             if getattr(self, attr) != getattr(rhs, attr):

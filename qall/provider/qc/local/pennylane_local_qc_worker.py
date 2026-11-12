@@ -23,12 +23,12 @@ from qall.provider.qc import (
 
 
 @quantum_worker(
-    requirements=["qiskit", "qiskit-aer", "qiskit-qasm3-import"],
+    requirements=["pennylane", "pennylane-qiskit"],
     input_format="qiskit",
     output_format="qiskit",
     provider="local",
 )
-class QiskitLocalQuantumWorker(QuantumWorker):
+class PennylaneLocalQuantumWorker(QuantumWorker):
     """
     Quantum worker executing Qiskit programs with Aer backend.
     """
