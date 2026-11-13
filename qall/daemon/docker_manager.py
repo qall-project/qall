@@ -31,8 +31,8 @@ from .base_manager import BaseDaemonManager
 
 logger = logging.getLogger(__name__)
 
-# _DEFAULT_IMAGE = "scw/qall-daemon:latest"
-_DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project/qall-daemon:latest"
+_DEFAULT_IMAGE = "scw/qall-daemon:latest"
+# _DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project/qall-daemon:latest"
 
 
 class DockerDaemonManager(BaseDaemonManager):
@@ -201,6 +201,10 @@ class DockerDaemonManager(BaseDaemonManager):
                 },
                 "/tmp/qall-dataloaders": {
                     "bind": "/tmp/qall-dataloaders",
+                    "mode": "rw",
+                },
+                str(self.__unifs): {
+                    "bind": "/tmp/qall/unifs",
                     "mode": "rw",
                 },
             }

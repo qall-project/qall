@@ -215,7 +215,7 @@ def create_workflow_run(
         try:
             artifacts = run_task(
                 task_hash=dag.root_hash,
-                input_artifact_hash=input_artifact_hash,
+                input_artifact=input_artifact_hash,
                 provider_credentials=provider_credentials,
             )
             stop = datetime.datetime.now()

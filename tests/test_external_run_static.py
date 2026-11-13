@@ -18,8 +18,8 @@ from pathlib import Path
 
 from qall.object import Tag
 from qall.registry import BlockRegistry
-from qall.specification import TaskSpec, WorkflowSpec
-from qall.specification.run_analyzer import _RunAnalyzer, extract_runs
+from qall.specification import WorkflowSpec
+from qall.specification.run_analyzer import _RunAnalyzer
 
 
 def _compile_and_push(

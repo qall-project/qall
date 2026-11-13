@@ -11,96 +11,30 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import cloudpickle
-import socket
-import textwrap
-import threading
-import time
+from pathlib import Path
 import pytest
 
-from pathlib import Path
+from .utils import local_daemon_session, run_workflow_file  # noqa: F401
 
-pytest.importorskip("perceval")
-
-from qall.object import Tag
-from qall.registry import BlockRegistry
-from qall.runtime import (
-    TaskRuntimeExecutor,
-    WorkerRuntimeExecutor,
-    LocalArtifactBackend,
-)
-from qall.specification import WorkflowSpec, WorkerSpec
+pytestmark = pytest.mark.daemon_integration
 
 
-def _get_free_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("", 0))
-        return s.getsockname()[1]
-
-
-def test_perceval_local_worker_end_to_end(tmp_path: Path):
-    registry = BlockRegistry(tmp_path / "registry")
-    artifact_backend = LocalArtifactBackend(tmp_path / "artifacts")
-    port = _get_free_port()
-
-    worker_file = (
-        Path(__file__).parents[1]
-        / "qall"
-        / "provider"
-        / "qc"
-        / "local"
-        / "perceval_local_qc_worker.py"
-    )
-    worker_spec = WorkerSpec(worker_file)
-    worker_dag = registry.create_worker_dag(worker_spec)
-    registry.push(tag=Tag(name="perceval_worker", version="local"), dag=worker_dag)
-
-    worker_executor = WorkerRuntimeExecutor(
-        worker_hash=worker_dag.root_hash,
-        registry=registry,
-        port=port,
-    )
-    worker_thread = threading.Thread(target=worker_executor.execute, daemon=True)
-    worker_thread.start()
-    time.sleep(3)
-
-    task_file = tmp_path / "task_perceval.py"
-    task_file.write_text(
-        textwrap.dedent(
-            """
-        import qall
+def test_perceval_local_worker_end_to_end(tmp_path: Path, local_daemon_session):
+    counts = run_workflow_file(
+        tmp_path,
+        "perceval_hom_wf.py",
+        """
         import perceval as pcvl
+        import qall
 
-        @qall.task()
-        def photonic_task():
-            # Circuit optique linéaire simple
-            circuit = pcvl.Circuit(2)
-            circuit.add(0, pcvl.BS())
-            
-            # Définition de l'expérience photonique
-            exp = pcvl.Experiment(circuit, pcvl.BasicState([1, 0]))
-            
-            res = qall.run(exp, shots=100)
-            return len(res) > 0
-    """
-        )
+        @qall.workflow(requirements=["perceval-quandela"])
+        def main():
+            circuit = pcvl.Circuit(2) // pcvl.BS()
+            result = qall.run(circuit, shots=100)
+            raw = result["results"] if isinstance(result, dict) and "results" in result else result
+            return {str(state): int(count) for state, count in raw.items()}
+        """,
     )
 
-    task_spec = WorkflowSpec(task_file)
-    task_dag = registry.create_workflow_dag(task_spec)
-    registry.push(tag=Tag(name="perceval_task", version="v1"), dag=task_dag)
-
-    task_executor = TaskRuntimeExecutor(
-        task_hash=task_dag.root_hash,
-        registry=registry,
-        artifact_backend=artifact_backend,
-        worker_addresses=[f"127.0.0.1:{port}"],
-    )
-
-    output = task_executor.execute(task_run_id="run_perceval_test")
-
-    assert output.return_code == 0, f"Task execution failed: {output.stderr}"
-    assert output.output_artifact_bytes is not None
-
-    has_samples = cloudpickle.loads(output.output_artifact_bytes)
-    assert has_samples is True
+    assert isinstance(counts, dict)
+    assert sum(counts.values()) > 0

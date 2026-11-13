@@ -17,93 +17,124 @@ from pathlib import Path
 import cloudpickle
 import pytest
 
-from qall.config import get_default_configuration
-from qall.core.daemon import apply_resource_assignments, run_task
-from qall.daemon.docker_manager import DockerDaemonManager
+from qall.core.artifact import read_local_artifact_bytes
+from qall.core.daemon import (
+    run_task,
+    start_daemon,
+    stop_daemon,
+)
+from qall.daemon.docker_manager import _DEFAULT_IMAGE
 from qall.object import Tag
 from qall.registry import BlockRegistry
-from qall.registry.local_artifact_registry import LocalArtifactRegistry
-from qall.resolver import resolve_workflow_resources
 from qall.specification import WorkflowSpec
 
 pytestmark = pytest.mark.daemon_integration
 
 
-@pytest.fixture
-def daemon_env(tmp_path: Path, monkeypatch):
-    """Starts a real Docker daemon wired to isolated block/artifact stores and local SDK sources."""
-    registry_dir = tmp_path / "block-registry"
-    artifacts_dir = tmp_path / "artifact-registry"
-    registry_dir.mkdir(parents=True)
-    artifacts_dir.mkdir(parents=True)
+def _sweep_root_owned(target_dir: Path) -> None:
+    """Removes root-owned files left by the Docker daemon container in target_dir."""
+    try:
+        from docker import from_env
 
-    # Mount local qall sources so task containers use the modified SDK instead of PyPI
+        from_env().containers.run(
+            image=_DEFAULT_IMAGE,
+            entrypoint=["/bin/sh", "-c", f"rm -rf '/clean/{target_dir.name}'"],
+            volumes={str(target_dir.parent): {"bind": "/clean", "mode": "rw"}},
+            remove=True,
+        )
+    except Exception:
+        pass
+
+
+@pytest.fixture(scope="module")
+def daemon_exec_env(tmp_path_factory):
+    """Starts the local daemon once for the module with shared block/artifact registries."""
+    from _pytest.monkeypatch import MonkeyPatch
+
+    mp = MonkeyPatch()
+    base_dir = tmp_path_factory.mktemp("qall-external-runs")
+    block_dir = base_dir / "block-registry"
+    artifact_dir = base_dir / "artifact-registry"
+    block_dir.mkdir(parents=True)
+    artifact_dir.mkdir(parents=True)
+
+    registry = BlockRegistry(block_dir)
+
+    # Mount local SDK sources so task containers use the modified qall codebase
     repo_root = Path(__file__).resolve().parents[1]
-    monkeypatch.setenv("QALL_DEV_DIR", str(repo_root))
+    mp.setenv("QALL_DEV_DIR", str(repo_root))
 
-    manager = DockerDaemonManager(
-        grpc_port=50053,
-        http_port=8080,
-        host_block_registry_path=str(registry_dir),
-        host_artifact_registry_path=str(artifacts_dir),
-    )
+    try:
+        start_daemon(
+            port=50053,
+            block_registry_path=block_dir,
+            artifact_registry_path=artifact_dir,
+            backend="docker",
+            follow_logs=False,
+        )
+    except Exception as exc:
+        mp.undo()
+        pytest.skip(f"Daemon unavailable: {exc}")
 
-    with manager:
-        registry = BlockRegistry(registry_dir)
-        yield tmp_path, registry, manager, registry_dir, artifacts_dir
+    try:
+        yield base_dir, registry, block_dir, artifact_dir
+    finally:
+        stop_daemon(port=50053, backend="docker")
+        _sweep_root_owned(base_dir)
+        mp.undo()
 
 
-def _push_and_assign(
-    daemon_env,
+def _push_workflow(
+    daemon_exec_env,
     filename: str,
     code: str,
     tag_name: str,
     version: str = "v1",
 ) -> str:
-    """Compiles a workflow, pushes it to the registry, and registers resource assignments in the daemon."""
-    tmp_path, registry, _, _, _ = daemon_env
-    wf_file = tmp_path / filename
+    base_dir, registry, _, _ = daemon_exec_env
+    wf_file = base_dir / filename
     wf_file.write_text(textwrap.dedent(code), encoding="utf-8")
 
     spec = WorkflowSpec(wf_file)
     dag = registry.create_workflow_dag(spec)
     registry.push(tag=Tag(name=tag_name, version=version), dag=dag)
 
-    profile = get_default_configuration("local").get_default_profile()
-    assignments = resolve_workflow_resources(
-        task_dag=dag,
-        profile=profile,
-        available_resources=[],
-        replace_to_local=True,
-    )
-    apply_resource_assignments(resource_assignments=assignments)
+    # profile = get_default_configuration("local").get_default_profile()
+    # assignments = resolve_workflow_resources(
+    #     task_dag=dag,
+    #     profile=profile,
+    #     available_resources=[],
+    #     replace_to_local=True,
+    # )
+    # apply_resource_assignments(resource_assignments=assignments)
+
     return dag.root_hash
 
 
-def _run_root(daemon_env, root_hash: str, *args, **kwargs):
-    """Triggers execution via the daemon and deserializes the final output artifact."""
-    _, _, manager, registry_dir, artifacts_dir = daemon_env
-
-    input_hash = None
-    if args or kwargs:
-        payload = cloudpickle.dumps({"args": args, "kwargs": kwargs})
-        with manager.client as client:
-            input_hash = client.create_artifact("init", payload).hash
+def _run(daemon_exec_env, task_hash: str, *args, **kwargs):
+    _, _, block_dir, artifact_dir = daemon_exec_env
+    input_data = {"args": args, "kwargs": kwargs} if (args or kwargs) else None
 
     artifacts = run_task(
-        task_hash=root_hash,
-        input_artifact_hash=input_hash,
-        block_registry=str(registry_dir),
-        artifact_registry=str(artifacts_dir),
+        task_hash=task_hash,
+        input_artifact=input_data,
+        block_registry=str(block_dir),
+        artifact_registry=str(artifact_dir),
     )
-    assert artifacts, "Expected at least one output artifact"
-    raw_bytes = LocalArtifactRegistry(artifacts_dir).read_bytes(artifacts[-1].hash)
-    return cloudpickle.loads(raw_bytes)
+
+    assert artifacts
+    assert len(artifacts) >= 1
+
+    final_artifact_bytes = read_local_artifact_bytes(
+        artifacts[-1].hash,
+        artifact_registry=str(artifact_dir),
+    )
+    return cloudpickle.loads(final_artifact_bytes)
 
 
-def test_exec_workflow_a_calls_task_by_hash(daemon_env):
-    task_hash = _push_and_assign(
-        daemon_env,
+def test_exec_workflow_a_calls_task_by_hash(daemon_exec_env):
+    task_hash = _push_workflow(
+        daemon_exec_env,
         "target_task.py",
         """
         import qall
@@ -115,8 +146,8 @@ def test_exec_workflow_a_calls_task_by_hash(daemon_env):
         tag_name="math_op",
     )
 
-    root_a = _push_and_assign(
-        daemon_env,
+    root_a = _push_workflow(
+        daemon_exec_env,
         "wf_a_hash.py",
         f"""
         import qall
@@ -133,12 +164,12 @@ def test_exec_workflow_a_calls_task_by_hash(daemon_env):
         tag_name="wf_a_hash",
     )
 
-    assert _run_root(daemon_env, root_a) == 45
+    assert _run(daemon_exec_env, root_a) == 45
 
 
-def test_exec_workflow_a_calls_workflow_b(daemon_env):
-    _push_and_assign(
-        daemon_env,
+def test_exec_workflow_a_calls_workflow_b(daemon_exec_env):
+    _push_workflow(
+        daemon_exec_env,
         "wf_b.py",
         """
         import qall
@@ -154,8 +185,8 @@ def test_exec_workflow_a_calls_workflow_b(daemon_env):
         tag_name="wf_b",
     )
 
-    root_a = _push_and_assign(
-        daemon_env,
+    root_a = _push_workflow(
+        daemon_exec_env,
         "wf_a.py",
         """
         import qall
@@ -167,12 +198,12 @@ def test_exec_workflow_a_calls_workflow_b(daemon_env):
         tag_name="wf_a",
     )
 
-    assert _run_root(daemon_env, root_a) == 60
+    assert _run(daemon_exec_env, root_a) == 60
 
 
-def test_exec_transitive_workflow_a_calls_b_calls_c(daemon_env):
-    _push_and_assign(
-        daemon_env,
+def test_exec_transitive_workflow_a_calls_b_calls_c(daemon_exec_env):
+    _push_workflow(
+        daemon_exec_env,
         "wf_c.py",
         """
         import qall
@@ -184,8 +215,8 @@ def test_exec_transitive_workflow_a_calls_b_calls_c(daemon_env):
         tag_name="wf_c",
     )
 
-    _push_and_assign(
-        daemon_env,
+    _push_workflow(
+        daemon_exec_env,
         "wf_b.py",
         """
         import qall
@@ -197,8 +228,8 @@ def test_exec_transitive_workflow_a_calls_b_calls_c(daemon_env):
         tag_name="wf_b",
     )
 
-    root_a = _push_and_assign(
-        daemon_env,
+    root_a = _push_workflow(
+        daemon_exec_env,
         "wf_a.py",
         """
         import qall
@@ -210,12 +241,12 @@ def test_exec_transitive_workflow_a_calls_b_calls_c(daemon_env):
         tag_name="wf_a",
     )
 
-    assert _run_root(daemon_env, root_a, 3) == 24
+    assert _run(daemon_exec_env, root_a, 3) == 24
 
 
-def test_exec_diamond_workflow_a_calls_b_and_c_while_b_calls_c(daemon_env):
-    _push_and_assign(
-        daemon_env,
+def test_exec_diamond_workflow_a_calls_b_and_c_while_b_calls_c(daemon_exec_env):
+    _push_workflow(
+        daemon_exec_env,
         "wf_c.py",
         """
         import qall
@@ -227,8 +258,8 @@ def test_exec_diamond_workflow_a_calls_b_and_c_while_b_calls_c(daemon_env):
         tag_name="wf_c",
     )
 
-    _push_and_assign(
-        daemon_env,
+    _push_workflow(
+        daemon_exec_env,
         "wf_b.py",
         """
         import qall
@@ -240,8 +271,8 @@ def test_exec_diamond_workflow_a_calls_b_and_c_while_b_calls_c(daemon_env):
         tag_name="wf_b",
     )
 
-    root_a = _push_and_assign(
-        daemon_env,
+    root_a = _push_workflow(
+        daemon_exec_env,
         "wf_a.py",
         """
         import qall
@@ -255,4 +286,8 @@ def test_exec_diamond_workflow_a_calls_b_and_c_while_b_calls_c(daemon_env):
         tag_name="wf_a",
     )
 
-    assert _run_root(daemon_env, root_a, 4) == {"from_b": 26, "from_c": 16, "total": 42}
+    assert _run(daemon_exec_env, root_a, 4) == {
+        "from_b": 26,
+        "from_c": 16,
+        "total": 42,
+    }

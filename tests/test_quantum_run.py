@@ -15,9 +15,9 @@
 import textwrap
 
 from qall import task
-from qall.specification.quantum_run import _QuantumRunAnalyzer, extract_quantum_runs
+from qall.specification.run_analyzer import _RunAnalyzer, extract_runs
 from qall.specification.workflow import WorkflowSpec
-from qall.interop.mapping import normalize_circuit_type, normalize_result_type
+from qall.interop.mapping import normalize_circuit_type
 
 
 def test_quantum_run_analyzer_qiskit_direct():
@@ -32,8 +32,8 @@ def test_quantum_run_analyzer_qiskit_direct():
             return res
         """
     )
-    analyzer = _QuantumRunAnalyzer(source)
-    runs = analyzer.analyze()
+    analyzer = _RunAnalyzer(source)
+    runs = analyzer.analyze().quantum_runs
 
     assert len(runs) == 1
     assert runs[0]["input_format"] == normalize_circuit_type("qiskit")
@@ -52,8 +52,8 @@ def test_quantum_run_analyzer_aliased_import_and_cirq():
             return res
         """
     )
-    analyzer = _QuantumRunAnalyzer(source)
-    runs = analyzer.analyze()
+    analyzer = _RunAnalyzer(source)
+    runs = analyzer.analyze().quantum_runs
 
     assert len(runs) == 1
     assert runs[0]["input_format"] == normalize_circuit_type("cirq")
@@ -69,8 +69,8 @@ def test_quantum_run_analyzer_dynamic_or_unknown_type():
             return qall.run(circuit_unk, shots=10)
         """
     )
-    analyzer = _QuantumRunAnalyzer(source)
-    runs = analyzer.analyze()
+    analyzer = _RunAnalyzer(source)
+    runs = analyzer.analyze().quantum_runs
 
     assert len(runs) == 1
     assert runs[0]["input_format"] is None
@@ -102,12 +102,12 @@ def test_extract_quantum_runs_from_local_dependencies():
     local_dependencies = {"helper_quantum_executor": helper_source}
     imports = {"external_imports": ["from qiskit import QuantumCircuit", "import qall"]}
 
-    runs = extract_quantum_runs(
+    runs = extract_runs(
         func=dummy_func,
         source=main_task_source,
         local_dependencies=local_dependencies,
         imports=imports,
-    )
+    ).quantum_runs
 
     assert len(runs) == 1
     assert runs[0]["input_format"] == normalize_circuit_type("qiskit")
@@ -196,8 +196,8 @@ def test_quantum_run_analyzer_diverse_typologies():
         """
     )
 
-    analyzer = _QuantumRunAnalyzer(source)
-    runs = analyzer.analyze()
+    analyzer = _RunAnalyzer(source)
+    runs = analyzer.analyze().quantum_runs
 
     assert len(runs) == 3
 

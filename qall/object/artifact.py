@@ -23,18 +23,18 @@ class Artifact:
     """Artifact represents an artifact produced by a task run.
 
     Attributes:
-        name: The name of the artifact.
         id: The ID of the artifact.
         url: The URL where the artifact can be accessed.
         task_run_id: The ID of the task run that produced the artifact.
         created_at: The timestamp when the artifact was created.
+        hash: The content hash of the artifact (its identifier in the registry).
     """
 
-    name: str
     url: str
     id: str
-    task_run_id: str
-    created_at: datetime
+    hash: str
+    task_run_id: Optional[str] = None
+    created_at: Optional[datetime] = None
 
 
 @dataclass(frozen=True)

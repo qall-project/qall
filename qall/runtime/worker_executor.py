@@ -15,6 +15,7 @@ import builtins
 
 from pathlib import Path
 
+import cloudpickle
 from qio.core.program import Program
 
 from qall.object import (
@@ -23,6 +24,7 @@ from qall.object import (
     WorkerMetadata,
 )
 from qall.registry import BlockRegistry
+from qall.provider.qc import quantum_worker
 from qall.provider.worker import QuantumWorker, QuantumWorkerApi
 from qall.provider.worker.context import QuantumCapabilities, QuantumContext
 
@@ -83,6 +85,8 @@ class WorkerRuntimeExecutor:
         """
         namespace = {
             "__builtins__": builtins,
+            "cloudpickle": cloudpickle,
+            "quantum_worker": quantum_worker,
             "QuantumWorker": QuantumWorker,
             "QuantumContext": QuantumContext,
             "QuantumCapabilities": QuantumCapabilities,

@@ -95,7 +95,7 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
             context = QuantumContext(
                 configuration=dict(request.configuration),
                 metadata=dict(request.metadata),
-                bin_metadata=dict(request.bin_metadata),
+                bin_metadata=None,
             )
 
             context = self.__worker.create_context(

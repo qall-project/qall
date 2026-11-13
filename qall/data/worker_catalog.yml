@@ -1,0 +1,12 @@
+cirq_local_qc_worker:
+  provider: local
+  version: latest
+  hash: zdpuB3d5xZnZkNvCxvtwgdDgZ2Qta942bjdThk9NbBUmVMYy5
+  input_formats:
+  - cirq.Circuit
+qiskit_local_qc_worker:
+  provider: local
+  version: latest
+  hash: zdpuAqcr9tgZGpeUzD52nCUXMjVgevs35GvcCdGwNP3RxXVaw
+  input_formats:
+  - qiskit.QuantumCircuit

@@ -13,10 +13,12 @@
 # limitations under the License.
 import logging
 import os
+import uuid
 
-from typing import Optional
+from typing import Optional, Union
 from pathlib import Path
 
+import cloudpickle
 from qall.object import Artifact, DaemonStatus, Daemon, TaskRunStatus
 from qall.daemon import get_daemon_manager
 from qall.registry import BlockRegistry
@@ -31,6 +33,36 @@ from qall.config.paths import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_input_artifact_hash(
+    client,
+    input_artifact: Optional[Union[str, dict, bytes, Artifact]] = None,
+) -> Optional[str]:
+    """
+    Resolves an input artifact (hash string, Artifact object, args/kwargs dict,
+    or raw serialized bytes) into a stored artifact hash in the daemon.
+    """
+    if input_artifact is None:
+        return None
+    if isinstance(input_artifact, str):
+        return input_artifact
+    if isinstance(input_artifact, Artifact):
+        return input_artifact.hash
+    if isinstance(input_artifact, dict):
+        payload = cloudpickle.dumps(input_artifact)
+        return client.create_artifact(
+            payload=payload,
+        ).hash
+    if isinstance(input_artifact, bytes):
+        return client.create_artifact(
+            payload=input_artifact,
+        ).hash
+
+    raise TypeError(
+        f"Unsupported input_artifact type '{type(input_artifact).__name__}'. "
+        "Expected str (hash), Artifact, dict, or bytes."
+    )
 
 
 def _format_task_failure(
@@ -62,6 +94,7 @@ def start_daemon(
     block_registry_path: Optional[str | Path] = None,
     artifact_registry_path: Optional[str | Path] = None,
     backend: Optional[str] = None,
+    follow_logs: bool = False,
     **manager_kwargs,
 ):
     """
@@ -91,12 +124,13 @@ def start_daemon(
 
     logger.info(f"Daemon started on port {port}")
 
-    logs = daemon_mgr.logs()
-    if logs is None:
-        return
+    if follow_logs:
+        logs = daemon_mgr.logs()
+        if logs is None:
+            return
 
-    for line in logs:
-        logger.info(line.rstrip())
+        for line in logs:
+            logger.info(line.rstrip())
 
 
 def apply_resource_assignments(
@@ -217,7 +251,7 @@ def get_daemon_status(
 
 def run_task(
     task_hash: str,
-    input_artifact_hash: Optional[str] = None,
+    input_artifact: Optional[Union[str, bytes, dict]] = None,
     daemon_address: Optional[str] = None,
     block_registry: Optional[str] = None,
     artifact_registry: Optional[str] = None,
@@ -275,6 +309,10 @@ def run_task(
             f"Could not provision dataloader secrets for task {task_hash}: {e}"
         )
 
+    input_artifact_hash = _resolve_input_artifact_hash(
+        input_artifact=input_artifact, client=daemon_mgr.client
+    )
+
     # Contact daemon to execute given task
     try:
         with daemon_mgr.client as client:
@@ -296,6 +334,7 @@ def run_task(
                 provider_credentials=(
                     provider_credentials.credentials if provider_credentials else None
                 ),
+                workflow_run_id=str(uuid.uuid4()),  # Unique ID for this task run
             )
 
             logger.info(f"Task run created: {task_run.id}")
