@@ -24,15 +24,12 @@ from qall.provider.qc import (
 
 @quantum_worker(
     requirements=["perceval-quandela"],
-    input_format="perceval",
+    input_format="perceval.Experiment",
     output_format="perceval",
     provider="local",
 )
 class PercevalLocalQuantumWorker(QuantumWorker):
-    """Quantum worker executing Perceval photonic programs using local simulation
-
-    backends (e.g., SLOS, CliffordClifford2).
-    """
+    """Quantum worker executing Perceval photonic programs using local simulation backends."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -45,15 +42,12 @@ class PercevalLocalQuantumWorker(QuantumWorker):
         **kwargs,
     ) -> QuantumContext:
         backend_name = resource if resource else "SLOS"
-
         self.__backend = pcvl.SimulatedComputer(backend_name)
-
         return context
 
     def get_context_status(self, context: str):
         if self.__backend is None:
             raise RuntimeError("No local backend has been initialized yet.")
-
         return True
 
     def run(
@@ -66,17 +60,30 @@ class PercevalLocalQuantumWorker(QuantumWorker):
         max_shots_per_call = kwargs.get("max_shots_per_call", shots)
         noise_model = kwargs.get("noise", None)
 
+        if isinstance(program, pcvl.Experiment):
+            experiment = program
+        else:
+            experiment = pcvl.Experiment(program)
+
+        if getattr(experiment, "input_state", None) is None:
+            n_modes = experiment.circuit_size
+            input_state = kwargs.get(
+                "input_state",
+                pcvl.BasicState([1] + [0] * max(0, n_modes - 1)),
+            )
+            experiment.with_input(input_state)
+
         try:
             if noise_model is not None:
                 self.__backend.noise = noise_model
 
             factory = pcvl.ExecutionFactory(
                 computer=self.__backend,
-                experiment=program,
+                experiment=experiment,
                 max_shots_per_call=max_shots_per_call,
             )
 
-            results = factory.samples(max_samples=shots)
+            results = factory.sample_count(max_samples=shots)
         finally:
             self.__backend.noise = None
 

@@ -18,7 +18,7 @@ import inspect
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from qall.interop import normalize_circuit_type, is_known_circuit_type
+from qall.interop import normalize_circuit_type
 
 _QALL_MODULES = frozenset({"qall", "qall.sdk"})
 
@@ -84,12 +84,12 @@ class _SampleAnalyzer(ast.NodeVisitor):
         return self.quantum_runs
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        # CUDA-Q Corner Case: cudaq kernels are functions, not variables.
+        # CUDA-Q corner case: cudaq kernels are functions, not variables.
         # We must flag the function name itself as a `cudaq` circuit if it has the `@cudaq.kernel` decorator.
         for dec in node.decorator_list:
             expr = dec.func if isinstance(dec, ast.Call) else dec
             if self._qname(expr) == "cudaq.kernel":
-                self._circuits[node.name] = "cudaq"
+                self._circuits[node.name] = normalize_circuit_type("cudaq.PyKernel")
 
         # If the function returns a known circuit type or receives one in arguments
         if fmt := self._infer_format(node.returns, strict=False):
@@ -192,6 +192,16 @@ class _SampleAnalyzer(ast.NodeVisitor):
         if isinstance(node, ast.Name) and node.id in self._circuits:
             return self._circuits[node.id]
 
+        # Handle circuit composition operators (Perceval `//`, Cirq `+`, Qiskit `&`)
+        if isinstance(node, ast.BinOp) and isinstance(
+            node.op, (ast.FloorDiv, ast.Add, ast.BitAnd)
+        ):
+            fmt = self._infer_format(node.left, strict=False) or self._infer_format(
+                node.right, strict=False
+            )
+            if fmt:
+                return fmt
+
         qname = self._qname(node.func if isinstance(node, ast.Call) else node)
 
         if qname:
@@ -199,18 +209,19 @@ class _SampleAnalyzer(ast.NodeVisitor):
                 return self._circuits[qname]
             try:
                 # Resolve package paths (`qiskit.circuit.QuantumCircuit` -> `qiskit`)
-                norm = normalize_circuit_type(qname)
-                return norm
-            except ValueError as exc:
-                if strict:
-                    raise ValueError(
-                        f"Task '{self.task_name}' uses unsupported circuit type {qname!r} in qall.sample()."
-                    ) from exc
-                return None
+                return normalize_circuit_type(qname)
+            except ValueError:
+                pass
+
+        # Handle chained builder calls (e.g., `pcvl.Circuit(2).add(0, pcvl.BS())` or `qc.copy()`)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+            if fmt := self._infer_format(node.func.value, strict=False):
+                return fmt
 
         if strict:
             raise ValueError(
-                f"Task '{self.task_name}' calls qall.sample({ast.unparse(node)}) with an unsupported circuit type."
+                f"Task '{self.task_name}' uses unsupported circuit type "
+                f"{(qname or ast.unparse(node))!r} in qall.sample()."
             )
         return None
 

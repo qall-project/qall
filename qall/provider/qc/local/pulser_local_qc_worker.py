@@ -14,6 +14,7 @@
 from typing import Any
 
 from pulser.devices import AnalogDevice, DigitalAnalogDevice, MockDevice
+from pulser_simulation import QutipBackendV2, QutipConfig
 
 from qall.provider.qc import (
     QuantumContext,
@@ -29,10 +30,7 @@ from qall.provider.qc import (
     provider="local",
 )
 class PulserLocalQuantumWorker(QuantumWorker):
-    """Quantum worker executing Pulser sequences on local classical emulators
-
-    (QutipEmulator) using virtual/mock devices.
-    """
+    """Quantum worker executing Pulser sequences on local QutipBackendV2 emulator."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -45,9 +43,9 @@ class PulserLocalQuantumWorker(QuantumWorker):
         **kwargs,
     ) -> QuantumContext:
         devices_map = {
-            "MockDevice": MockDevice,
-            "AnalogDevice": AnalogDevice,
-            "DigitalAnalogDevice": DigitalAnalogDevice,
+            "LOCAL-PULSER-MOCK": MockDevice,
+            "LOCAL-PULSER-ANALOG": AnalogDevice,
+            "LOCAL-PULSER-DIGITAL-ANALOG": DigitalAnalogDevice,
         }
         self.__device = devices_map.get(resource, MockDevice)
 
@@ -55,13 +53,28 @@ class PulserLocalQuantumWorker(QuantumWorker):
         context.metadata["device_name"] = getattr(
             self.__device, "name", str(self.__device)
         )
-
         return context
 
     def get_context_status(self, context: str):
         if self.__device is None:
             raise RuntimeError("No local device configured.")
         return True
+
+    def _run_single(
+        self, program: Any, n_shots: int, variables: dict | None
+    ) -> dict[str, int]:
+        seq = (
+            program.build(**variables)
+            if variables
+            and hasattr(program, "is_parametrized")
+            and program.is_parametrized()
+            else program
+        )
+        config = QutipConfig(default_num_shots=n_shots)
+        sim = QutipBackendV2(seq, config=config)
+        sim_res = sim.run()
+
+        return dict(sim_res.final_bitstrings)
 
     def run(
         self,
@@ -73,37 +86,21 @@ class PulserLocalQuantumWorker(QuantumWorker):
         job_params = kwargs.get("job_params", None)
 
         if job_params:
-            results = []
-            for param in job_params:
-                n_runs = param.get("runs", shots)
-                variables = param.get("variables", None)
-
-                seq = (
-                    program.build(**variables)
-                    if variables
-                    and hasattr(program, "is_parametrized")
-                    and program.is_parametrized()
-                    else program
+            results = [
+                self._run_single(
+                    program,
+                    n_shots=param.get("runs", shots),
+                    variables=param.get("variables", None),
                 )
-
-                sim = QutipEmulator.from_sequence(seq)
-                sim_res = sim.run()
-                results.append(sim_res.sample_final_state(N_samples=n_runs))
-
+                for param in job_params
+            ]
             return results if len(results) > 1 else results[0]
 
-        variables = kwargs.get("variables", None)
-        seq = (
-            program.build(**variables)
-            if variables
-            and hasattr(program, "is_parametrized")
-            and program.is_parametrized()
-            else program
+        return self._run_single(
+            program,
+            n_shots=shots,
+            variables=kwargs.get("variables", None),
         )
-
-        sim = QutipEmulator.from_sequence(seq)
-        sim_res = sim.run()
-        return sim_res.sample_final_state(N_samples=shots)
 
     def close_context(
         self,

@@ -43,6 +43,7 @@ _QUANTUM_CIRCUIT_TYPE_MAPPING = {
     "cirq.circuits.circuit.Circuit": _CIRCUIT_TYPE_CIRQ_CIRCUIT,
     "cudaq": _CIRCUIT_TYPE_CUDAQ_KERNEL,
     "cudaq.PyKernel": _CIRCUIT_TYPE_CUDAQ_KERNEL,
+    "cudaq.kernel.kernel_decorator.PyKernelDecorator": _CIRCUIT_TYPE_CUDAQ_KERNEL,
     "mimiq": _CIRCUIT_TYPE_MIMIQ_CIRCUIT,
     "mimiqcircuits": _CIRCUIT_TYPE_MIMIQ_CIRCUIT,
     "mimiqcircuits.Circuit": _CIRCUIT_TYPE_MIMIQ_CIRCUIT,
@@ -67,6 +68,7 @@ _QUANTUM_RESULT_TYPE_MAPPING = {
     "cirq.study.result.ResultDict": _RESULT_TYPE_CIRQ,
     "cudaq": _RESULT_TYPE_CUDAQ,
     "cudaq.SampleResult": _RESULT_TYPE_CUDAQ,
+    "cudaq.mlir._mlir_libs._quakeDialects.cudaq_runtime.SampleResult": _RESULT_TYPE_CUDAQ,
     "mimiq": _RESULT_TYPE_MIMIQ,
     "mimiqcircuits": _RESULT_TYPE_MIMIQ,
     "mimiqcircuits.QCSResults": _RESULT_TYPE_MIMIQ,
@@ -79,24 +81,38 @@ _QUANTUM_RESULT_TYPE_MAPPING = {
 }
 
 
+_SUPPORTED_CIRCUIT_FORMATS = frozenset(_QUANTUM_CIRCUIT_TYPE_MAPPING.values())
+_SUPPORTED_RESULT_FORMATS = frozenset(_QUANTUM_RESULT_TYPE_MAPPING.values())
+
+
 def normalize_circuit_type(target: Any) -> str:
     if isinstance(target, str):
+        if target in _SUPPORTED_CIRCUIT_FORMATS:
+            return target
         raw_type = target
     else:
         t = type(target)
         raw_type = f"{t.__module__}.{t.__name__}"
 
-    return _QUANTUM_CIRCUIT_TYPE_MAPPING.get(raw_type, raw_type)
+    try:
+        return _QUANTUM_CIRCUIT_TYPE_MAPPING[raw_type]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported quantum circuit type: {raw_type!r}") from exc
 
 
 def normalize_result_type(target: Any) -> str:
     if isinstance(target, str):
+        if target in _SUPPORTED_RESULT_FORMATS:
+            return target
         raw_type = target
     else:
         t = type(target)
         raw_type = f"{t.__module__}.{t.__name__}"
 
-    return _QUANTUM_RESULT_TYPE_MAPPING.get(raw_type, raw_type)
+    try:
+        return _QUANTUM_RESULT_TYPE_MAPPING[raw_type]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported quantum result type: {raw_type!r}") from exc
 
 
 def native_program_to_qio_program(program: Any) -> QuantumProgram:

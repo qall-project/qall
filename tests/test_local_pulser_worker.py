@@ -30,8 +30,9 @@ def test_pulser_local_worker_end_to_end(tmp_path: Path, local_daemon_session):
 
         @qall.workflow(requirements=["pulser-core"])
         def main():
+            device = qall.context["device"]
             reg = pulser.Register.square(2, spacing=5.0, prefix="q")
-            seq = pulser.Sequence(reg, pulser.DigitalAnalogDevice)
+            seq = pulser.Sequence(reg, device)
             seq.declare_channel("rydberg", "rydberg_global")
             seq.add(pulser.Pulse.ConstantPulse(1000, np.pi, 0.0, 0.0), "rydberg")
             result = qall.sample(seq, shots=100)

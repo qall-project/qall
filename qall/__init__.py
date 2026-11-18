@@ -92,6 +92,6 @@ def _configure_pyan_logging() -> None:
 
 _configure_pyan_logging()
 
-from qall.sdk import task, workflow, run
+from qall.sdk import task, workflow, run, sample  # noqa: F401
 
-__all__ = ["task", "workflow", "run"]
+__all__ = ["task", "workflow", "run", "sample"]
