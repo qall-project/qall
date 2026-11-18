@@ -20,7 +20,7 @@ from pathlib import Path
 
 from qall.specification import WorkflowSpec, WorkerSpec
 
-from .utils import parse_extra_args
+from .utils import parse_cli_args
 
 registry_cli = typer.Typer(
     name="registry",

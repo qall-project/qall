@@ -281,12 +281,14 @@ def create_workflow_run(
             **kwargs,
         )
 
+        artifacts = None
+
         if not workflow_run:
             raise RuntimeError(
                 f"Couldn't start workflow run for workflow '{workflow.id}'."
             )
 
-    return workflow_run
+    return workflow_run, artifacts
 
 
 def stop_workflow_run(

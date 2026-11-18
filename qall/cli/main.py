@@ -35,7 +35,7 @@ from .daemon import daemon_cli
 from .task import task_cli
 from .worker import worker_cli
 from .dataloader import dataloader_cli
-from .utils import parse_extra_args
+from .utils import parse_cli_args
 
 cli = typer.Typer(
     name="qall",
@@ -72,8 +72,12 @@ def _setup_logging():
 _setup_logging()
 
 
-@cli.command("run")
+@cli.command(
+    "run",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": False},
+)
 def run(
+    ctx: typer.Context,
     entrypoint: str = typer.Argument(
         ..., help="Path to the Python script containing tasks."
     ),
@@ -118,6 +122,19 @@ def run(
     ),
 ):
     """Compile, delta-push, provision hardware and run an arbitrary hybrid workflow script instantly."""
+
+    parsed_args, parsed_kwargs = parse_cli_args(ctx.args)
+
+    if (parsed_args or parsed_kwargs) and input_artifact_hash is not None:
+        raise typer.BadParameter(
+            "Cannot combine CLI arguments with --input-artifact-hash."
+        )
+
+    if parsed_args or parsed_kwargs:
+        input_artifact_hash = core.push_artifact(
+            {"args": parsed_args, "kwargs": parsed_kwargs}
+        )
+
     typer.echo(f"Initiating compilation run for: {entrypoint}")
 
     run_obj = core.create_workflow_run(
@@ -168,7 +185,7 @@ def login(
         qall login scaleway
         This will prompt for the required credentials interactively.
     """
-    creds = parse_extra_args(ctx.args)
+    creds = parse_cli_args(ctx.args)[1]
 
     try:
         client = core.get_provider_client_by_name(provider_name)

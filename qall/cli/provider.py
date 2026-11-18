@@ -15,7 +15,7 @@ import typer
 
 import qall.core as core
 
-from .utils import parse_extra_args
+from .utils import parse_cli_args
 
 provider_cli = typer.Typer(
     name="provider",
@@ -34,7 +34,7 @@ def provider_login(
     ),
 ):
     """Authenticate the local instance against a provider control plane."""
-    creds = parse_extra_args(ctx.args)
+    creds = parse_cli_args(ctx.args)
 
     if not creds:
         typer.echo(

@@ -15,7 +15,7 @@ import logging
 import os
 import uuid
 
-from typing import Optional, Union
+from typing import Optional, Union, Any
 from pathlib import Path
 
 import cloudpickle
@@ -247,6 +247,52 @@ def get_daemon_status(
     except Exception as e:
         logger.error(f"Error while checking daemon status: {e}")
         return Daemon(status=DaemonStatus.ERROR)
+
+
+def push_artifact(
+    data: Any,
+    daemon_address: Optional[str] = None,
+    block_registry: Optional[str] = None,
+    artifact_registry: Optional[str] = None,
+    backend: Optional[str] = None,
+    task_run_id: Optional[str] = None,
+    **manager_kwargs,
+) -> str:
+    """
+    Push an artifact to the local daemon.
+    """
+    daemon_address = daemon_address or os.getenv(
+        "QALL_DAEMON_ADDRESS", "127.0.0.1:50053"
+    )
+    port = int(daemon_address.split(":")[-1])
+    is_local = daemon_address.startswith(("localhost", "127.0.0.1"))
+
+    if not is_local:
+        raise RuntimeError(
+            "Remote daemon execution is not supported yet. Please use a local daemon."
+        )
+
+    block_registry = block_registry or str(DEFAULT_BLOCK_REGISTRY_PATH)
+    artifact_registry = artifact_registry or str(DEFAULT_ARTIFACT_REGISTRY_PATH)
+
+    block_registry = Path(block_registry).resolve()
+    artifact_registry = Path(artifact_registry).resolve()
+
+    daemon_mgr = get_daemon_manager(
+        backend=backend,
+        grpc_port=port,
+        host_block_registry_path=str(block_registry),
+        host_artifact_registry_path=str(artifact_registry),
+        **manager_kwargs,
+    )
+    daemon_mgr.ensure_running()
+
+    with daemon_mgr.client as client:
+        artifact = client.create_artifact(
+            payload=cloudpickle.dumps(data), task_run_id=task_run_id
+        )
+
+        return artifact.hash
 
 
 def run_task(

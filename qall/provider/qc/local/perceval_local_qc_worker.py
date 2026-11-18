@@ -13,7 +13,9 @@
 # limitations under the License.
 from typing import Any
 
-import perceval as pcvl
+from perceval.components import Experiment
+from perceval.utils import BasicState
+from perceval.runtime import SimulatedComputer, ExecutionFactory
 
 from qall.provider.qc import (
     QuantumContext,
@@ -23,8 +25,8 @@ from qall.provider.qc import (
 
 
 @quantum_worker(
-    requirements=["perceval-quandela"],
-    input_format="perceval.Experiment",
+    requirements=["perceval-quandela", "drawsvg>=2.4.0"],
+    input_format="perceval.Circuit",
     output_format="perceval",
     provider="local",
 )
@@ -42,7 +44,7 @@ class PercevalLocalQuantumWorker(QuantumWorker):
         **kwargs,
     ) -> QuantumContext:
         backend_name = resource if resource else "SLOS"
-        self.__backend = pcvl.SimulatedComputer(backend_name)
+        self.__backend = SimulatedComputer(backend_name)
         return context
 
     def get_context_status(self, context: str):
@@ -60,16 +62,16 @@ class PercevalLocalQuantumWorker(QuantumWorker):
         max_shots_per_call = kwargs.get("max_shots_per_call", shots)
         noise_model = kwargs.get("noise", None)
 
-        if isinstance(program, pcvl.Experiment):
+        if isinstance(program, Experiment):
             experiment = program
         else:
-            experiment = pcvl.Experiment(program)
+            experiment = Experiment(program)
 
         if getattr(experiment, "input_state", None) is None:
             n_modes = experiment.circuit_size
             input_state = kwargs.get(
                 "input_state",
-                pcvl.BasicState([1] + [0] * max(0, n_modes - 1)),
+                BasicState([1] + [0] * max(0, n_modes - 1)),
             )
             experiment.with_input(input_state)
 
@@ -77,7 +79,7 @@ class PercevalLocalQuantumWorker(QuantumWorker):
             if noise_model is not None:
                 self.__backend.noise = noise_model
 
-            factory = pcvl.ExecutionFactory(
+            factory = ExecutionFactory(
                 computer=self.__backend,
                 experiment=experiment,
                 max_shots_per_call=max_shots_per_call,

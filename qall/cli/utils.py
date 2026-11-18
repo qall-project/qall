@@ -11,9 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import List
-
+import ast
+import json
 import typer
+
+from typing import Any
 
 
 def parse_daemon_backend(value: str) -> str:
@@ -44,45 +46,62 @@ def parse_systemd_scope(value: str) -> str:
     return normalized
 
 
-def parse_extra_args(args: list[str]) -> dict[str, str]:
-    """
-    Parses arbitrary extra CLI option flags into a clean Python dictionary.
-    Handles '--key=value', '--key value', and standalone boolean flags.
-    Normalizes keys by removing leading dashes and replacing hyphens with underscores.
+def _coerce_value(raw: str) -> Any:
+    """Convert CLI string tokens to Python literals when possible, else keep str."""
+    lowered = raw.lower()
+    if lowered == "true":
+        return True
+    if lowered == "false":
+        return False
+    if lowered in ("none", "null"):
+        return None
+    try:
+        return ast.literal_eval(raw)
+    except (ValueError, SyntaxError):
+        pass
+    try:
+        return json.loads(raw)
+    except (ValueError, TypeError):
+        return raw
 
-    Example:
-        ['--project-id=123', '--secret-key', 'abc', '--verbose']
-        -> {'project_id': '123', 'secret_key': 'abc', 'verbose': 'true'}
+
+def parse_cli_args(raw_args: list[str]) -> tuple[tuple[Any, ...], dict[str, Any]]:
     """
-    extra_dict = {}
+    Parses extra CLI tokens into `(args, kwargs)` for a workflow entrypoint.
+    Supports positional values, `--key=value`, `--key value` (including negative numbers),
+    and standalone boolean `--flag` options, with automatic literal type coercion.
+    """
+    pos_args: list[Any] = []
+    kw_args: dict[str, Any] = {}
     i = 0
 
-    while i < len(args):
-        arg = args[i]
+    while i < len(raw_args):
+        token = raw_args[i]
 
-        if arg.startswith("--"):
-            # Clean the prefix and prepare the key
-            clean_arg = arg.lstrip("-")
-
-            if "=" in clean_arg:
-                # Case A: Syntax option is '--key=value'
-                key, val = clean_arg.split("=", 1)
-                extra_dict[key.replace("-", "_")] = val
+        if token.startswith("--") and len(token) > 2:
+            clean = token[2:]
+            if "=" in clean:
+                key, val = clean.split("=", 1)
+                key = key.replace("-", "_")
+                if not key.isidentifier():
+                    raise typer.BadParameter(f"Invalid argument name: {key!r}")
+                kw_args[key] = _coerce_value(val)
                 i += 1
             else:
-                # Case B: Syntax option is '--key value' or standalone flag
-                key = clean_arg.replace("-", "_")
+                key = clean.replace("-", "_")
+                if not key.isidentifier():
+                    raise typer.BadParameter(f"Invalid argument name: {key!r}")
 
-                # Check if the next argument exists and is a value (not another flag)
-                if i + 1 < len(args) and not args[i + 1].startswith("-"):
-                    extra_dict[key] = args[i + 1]
+                # Next token is a value if it exists and is not another '--option'
+                # (allows negative numbers like '--offset -5')
+                if i + 1 < len(raw_args) and not raw_args[i + 1].startswith("--"):
+                    kw_args[key] = _coerce_value(raw_args[i + 1])
                     i += 2
                 else:
-                    # Fallback flag default value if standalone
-                    extra_dict[key] = "true"
+                    kw_args[key] = True
                     i += 1
         else:
-            # Skip invalid positions or unformatted extra strings
+            pos_args.append(_coerce_value(token))
             i += 1
 
-    return extra_dict
+    return tuple(pos_args), kw_args

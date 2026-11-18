@@ -19,7 +19,7 @@ from typing import Optional
 
 import qall.core as core
 
-from .utils import parse_extra_args
+from .utils import parse_cli_args
 
 dataloader_cli = typer.Typer(
     name="dataloader",
@@ -48,7 +48,7 @@ def dataloader_add(
     ),
 ):
     """Create, validate and persist a new dataloader."""
-    creds = parse_extra_args(ctx.args)
+    creds = parse_cli_args(ctx.args)
 
     try:
         core.add_dataloader(
@@ -79,7 +79,7 @@ def dataloader_update(
     ),
 ):
     """Update an existing dataloader (only provided fields are changed)."""
-    creds = parse_extra_args(ctx.args)
+    creds = parse_cli_args(ctx.args)
 
     try:
         core.update_dataloader(
