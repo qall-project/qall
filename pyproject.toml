@@ -23,7 +23,7 @@ dependencies = [
     "s3fs>=2025.6.0",
     "scaleway-qaas-client>=0.1.0",
     "qall-registry-client>=0.1.2",
-    "qall-daemon-client>=0.1.8",
+    "qall-daemon-client>=0.1.10",
 ]
 
 ### Dependencies ###

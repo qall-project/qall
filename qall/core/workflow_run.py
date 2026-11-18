@@ -190,6 +190,7 @@ def create_workflow_run(
     )
 
     worker_definitions = _get_provider_workers(active_provider)
+    artifacts = None
 
     if local_only:
         daemon_status = get_daemon_status()
@@ -280,8 +281,6 @@ def create_workflow_run(
             input_artifact_hash=input_artifact_hash,
             **kwargs,
         )
-
-        artifacts = None
 
         if not workflow_run:
             raise RuntimeError(

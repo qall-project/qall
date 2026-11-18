@@ -138,6 +138,8 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
                 **params.options,
             )
 
+            print("result from worker.run", result)
+
             qio_result = native_result_to_qio_result(result)
 
             return pb2.RunResponse(

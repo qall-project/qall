@@ -13,13 +13,13 @@ qiskit_local_qc_worker:
 cudaq_local_qc_worker:
   provider: local
   version: latest
-  hash: zdpuB3cpF8NiULsqGVdehAhb2BfSBZBeRkVhPJpPG1kpcH24G
+  hash: zdpuAs6hRMdSKW8QqrdgZQ9UtEcmJniEihSxEgpwaHtWi5oSF
   input_formats:
   - cudaq.PyKernel
 pulser_local_qc_worker:
   provider: local
   version: latest
-  hash: zdpuAxNXSmjqc1StsL6PNrRHQPknFCFwURS2i92t1RQUnfBhU
+  hash: zdpuAoFyGijunjzGARZ8GP7me2DB6x8ZRikmRcHbsrNZ37Wbt
   input_formats:
   - pulser.Sequence
 perceval_local_qc_worker:

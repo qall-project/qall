@@ -70,6 +70,6 @@ class CudaQLocalQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> None:
-        if hasattr(cudaq, "reset_target"):
-            cudaq.reset_target()
+        cudaq.reset_target()
+
         return context

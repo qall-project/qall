@@ -127,27 +127,29 @@ class TaskRuntimeExecutor:
         proxy_functions = []
         child_bindings = []
 
+        external_keys = set(payload.metadata.get("external_runs", []))
+
         for idx, (child_key, child_hash) in enumerate(node.children.items()):
-            # Resolve actual entrypoint function name from the target node metadata
             child_node = self.__block_registry.get_node_from_local(hash=child_hash)
             is_async = _child_task_is_async(
                 registry=self.__block_registry,
                 child_hash=child_hash,
                 child_name=child_node.metadata.name,
             )
-            proxy_fn_name = f"_qall_child_{idx}"
+
+            is_external = child_key in external_keys or not child_key.isidentifier()
+            proxy_fn_name = f"_qall_child_{idx}" if is_external else child_key
+
             proxy_functions.append(
                 self._create_proxy_function(
                     child_name=proxy_fn_name,
                     child_hash=child_hash,
                     parent_task_id=task_run_id,
                     is_async=is_async,
-                    worker_addresses=self.__worker_addresses,
                 )
             )
-            if child_key.isidentifier():
-                proxy_functions.append(f"{child_key} = {proxy_fn_name}")
-            child_bindings.append(f"{child_key!r}: {proxy_fn_name}")
+            if is_external:
+                child_bindings.append(f"{child_key!r}: {proxy_fn_name}")
 
         if child_bindings:
             proxy_functions.append(f"_QALL_CHILDREN = {{{', '.join(child_bindings)}}}")
@@ -234,7 +236,6 @@ class TaskRuntimeExecutor:
         child_hash: str,
         parent_task_id: str,
         is_async: bool = False,
-        worker_addresses: Optional[list] = None,
     ) -> str:
         """
         Generate the source code of a proxy that delegates execution to the Daemon.

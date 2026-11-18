@@ -316,6 +316,7 @@ def process(input):
                     task_run = client.create_task_run(
                         task_hash=task_hash,
                         artifact_hash=artifact.hash,
+                        workflow_run_id="integration-test-run-daemon",
                     )
                     completed = client.wait_for_task_run(
                         task_run_id=task_run.id,

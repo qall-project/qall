@@ -58,8 +58,7 @@ class TestStaticRunAnalysis:
         )
         res = _RunAnalyzer(source, task_name="my_task").analyze()
 
-        assert res.external_runs == ["qaoa:v1", "bafyreib2externalhash", "postproc:v2"]
-        assert res.quantum_runs == []
+        assert res == ["qaoa:v1", "bafyreib2externalhash", "postproc:v2"]
 
     def test_extracts_external_runs_from_local_helper_functions(self, tmp_path: Path):
         wf_file = tmp_path / "helper_wf.py"
