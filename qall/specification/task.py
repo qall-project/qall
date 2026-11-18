@@ -41,6 +41,7 @@ from .imports import (
 )
 
 from .run_analyzer import extract_runs
+from .quantum_analyzer import extract_samples
 
 
 @dataclass_json
@@ -101,14 +102,17 @@ class TaskSpec:
             )
             merge_synthesized_imports(self.imports, synthesized)
 
-            analysis = extract_runs(
+            self.quantum_runs = extract_samples(
                 self.func,
                 self.source,
                 self.local_dependencies,
                 self.imports,
             )
-            self.quantum_runs = analysis.quantum_runs
-            self.external_runs = analysis.external_runs
+            self.external_runs = extract_runs(
+                self.func,
+                self.source,
+                self.local_dependencies,
+            )
 
             # Auto-populate requirements with the third-party packages
             # discovered for the workflow being compiled (if any).
@@ -1056,6 +1060,12 @@ def _bundle_local_dependencies(
     for name, obj in dependencies.items():
         if name in bundled:
             continue
+        if not isinstance(obj, (types.FunctionType, type, types.ModuleType, TaskSpec)):
+            # CUDA-Q Stub corner case handling
+            if kernel_src := _extract_cudaq_kernel_source(func, name):
+                bundled[name] = kernel_src
+                synthesized.add("import cudaq")
+                continue
         _bundle_object(name, obj, bundled, visited, bound_sources, synthesized)
 
     # Transport members of local modules accessed as `module.attr`.
@@ -1147,3 +1157,35 @@ def _inject_referenced_tasks(namespace: dict, task_map: dict[str, "TaskSpec"]) -
     for value in namespace.values():
         if isinstance(value, types.SimpleNamespace):
             _inject_referenced_tasks(vars(value), task_map)
+
+
+def _extract_cudaq_kernel_source(func: Callable, name: str) -> Optional[str]:
+    """
+    Extracts `@cudaq.kernel` function source from `func`'s defining file.
+
+    Corner case: Because `cudaq` is heavy and C++-backed, compiling a workflow locally
+    when `cudaq` is missing triggers `lenient_imports`. `lenient_imports` turns `bell`
+    into a `_StubProxy`. A stub proxy cannot be inspected normally, so it would just get
+    pickled. This fallback parses the AST of the file to grab the actual Python source code
+    of the `@cudaq.kernel` function, so it can be shipped and properly compiled on the
+    remote daemon.
+    """
+    try:
+        src_file = inspect.getsourcefile(func)
+        if not src_file or not Path(src_file).exists():
+            return None
+        tree = ast.parse(Path(src_file).read_text(encoding="utf-8"))
+    except (OSError, SyntaxError, TypeError):
+        return None
+
+    for node in tree.body:
+        if (
+            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == name
+        ):
+            for dec in node.decorator_list:
+                expr = dec.func if isinstance(dec, ast.Call) else dec
+                dec_name = ast.unparse(expr)
+                if dec_name == "kernel" or dec_name.endswith(".kernel"):
+                    return ast.unparse(node)
+    return None

@@ -33,7 +33,7 @@ def test_qiskit_local_worker_end_to_end(tmp_path: Path, local_daemon_session):
             qc.h(0)
             qc.cx(0, 1)
             qc.measure_all()
-            result = qall.run(qc, shots=100)
+            result = qall.sample(qc, shots=100)
             return dict(result.get_counts())
         """,
     )

@@ -34,7 +34,7 @@ def test_pulser_local_worker_end_to_end(tmp_path: Path, local_daemon_session):
             seq = pulser.Sequence(reg, pulser.DigitalAnalogDevice)
             seq.declare_channel("rydberg", "rydberg_global")
             seq.add(pulser.Pulse.ConstantPulse(1000, np.pi, 0.0, 0.0), "rydberg")
-            result = qall.run(seq, shots=100)
+            result = qall.sample(seq, shots=100)
             return {str(k): int(v) for k, v in dict(result).items()}
         """,
     )

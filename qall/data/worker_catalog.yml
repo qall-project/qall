@@ -10,3 +10,21 @@ qiskit_local_qc_worker:
   hash: zdpuAqcr9tgZGpeUzD52nCUXMjVgevs35GvcCdGwNP3RxXVaw
   input_formats:
   - qiskit.QuantumCircuit
+cudaq_local_qc_worker:
+  provider: local
+  version: latest
+  hash: zdpuB3cpF8NiULsqGVdehAhb2BfSBZBeRkVhPJpPG1kpcH24G
+  input_formats:
+  - cudaq.PyKernel
+pulser_local_qc_worker:
+  provider: local
+  version: latest
+  hash: zdpuAw9QLfW7LigFB8JgFititgsmXMJgvXN5amG1G2mj6FtxQ
+  input_formats:
+  - pulser.Sequence
+perceval_local_qc_worker:
+  provider: local
+  version: latest
+  hash: zdpuAqcAsaKqxcR7hHN5maZhWoLfdVpRKxm1q4bseCnk69BLN
+  input_formats:
+  - perceval.Experiment

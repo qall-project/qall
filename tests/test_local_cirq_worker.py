@@ -36,7 +36,7 @@ def test_cirq_local_worker_end_to_end(tmp_path: Path, local_daemon_session):
                 cirq.CNOT(q0, q1),
                 cirq.measure(q0, q1, key="m"),
             )
-            result = qall.run(circuit, shots=100)
+            result = qall.sample(circuit, shots=100)
             return {int(k): int(v) for k, v in result.histogram(key="m").items()}
         """,
     )

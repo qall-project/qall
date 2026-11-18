@@ -15,3 +15,4 @@ from .decorator import task, workflow
 from .artifact import artifact
 from .checkpoint import checkpoint
 from .run import run
+from .quantum import sample, observe

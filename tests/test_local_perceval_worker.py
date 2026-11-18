@@ -30,7 +30,7 @@ def test_perceval_local_worker_end_to_end(tmp_path: Path, local_daemon_session):
         @qall.workflow(requirements=["perceval-quandela"])
         def main():
             circuit = pcvl.Circuit(2) // pcvl.BS()
-            result = qall.run(circuit, shots=100)
+            result = qall.sample(circuit, shots=100)
             raw = result["results"] if isinstance(result, dict) and "results" in result else result
             return {str(state): int(count) for state, count in raw.items()}
         """,

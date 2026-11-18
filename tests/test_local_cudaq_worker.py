@@ -36,7 +36,7 @@ def test_cudaq_local_worker_end_to_end(tmp_path: Path, local_daemon_session):
 
         @qall.workflow(requirements=["cudaq"])
         def main():
-            result = qall.run(bell, shots=100)
+            result = qall.sample(bell, shots=100)
             return {str(k): int(v) for k, v in result.items()}
         """,
     )
