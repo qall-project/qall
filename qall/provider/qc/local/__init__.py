@@ -22,6 +22,9 @@ from ..catalog import WorkerCatalog, WorkerEntry
 __FILES = [
     "cirq_local_qc_worker.py",
     "qiskit_local_qc_worker.py",
+    "cudaq_local_qc_worker.py",
+    "pulser_local_qc_worker.py",
+    "perceval_local_qc_worker.py",
 ]
 
 

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import builtins
+import cloudpickle
 
 from pathlib import Path
 
@@ -23,6 +24,7 @@ from qall.object import (
     WorkerMetadata,
 )
 from qall.registry import BlockRegistry
+from qall.provider.qc import quantum_worker
 from qall.provider.worker import QuantumWorker, QuantumWorkerApi
 from qall.provider.worker.context import QuantumCapabilities, QuantumContext
 
@@ -83,6 +85,8 @@ class WorkerRuntimeExecutor:
         """
         namespace = {
             "__builtins__": builtins,
+            "cloudpickle": cloudpickle,
+            "quantum_worker": quantum_worker,
             "QuantumWorker": QuantumWorker,
             "QuantumContext": QuantumContext,
             "QuantumCapabilities": QuantumCapabilities,

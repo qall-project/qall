@@ -95,12 +95,22 @@ class PercevalScalewayQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> Any:
-        max_shots_per_call = kwargs.get("max_shots_per_call", 10_000)
+        max_shots_per_call = kwargs.get("max_shots_per_call", shots)
+        noise_model = kwargs.get("noise", None)
 
-        factory = pcvl.ExecutionFactory(
-            self.__backend, program, max_shots_per_call=max_shots_per_call
-        )
-        results = factory.samples(max_samples=shots)
+        try:
+            if noise_model is not None:
+                self.__backend.noise = noise_model
+
+            factory = pcvl.ExecutionFactory(
+                computer=self.__backend,
+                experiment=program,
+                max_shots_per_call=max_shots_per_call,
+            )
+
+            results = factory.samples(max_samples=shots)
+        finally:
+            self.__backend.noise = None
 
         return results
 

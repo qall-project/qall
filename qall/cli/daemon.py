@@ -102,6 +102,7 @@ def daemon_start(
             block_registry_path=block_registry,
             artifact_registry_path=artifact_registry,
             backend=backend,
+            follow_logs=True,
             **_manager_kwargs(scope, unit_name, unit_dir),
         )
     except KeyboardInterrupt:
@@ -242,7 +243,7 @@ def daemon_run(
     try:
         artifacts = run_task(
             task_hash=task_hash,
-            input_artifact_hash=artifact_hash,
+            input_artifact=artifact_hash,
             daemon_address=daemon_address,
             block_registry=block_registry,
             artifact_registry=artifact_registry,

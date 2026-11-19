@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from .local import get_local_resource, get_local_qpu_resources
+from qall.provider.workflow.local import get_local_resource, get_local_qpu_resources
 
 from qall.object import (
     Resource,

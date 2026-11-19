@@ -51,13 +51,17 @@ def test_workflow_from_file():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         filepath = Path(tmpdir) / "test_workflow.py"
-        filepath.write_text(textwrap.dedent("""
+        filepath.write_text(
+            textwrap.dedent(
+                """
                 from qall import task, workflow
 
                 @workflow()
                 def main():
                     return 42
-                """))
+                """
+            )
+        )
 
         # Using a string
         my_wf = WorkflowSpec(str(filepath), "MyWorkflow")
@@ -92,15 +96,21 @@ def test_workflow_from_file_with_missing_third_party_imports():
         project_dir = Path(tmpdir)
 
         # A local sibling that itself depends on a missing third-party package.
-        (project_dir / "utils_helper.py").write_text(textwrap.dedent("""
+        (project_dir / "utils_helper.py").write_text(
+            textwrap.dedent(
+                """
             import qall_test_missing_requests
 
             def helper(x):
                 return x + 1
-            """))
+            """
+            )
+        )
 
         filepath = project_dir / "main_workflow.py"
-        filepath.write_text(textwrap.dedent("""
+        filepath.write_text(
+            textwrap.dedent(
+                """
             from qall import task, workflow
             import qall_test_missing_numpy as np
             from utils_helper import helper
@@ -109,7 +119,9 @@ def test_workflow_from_file_with_missing_third_party_imports():
             def main():
                 data = np.zeros((2, 2))
                 return helper(1)
-            """))
+            """
+            )
+        )
 
         my_wf = WorkflowSpec(filepath, "MyWorkflow")
 
@@ -149,7 +161,9 @@ def test_workflow_auto_requirements_use_package_names():
     with tempfile.TemporaryDirectory() as tmpdir:
         project_dir = Path(tmpdir)
         filepath = project_dir / "main_s3.py"
-        filepath.write_text(textwrap.dedent("""
+        filepath.write_text(
+            textwrap.dedent(
+                """
                 import cv2
                 import numpy as np
 
@@ -166,7 +180,9 @@ def test_workflow_auto_requirements_use_package_names():
                 @workflow(requirements=["opencv-python"])
                 def main():
                     return process_images(download_images())
-                """))
+                """
+            )
+        )
 
         wf = WorkflowSpec(filepath, "S3Workflow")
 
@@ -190,7 +206,9 @@ def test_workflow_does_not_auto_add_task_scope_imports():
     with tempfile.TemporaryDirectory() as tmpdir:
         project_dir = Path(tmpdir)
         filepath = project_dir / "main_scoped.py"
-        filepath.write_text(textwrap.dedent("""
+        filepath.write_text(
+            textwrap.dedent(
+                """
                 import numpy as np
 
                 from qall import task, workflow
@@ -203,7 +221,9 @@ def test_workflow_does_not_auto_add_task_scope_imports():
                 @workflow()
                 def main():
                     return a()
-                """))
+                """
+            )
+        )
 
         wf = WorkflowSpec(filepath, "ScopedWorkflow")
 
@@ -224,7 +244,9 @@ def test_workflow_prototype_third_party_type_captured():
     with tempfile.TemporaryDirectory() as tmpdir:
         project_dir = Path(tmpdir)
         filepath = project_dir / "main_workflow.py"
-        filepath.write_text(textwrap.dedent("""
+        filepath.write_text(
+            textwrap.dedent(
+                """
             from qall import task, workflow
             import qall_test_missing_numpy as np
             from pathlib import Path
@@ -236,7 +258,9 @@ def test_workflow_prototype_third_party_type_captured():
             @workflow()
             def main():
                 return a(Path("/x"), np.zeros((2, 2)))
-            """))
+            """
+            )
+        )
 
         my_wf = WorkflowSpec(filepath, "PrototypeWorkflow")
         task_a = my_wf.tasks["a"]
@@ -503,7 +527,9 @@ def test_workflow_deep_module_resolution_and_edge_collapsing():
 
         # Main workflow file
         wf_file = base_dir / "my_workflow.py"
-        wf_file.write_text(textwrap.dedent("""
+        wf_file.write_text(
+            textwrap.dedent(
+                """
                 import asyncio
                 import random
                 from qall import task, workflow
@@ -532,35 +558,49 @@ def test_workflow_deep_module_resolution_and_edge_collapsing():
                     for i in range(n):
                         c = divide(b, 2)
                     return c
-                """))
+                """
+            )
+        )
 
         # Sibling package files
         (utils_dir / "__init__.py").touch()
 
-        (utils_dir / "utils_task.py").write_text(textwrap.dedent("""
+        (utils_dir / "utils_task.py").write_text(
+            textwrap.dedent(
+                """
                 from qall import task
                 from .blob import blob
 
                 @task()
                 async def hw():
                     return 42 + blob()
-                """))
+                """
+            )
+        )
 
-        (utils_dir / "blob.py").write_text(textwrap.dedent("""
+        (utils_dir / "blob.py").write_text(
+            textwrap.dedent(
+                """
                 from .blob2 import yet_another_task
 
                 # Intermediate non-task function
                 def blob():
                     return yet_another_task() * 2
-                """))
+                """
+            )
+        )
 
-        (utils_dir / "blob2.py").write_text(textwrap.dedent("""
+        (utils_dir / "blob2.py").write_text(
+            textwrap.dedent(
+                """
                 from qall import task
 
                 @task()
                 def yet_another_task():
                     return "another damn task" * 2
-                """))
+                """
+            )
+        )
 
         # Execute
         my_wf = WorkflowSpec(wf_file, "TwistedWorkflow")

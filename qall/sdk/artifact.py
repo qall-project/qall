@@ -11,21 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import cloudpickle
-import grpc
-import os
 
-import qall_daemon_client as qalld
+from qall.core.daemon import push_artifact
 
 
 def artifact(name: str, payload: dict) -> str:
-    server_address = os.getenv("QALL_DAEMON_ADDRESS", "127.0.0.1:50053")
-
-    with grpc.insecure_channel(server_address) as channel:
-        client = qalld.ApiStub(channel)
-
-        request = qalld.CreateArtifactRequest(bytes=cloudpickle.dumps(payload))
-        artifact = client.CreateArtifact(request)
-        artifact_hash = artifact.hash
-
-    return artifact_hash
+    return push_artifact(payload)

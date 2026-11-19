@@ -131,6 +131,7 @@ class DaemonSubtaskExecutor(SubtaskExecutor):
             task_hash=self.__task_hash,
             artifact_hash=input_artifact_hash,
             provider_credentials=get_credentials_from_env(),
+            workflow_run_id=os.environ.get("QALL_WORKFLOW_RUN_ID", None),
         )
 
         completed_task_run = daemon_client.wait_for_task_run(

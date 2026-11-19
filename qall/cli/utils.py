@@ -11,9 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import List
-
+import ast
+import json
 import typer
+
+from typing import Any
 
 
 def parse_daemon_backend(value: str) -> str:
@@ -42,6 +44,25 @@ def parse_systemd_scope(value: str) -> str:
         )
 
     return normalized
+
+
+def _coerce_value(raw: str) -> Any:
+    """Convert CLI string tokens to Python literals when possible, else keep str."""
+    lowered = raw.lower()
+    if lowered == "true":
+        return True
+    if lowered == "false":
+        return False
+    if lowered in ("none", "null"):
+        return None
+    try:
+        return ast.literal_eval(raw)
+    except (ValueError, SyntaxError):
+        pass
+    try:
+        return json.loads(raw)
+    except (ValueError, TypeError):
+        return raw
 
 
 def parse_extra_args(args: list[str]) -> dict[str, str]:
@@ -86,3 +107,45 @@ def parse_extra_args(args: list[str]) -> dict[str, str]:
             i += 1
 
     return extra_dict
+
+
+def parse_cli_args(raw_args: list[str]) -> tuple[tuple[Any, ...], dict[str, Any]]:
+    """
+    Parses extra CLI tokens into `(args, kwargs)` for a workflow entrypoint.
+    Supports positional values, `--key=value`, `--key value` (including negative numbers),
+    and standalone boolean `--flag` options, with automatic literal type coercion.
+    """
+    pos_args: list[Any] = []
+    kw_args: dict[str, Any] = {}
+    i = 0
+
+    while i < len(raw_args):
+        token = raw_args[i]
+
+        if token.startswith("--") and len(token) > 2:
+            clean = token[2:]
+            if "=" in clean:
+                key, val = clean.split("=", 1)
+                key = key.replace("-", "_")
+                if not key.isidentifier():
+                    raise typer.BadParameter(f"Invalid argument name: {key!r}")
+                kw_args[key] = _coerce_value(val)
+                i += 1
+            else:
+                key = clean.replace("-", "_")
+                if not key.isidentifier():
+                    raise typer.BadParameter(f"Invalid argument name: {key!r}")
+
+                # Next token is a value if it exists and is not another '--option'
+                # (allows negative numbers like '--offset -5')
+                if i + 1 < len(raw_args) and not raw_args[i + 1].startswith("--"):
+                    kw_args[key] = _coerce_value(raw_args[i + 1])
+                    i += 2
+                else:
+                    kw_args[key] = True
+                    i += 1
+        else:
+            pos_args.append(_coerce_value(token))
+            i += 1
+
+    return tuple(pos_args), kw_args

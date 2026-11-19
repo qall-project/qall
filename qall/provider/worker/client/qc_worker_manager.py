@@ -34,6 +34,10 @@ class QuantumWorkerManager:
         self.__workers: list[_RegisteredWorker] = []
         self.__context = context if context else QuantumContext()
 
+    @property
+    def context(self) -> QuantumContext:
+        return self.__context
+
     def register(
         self,
         address: str,

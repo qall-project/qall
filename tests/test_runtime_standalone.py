@@ -14,7 +14,7 @@ import tempfile
 from pathlib import Path
 import cloudpickle
 
-from qall.object import TaskMetadata, TaskEnvironment, TaskNode, TaskPayload, task_run
+from qall.object import TaskMetadata, TaskEnvironment, TaskNode, TaskPayload
 from qall.registry.block_registry import BlockRegistry
 from qall.runtime import TaskRuntimeExecutor, LocalArtifactBackend
 from qall.registry.blockstore import LocalBlockstore

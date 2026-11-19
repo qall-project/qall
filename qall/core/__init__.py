@@ -51,4 +51,5 @@ from .daemon import (
     restart_daemon,
     run_task,
     get_daemon_status,
+    push_artifact,
 )

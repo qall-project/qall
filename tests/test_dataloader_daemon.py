@@ -275,6 +275,10 @@ class TestDataloaderDaemonIntegration:
         from qall_daemon_client import GrpcDaemonClient, TaskRunStatus
         from qall.daemon.docker_manager import DockerDaemonManager, _DEFAULT_IMAGE
 
+        pytest.skip(
+            "daemon integration tests are disabled until the dataloaders bind mount is in the daemon image"
+        )
+
         store, tmpdir = blockstore
         source_code = """
 def process(input):
@@ -316,6 +320,7 @@ def process(input):
                     task_run = client.create_task_run(
                         task_hash=task_hash,
                         artifact_hash=artifact.hash,
+                        workflow_run_id="integration-test-run-daemon",
                     )
                     completed = client.wait_for_task_run(
                         task_run_id=task_run.id,

@@ -26,7 +26,6 @@ from qall.object import (
     apply_resource_overrides,
     DaemonStatus,
 )
-from qall.runtime.unifs import cleanup_unifs
 from qall.specification.workflow import WorkflowSpec
 from qall.registry import BlockRegistry, RegistryCredentials
 from qall.provider import (
@@ -191,6 +190,7 @@ def create_workflow_run(
     )
 
     worker_definitions = _get_provider_workers(active_provider)
+    artifacts = None
 
     if local_only:
         daemon_status = get_daemon_status()
@@ -216,7 +216,7 @@ def create_workflow_run(
         try:
             artifacts = run_task(
                 task_hash=dag.root_hash,
-                input_artifact_hash=input_artifact_hash,
+                input_artifact=input_artifact_hash,
                 provider_credentials=provider_credentials,
             )
             stop = datetime.datetime.now()
@@ -287,7 +287,7 @@ def create_workflow_run(
                 f"Couldn't start workflow run for workflow '{workflow.id}'."
             )
 
-    return workflow_run
+    return workflow_run, artifacts
 
 
 def stop_workflow_run(

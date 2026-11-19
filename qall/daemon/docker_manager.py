@@ -203,6 +203,10 @@ class DockerDaemonManager(BaseDaemonManager):
                     "bind": "/tmp/qall-dataloaders",
                     "mode": "rw",
                 },
+                str(self.__unifs): {
+                    "bind": "/tmp/qall/unifs",
+                    "mode": "rw",
+                },
             }
 
             # When QALL_DEV_DIR is set, mount the local qall SDK sources into

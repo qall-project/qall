@@ -78,6 +78,11 @@ class PulserScalewayQuantumWorker(QuantumWorker):
 
         self.__connection = provider
 
+        devices = self.__connection.fetch_available_devices()
+        device = devices[resource]
+
+        context.add_bin_field("device", device)
+
         if self.__is_emu:
             client = self.__connection._client
 

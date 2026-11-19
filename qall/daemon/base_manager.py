@@ -146,8 +146,6 @@ class BaseDaemonManager(abc.ABC):
                 if not we:
                     raise RuntimeError("failed to create worker entry into daemon")
 
-    # --- backend-specific lifecycle -----------------------------------------
-
     @abc.abstractmethod
     def _start_daemon(self) -> None:
         """Start the daemon using a specific backend (container, systemd unit, ...)."""

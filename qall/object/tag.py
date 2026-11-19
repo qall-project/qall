@@ -40,3 +40,20 @@ class Tag:
 
     def __repr__(self):
         return self.uri
+
+    @classmethod
+    def parse(cls, tag_str: str) -> "Tag":
+        """Parses '<name>:<version>' (or '<name>' -> '<name>:latest') into a Tag."""
+        raw = tag_str.strip()
+
+        if ":" in raw:
+            name, version = raw.split(":", 1)
+        else:
+            name, version = raw, "latest"
+
+        name, version = name.strip(), version.strip()
+        if not name or not version:
+            raise ValueError(
+                f"Invalid {tag_str!r}: expected '<name>:<version>' or '<root_hash>'."
+            )
+        return Tag(name=name, version=version)

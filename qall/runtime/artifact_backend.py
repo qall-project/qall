@@ -45,12 +45,14 @@ class DaemonArtifactBackend(ArtifactBackend):
 
     def download_artifact(self, artifact_hash: str) -> bytes:
         with GrpcDaemonClient(url=self.__daemon_address, token=self.__token) as client:
-            response = client.download_artifact(artifact_hash)
+            response = client.download_artifact(artifact_hash=artifact_hash)
             return response
 
     def upload_artifact(self, task_run_id: str, artifact_bytes: bytes) -> str:
         with GrpcDaemonClient(url=self.__daemon_address, token=self.__token) as client:
-            artifact = client.create_artifact(task_run_id, artifact_bytes)
+            artifact = client.create_artifact(
+                task_run_id=task_run_id, payload=artifact_bytes
+            )
             return artifact.hash
 
 

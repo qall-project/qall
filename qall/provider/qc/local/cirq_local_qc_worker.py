@@ -30,7 +30,7 @@ from qall.provider.qc import (
 )
 class CirqLocalQuantumWorker(QuantumWorker):
     """
-    Quantum worker executing Qiskit programs with Aer backend.
+    Quantum worker executing Qiskit programs with Qsim backend.
     """
 
     def __init__(

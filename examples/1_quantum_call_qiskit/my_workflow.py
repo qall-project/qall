@@ -19,17 +19,17 @@ def do_quantum_stuff(size, repeat):
 
     qc.measure_all()
 
-    pre_warm = qall.run(qc, shots=100)
+    pre_warm = qall.sample(qc, shots=100)
 
     r = 0
     for _ in range(repeat):
-        result = qall.run(qc, shots=10)
+        result = qall.sample(qc, shots=10)
         r += result.get_counts().get("0" * size, 0)
 
     return r
 
 
-@qall.workflow()
+@qall.workflow(min_cpu=2, min_gpu=2, min_vram=80)
 def main():
     a = prepare(5)
 
