@@ -19,7 +19,7 @@ cudaq_local_qc_worker:
 pulser_local_qc_worker:
   provider: local
   version: latest
-  hash: zdpuAoFyGijunjzGARZ8GP7me2DB6x8ZRikmRcHbsrNZ37Wbt
+  hash: zdpuAxNXSmjqc1StsL6PNrRHQPknFCFwURS2i92t1RQUnfBhU
   input_formats:
   - pulser.Sequence
 perceval_local_qc_worker:

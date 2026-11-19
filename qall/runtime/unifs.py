@@ -13,8 +13,9 @@
 # limitations under the License.
 
 import logging
-from pathlib import Path
 import shutil
+
+from pathlib import Path
 
 from qall.config.paths import TASK_RUNTIME_WORKDIR
 

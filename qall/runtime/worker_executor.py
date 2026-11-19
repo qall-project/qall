@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import builtins
+import cloudpickle
 
 from pathlib import Path
 
-import cloudpickle
 from qio.core.program import Program
 
 from qall.object import (

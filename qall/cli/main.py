@@ -35,7 +35,7 @@ from .daemon import daemon_cli
 from .task import task_cli
 from .worker import worker_cli
 from .dataloader import dataloader_cli
-from .utils import parse_cli_args
+from .utils import parse_cli_args, parse_extra_args
 
 cli = typer.Typer(
     name="qall",
@@ -185,7 +185,7 @@ def login(
         qall login scaleway
         This will prompt for the required credentials interactively.
     """
-    creds = parse_cli_args(ctx.args)[1]
+    creds = parse_extra_args(ctx.args)
 
     try:
         client = core.get_provider_client_by_name(provider_name)

@@ -49,7 +49,9 @@ def add_dataloader(
 ) -> Dataloader:
     """Creates, validates and persists a new dataloader."""
     Dataloader.validate_name(name)
-    creds = dict(creds or {})
+    creds = creds or {}
+
+    print(creds)
 
     if not src or not dst:
         raise ValueError("dataloader 'src' and 'dst' are required.")
@@ -63,6 +65,7 @@ def add_dataloader(
 
     ensure_config()
     config = load_config()
+
     if name in config["dataloaders"]:
         raise ValueError(f"A dataloader named {name!r} already exists.")
 
