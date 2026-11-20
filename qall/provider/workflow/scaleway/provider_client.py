@@ -46,12 +46,6 @@ class ScalewayWorkflowProviderClient(WorkflowProviderClient):
     def __init__(self):
         self.__client = None
 
-    def __enter__(self):
-        raise NotImplementedError
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        raise NotImplementedError
-
     def get_default_config_template(self) -> str:
         """
         Returns the default YAML configuration template for this provider.

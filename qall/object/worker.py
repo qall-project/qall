@@ -126,16 +126,14 @@ class WorkerMetadata:
 
     name: str = ""
     provider: str = ""
-    input_formats: list[str] = field(default_factory=list)
-    output_formats: list[str] = field(default_factory=list)
+    input_format: str = ""
     type: str = field(default=__TYPE)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "provider": self.provider,
-            "input_formats": self.input_formats,
-            "output_formats": self.output_formats,
+            "input_format": self.input_format,
             "type": self.__TYPE,
         }
 
@@ -158,8 +156,7 @@ class WorkerMetadata:
         return WorkerMetadata(
             name=data.get("name", ""),
             provider=data.get("provider", ""),
-            input_formats=data.get("input_formats", ""),
-            output_formats=data.get("output_formats", ""),
+            input_format=data.get("input_format", ""),
         )
 
 

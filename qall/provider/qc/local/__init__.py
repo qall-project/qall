@@ -14,37 +14,35 @@
 import qall.core as core
 
 from pathlib import Path
+from enum import StrEnum
 
 from qall.specification import WorkerSpec
 
 from ..catalog import WorkerCatalog, WorkerEntry
 
-__FILES = [
-    "cirq_local_qc_worker.py",
-    "qiskit_local_qc_worker.py",
-    "cudaq_local_qc_worker.py",
-    "pulser_local_qc_worker.py",
-    "perceval_local_qc_worker.py",
-]
+
+class LocalWorker(StrEnum):
+    CIRQ = "cirq_local_qc_worker"
+    QISKIT = "qiskit_local_qc_worker"
+    CUDAQ = "cudaq_local_qc_worker"
+    PULSER = "pulser_local_qc_worker"
+    PERCEVAL = "perceval_local_qc_worker"
 
 
 def register_local_workers(catalog: WorkerCatalog = None) -> WorkerCatalog:
     catalog = catalog if catalog else WorkerCatalog()
     local_entries = {}
-
     base_dir = Path(__file__).parent.resolve()
 
-    for file_name in __FILES:
-        file_path = base_dir / file_name
-
+    for worker in LocalWorker:
+        file_path = base_dir / f"{worker.value}.py"
         if not file_path.exists():
             raise FileNotFoundError(f"Local worker file not found: {file_path}")
 
         worker_spec = WorkerSpec(file_path)
-
         tag, dag = core.push_worker_on_registry(
             worker_spec=worker_spec,
-            worker_name=file_path.stem,
+            worker_name=worker.value,
             worker_version="latest",
             local_only=True,
         )
@@ -53,9 +51,8 @@ def register_local_workers(catalog: WorkerCatalog = None) -> WorkerCatalog:
             hash=dag.root_hash,
             version=tag.version,
             provider="local",
-            input_formats=[worker_spec.input_format],
+            input_format=worker_spec.input_format,
         )
 
     catalog.batch_add_and_save(local_entries)
-
     return catalog

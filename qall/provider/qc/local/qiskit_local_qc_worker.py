@@ -14,6 +14,7 @@
 from typing import Any
 
 from qiskit_aer import AerSimulator
+from qiskit import QuantumCircuit
 
 from qall.provider.qc import (
     QuantumWorker,
@@ -25,7 +26,6 @@ from qall.provider.qc import (
 @quantum_worker(
     requirements=["qiskit", "qiskit-aer", "qiskit-qasm3-import"],
     input_format="qiskit",
-    output_format="qiskit",
     provider="local",
 )
 class QiskitLocalQuantumWorker(QuantumWorker):
@@ -58,7 +58,7 @@ class QiskitLocalQuantumWorker(QuantumWorker):
 
     def sample(
         self,
-        program: Any,
+        program: QuantumCircuit,
         shots: int,
         context: QuantumContext,
         **kwargs,

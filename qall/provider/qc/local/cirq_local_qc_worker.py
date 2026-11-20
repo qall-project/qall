@@ -13,6 +13,7 @@
 # limitations under the License.
 from typing import Any
 
+from cirq import Circuit
 from qsimcirq import QSimSimulator
 
 from qall.provider.qc import (
@@ -25,7 +26,6 @@ from qall.provider.qc import (
 @quantum_worker(
     requirements=["cirq", "qsimcirq", "ply"],
     input_format="cirq",
-    output_format="cirq",
     provider="local",
 )
 class CirqLocalQuantumWorker(QuantumWorker):
@@ -58,7 +58,7 @@ class CirqLocalQuantumWorker(QuantumWorker):
 
     def sample(
         self,
-        program: Any,
+        program: Circuit,
         shots: int,
         context: QuantumContext,
         **kwargs,

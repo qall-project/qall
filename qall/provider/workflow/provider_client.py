@@ -14,6 +14,8 @@
 from abc import ABC
 from typing import Optional
 
+from qall.provider.qc import WorkerCatalog
+
 from qall.object import (
     Workflow,
     Tag,
@@ -28,6 +30,46 @@ from qall.object import (
 
 
 class WorkflowProviderClient(ABC):
+    def register_provider_workers(self, provider: str) -> WorkerCatalog:
+        catalog = WorkerCatalog()
+        if provider == "local":
+            from qall.provider.qc.local import register_local_workers
+
+            catalog = register_local_workers(catalog)
+        elif provider == "scaleway":
+            from qall.provider.qc.scaleway import register_scaleway_workers
+
+            catalog = register_scaleway_workers(catalog)
+        else:
+            raise RuntimeError(f"Worker provider '{provider}' is not supported.")
+
+        self._worker_catalog = catalog
+        return catalog
+
+    def compatible_workers(self, *workers: Any) -> list[str]:
+        """
+        Resolve worker identifiers (Enum, worker name, WorkerSpec, or WorkerEntry)
+        into deduplicated content-addressed worker hashes.
+        """
+        catalog = getattr(self, "_worker_catalog", None) or WorkerCatalog()
+        hashes: list[str] = []
+
+        for worker in workers:
+            if hasattr(worker, "hash") and isinstance(worker.hash, str):
+                h = worker.hash
+            else:
+                key = (
+                    worker.value
+                    if hasattr(worker, "value")
+                    else getattr(worker, "name", str(worker))
+                )
+                h = catalog.get(key).hash
+
+            if h not in hashes:
+                hashes.append(h)
+
+        return hashes
+
     def __enter__(self):
         raise NotImplementedError
 

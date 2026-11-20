@@ -37,13 +37,19 @@ class WorkerCatalog:
             entry for entry in self.__entries.values() if entry.provider == provider
         ]
 
+    def get_by_hash(self, worker_hash: str) -> WorkerEntry | None:
+        for entry in self.__entries.values():
+            if entry.hash == worker_hash:
+                return entry
+        return None
+
     def find(
         self,
         provider: str,
         input_format: str,
     ) -> WorkerEntry | None:
         for entry in self.__entries.values():
-            if entry.provider == provider and input_format in entry.input_formats:
+            if entry.provider == provider and entry.input_format == input_format:
                 return entry
         return None
 

@@ -14,6 +14,9 @@
 from .mapping import (
     normalize_circuit_type,
     normalize_result_type,
+    is_circuit_convertible,
+    get_compatible_circuit_formats,
+    get_result_type_for_circuit,
     native_program_to_qio_program,
     qio_program_to_native_program,
     native_result_to_qio_result,

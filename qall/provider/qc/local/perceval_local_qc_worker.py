@@ -26,8 +26,7 @@ from qall.provider.qc import (
 
 @quantum_worker(
     requirements=["perceval-quandela", "drawsvg>=2.4.0"],
-    input_format=["perceval.Experiment", "perceval.Circuit"],
-    output_format="perceval",
+    input_format="perceval.Experiment",
     provider="local",
 )
 class PercevalLocalQuantumWorker(QuantumWorker):
@@ -65,7 +64,7 @@ class PercevalLocalQuantumWorker(QuantumWorker):
 
     def sample(
         self,
-        program: Any,
+        program: Experiment,
         shots: int,
         context: QuantumContext,
         **kwargs,
@@ -73,18 +72,13 @@ class PercevalLocalQuantumWorker(QuantumWorker):
         max_shots_per_call = kwargs.get("max_shots_per_call", shots)
         noise_model = kwargs.get("noise", None)
 
-        if isinstance(program, Experiment):
-            experiment = program
-        else:
-            experiment = Experiment(program)
-
-        if experiment.input_state is None:
-            n_modes = experiment.circuit_size
+        if program.input_state is None:
+            n_modes = program.circuit_size
             input_state = kwargs.get(
                 "input_state",
                 BasicState([1] + [0] * max(0, n_modes - 1)),
             )
-            experiment.with_input(input_state)
+            program.with_input(input_state)
 
         try:
             if noise_model is not None:
@@ -92,7 +86,7 @@ class PercevalLocalQuantumWorker(QuantumWorker):
 
             factory = ExecutionFactory(
                 computer=self.__backend,
-                experiment=experiment,
+                experiment=program,
                 max_shots_per_call=max_shots_per_call,
             )
 

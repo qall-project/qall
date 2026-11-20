@@ -80,9 +80,54 @@ _QUANTUM_RESULT_TYPE_MAPPING = {
     "perceval.Result": _RESULT_TYPE_PERCEVAL,
 }
 
-
 _SUPPORTED_CIRCUIT_FORMATS = frozenset(_QUANTUM_CIRCUIT_TYPE_MAPPING.values())
 _SUPPORTED_RESULT_FORMATS = frozenset(_QUANTUM_RESULT_TYPE_MAPPING.values())
+
+_GATE_BASED_CIRCUIT_FORMATS = frozenset(
+    {
+        _CIRCUIT_TYPE_QISKIT_CIRCUIT,
+        _CIRCUIT_TYPE_CIRQ_CIRCUIT,
+        _CIRCUIT_TYPE_CUDAQ_KERNEL,
+        _CIRCUIT_TYPE_MIMIQ_CIRCUIT,
+        _CIRCUIT_TYPE_QASM2,
+        _CIRCUIT_TYPE_QASM3,
+        _CIRCUIT_TYPE_QIO_PROGRAM,
+    }
+)
+
+_PHOTONIC_CIRCUIT_FORMATS = frozenset(
+    {
+        _CIRCUIT_TYPE_PERCEVAL_EXPERIMENT,
+        _CIRCUIT_TYPE_PERCEVAL_CIRCUIT,
+        _CIRCUIT_TYPE_QIO_PROGRAM,
+    }
+)
+
+_ANALOG_CIRCUIT_FORMATS = frozenset(
+    {
+        _CIRCUIT_TYPE_PULSER_SEQUENCE,
+        _CIRCUIT_TYPE_QIO_PROGRAM,
+    }
+)
+
+_CIRCUIT_INTEROP_FAMILIES: tuple[frozenset[str], ...] = (
+    _GATE_BASED_CIRCUIT_FORMATS,
+    _PHOTONIC_CIRCUIT_FORMATS,
+    _ANALOG_CIRCUIT_FORMATS,
+)
+
+_CIRCUIT_TO_RESULT_TYPE_MAPPING: dict[str, str] = {
+    _CIRCUIT_TYPE_QISKIT_CIRCUIT: _RESULT_TYPE_QISKIT,
+    _CIRCUIT_TYPE_CIRQ_CIRCUIT: _RESULT_TYPE_CIRQ,
+    _CIRCUIT_TYPE_CUDAQ_KERNEL: _RESULT_TYPE_CUDAQ,
+    _CIRCUIT_TYPE_MIMIQ_CIRCUIT: _RESULT_TYPE_MIMIQ,
+    _CIRCUIT_TYPE_PERCEVAL_EXPERIMENT: _RESULT_TYPE_PERCEVAL,
+    _CIRCUIT_TYPE_PERCEVAL_CIRCUIT: _RESULT_TYPE_PERCEVAL,
+    _CIRCUIT_TYPE_PULSER_SEQUENCE: _RESULT_TYPE_PULSER,
+    _CIRCUIT_TYPE_QASM2: _RESULT_TYPE_QIO,
+    _CIRCUIT_TYPE_QASM3: _RESULT_TYPE_QIO,
+    _CIRCUIT_TYPE_QIO_PROGRAM: _RESULT_TYPE_QIO,
+}
 
 
 def normalize_circuit_type(target: Any) -> str:
@@ -113,6 +158,37 @@ def normalize_result_type(target: Any) -> str:
         return _QUANTUM_RESULT_TYPE_MAPPING[raw_type]
     except KeyError as exc:
         raise ValueError(f"Unsupported quantum result type: {raw_type!r}") from exc
+
+
+def is_circuit_convertible(source_format: Any, target_format: Any) -> bool:
+    """
+    Return True when QIO can translate `source_format` into `target_format`.
+    """
+    src = normalize_circuit_type(source_format)
+    dst = normalize_circuit_type(target_format)
+    if src == dst:
+        return True
+    return any(src in family and dst in family for family in _CIRCUIT_INTEROP_FAMILIES)
+
+
+def get_compatible_circuit_formats(target_format: Any) -> frozenset[str]:
+    """
+    Return all canonical client circuit formats translatable into `target_format`.
+    """
+    dst = normalize_circuit_type(target_format)
+    compatible: set[str] = {dst}
+    for family in _CIRCUIT_INTEROP_FAMILIES:
+        if dst in family:
+            compatible.update(family)
+    return frozenset(compatible)
+
+
+def get_result_type_for_circuit(circuit_target: Any) -> str:
+    """
+    Deduce the expected native result format corresponding to a client circuit.
+    """
+    c_type = normalize_circuit_type(circuit_target)
+    return _CIRCUIT_TO_RESULT_TYPE_MAPPING.get(c_type, _RESULT_TYPE_QIO)
 
 
 def native_program_to_qio_program(program: Any) -> QuantumProgram:

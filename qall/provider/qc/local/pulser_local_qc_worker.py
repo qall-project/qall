@@ -26,7 +26,6 @@ from qall.provider.qc import (
 @quantum_worker(
     requirements=["pulser", "pulser-simulation"],
     input_format="pulser",
-    output_format="pulser",
     provider="local",
 )
 class PulserLocalQuantumWorker(QuantumWorker):

@@ -272,7 +272,6 @@ class BlockRegistry:
             "name": spec.name,
             "provider": spec.provider,
             "input_format": spec.input_format,
-            "output_format": spec.output_format,
         }
 
         node = WorkerNode(

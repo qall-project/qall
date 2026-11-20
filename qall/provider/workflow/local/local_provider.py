@@ -27,6 +27,45 @@ from qall.object import (
     ResourceAvailability,
 )
 
+from qall.provider.workflow import WorkflowProviderClient, workflow_provider
+
+
+@workflow_provider("local")
+class LocalWorkflowProviderClient(WorkflowProviderClient):
+    def get_default_config_template(self) -> str:
+        return """# Qall Configuration File (.qall.yml)
+profiles:
+  local-config:
+    provider: "local"
+    default: True
+    match_strategy: "cheapest"
+
+    allowed:
+      qpu:
+        - "*"
+      cpu:
+        - "*"
+      gpu:
+        - "*"
+"""
+
+    def get_credential_fields(self) -> list[dict]:
+        return []
+
+    def login(self, credentials: Optional[dict] = None) -> bool:
+        return True
+
+    def list_resources(self, filters: Optional[dict] = None) -> list[Resource]:
+        self.register_provider_workers("local")
+        return [get_local_resource(), *self._build_local_qpu_resources()]
+
+    def _build_local_qpu_resources(self) -> list[Resource]:
+        aer_workers = self.compatible_workers(LocalWorker.QISKIT)
+        qsim_workers = self.compatible_workers(LocalWorker.CIRQ)
+        cudaq_workers = self.compatible_workers(LocalWorker.CUDAQ)
+        pulser_workers = self.compatible_workers(LocalWorker.PULSER)
+        perceval_workers = self.compatible_workers(LocalWorker.PERCEVAL)
+
 
 def get_local_resource() -> Resource:
     cores = os.cpu_count() or 1

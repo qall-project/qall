@@ -25,7 +25,6 @@ from qall.provider.qc import (
 @quantum_worker(
     requirements=["cudaq"],
     input_format="cudaq",
-    output_format="cudaq",
     provider="local",
 )
 class CudaQLocalQuantumWorker(QuantumWorker):
@@ -63,8 +62,7 @@ class CudaQLocalQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> Any:
-        result = cudaq.sample(program, shots_count=shots, **kwargs)
-        return result
+        return cudaq.sample(program, shots_count=shots, **kwargs)
 
     def close_context(
         self,
