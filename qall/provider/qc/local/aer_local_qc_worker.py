@@ -28,7 +28,7 @@ from qall.provider.qc import (
     input_format="qiskit",
     provider="local",
 )
-class QiskitLocalQuantumWorker(QuantumWorker):
+class AerLocalQuantumWorker(QuantumWorker):
     """
     Quantum worker executing Qiskit programs with Aer backend.
     """

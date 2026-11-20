@@ -131,6 +131,7 @@ class TaskResourceAssignment:
     task_hash: str
     provider: str
     resource: Resource
+    worker_hash: str
 
     @property
     def qpu_name(self) -> Optional[str]:

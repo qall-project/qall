@@ -28,7 +28,7 @@ from qall.provider.qc import (
     input_format="cirq",
     provider="local",
 )
-class CirqLocalQuantumWorker(QuantumWorker):
+class QsimLocalQuantumWorker(QuantumWorker):
     """
     Quantum worker executing Qiskit programs with Qsim backend.
     """

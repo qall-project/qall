@@ -22,8 +22,8 @@ from ..catalog import WorkerCatalog, WorkerEntry
 
 
 class LocalWorker(StrEnum):
-    CIRQ = "cirq_local_qc_worker"
-    QISKIT = "qiskit_local_qc_worker"
+    QSIM = "cirq_local_qc_worker"
+    AER = "qiskit_local_qc_worker"
     CUDAQ = "cudaq_local_qc_worker"
     PULSER = "pulser_local_qc_worker"
     PERCEVAL = "perceval_local_qc_worker"
