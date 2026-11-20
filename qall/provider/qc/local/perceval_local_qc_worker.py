@@ -26,7 +26,7 @@ from qall.provider.qc import (
 
 @quantum_worker(
     requirements=["perceval-quandela", "drawsvg>=2.4.0"],
-    input_format="perceval.Circuit",
+    input_format=["perceval.Experiment", "perceval.Circuit"],
     output_format="perceval",
     provider="local",
 )
@@ -43,8 +43,19 @@ class PercevalLocalQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> QuantumContext:
-        backend_name = resource if resource else "SLOS"
-        self.__backend = SimulatedComputer(backend_name)
+        devices_map = {
+            "LOCAL-PERCEVAL-SLOS": "SLOS",
+            "LOCAL-PERCEVAL-MPS": "MPS",
+            "LOCAL-PERCEVAL-NAIVE": "Naive",
+            "LOCAL-PERCEVAL-NAIVE-APPROX": "NaiveApprox",
+            "LOCAL-PERCEVAL-SLAP": "SLAP",
+            "LOCAL-PERCEVAL-SAMPLING": "SamplingStepper",
+            "LOCAL-PERCEVAL-CLIFFORD": "CliffordClifford2017",
+        }
+
+        backend_name = devices_map.get(resource, "SLOS")
+        self.__backend = SimulatedComputer(backend=backend_name)
+
         return context
 
     def get_context_status(self, context: str):
@@ -52,7 +63,7 @@ class PercevalLocalQuantumWorker(QuantumWorker):
             raise RuntimeError("No local backend has been initialized yet.")
         return True
 
-    def run(
+    def sample(
         self,
         program: Any,
         shots: int,
@@ -67,7 +78,7 @@ class PercevalLocalQuantumWorker(QuantumWorker):
         else:
             experiment = Experiment(program)
 
-        if getattr(experiment, "input_state", None) is None:
+        if experiment.input_state is None:
             n_modes = experiment.circuit_size
             input_state = kwargs.get(
                 "input_state",

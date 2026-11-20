@@ -112,11 +112,11 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
                 str(exc),
             )
 
-    def Run(
+    def Sample(
         self,
-        request: pb2.RunRequest,
+        request: pb2.SampleRequest,
         grpc_context: grpc.ServicerContext,
-    ) -> pb2.RunResponse:
+    ) -> pb2.SampleResponse:
 
         print("received run")
 
@@ -128,10 +128,10 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
             params = self._deserialize_params(request.parameters)
 
             native_program = qio_program_to_native_program(
-                program, self.__worker.capabilities.input_format
+                program, self.__worker.capabilities.input_formats[0]
             )
 
-            result = self.__worker.run(
+            result = self.__worker.sample(
                 program=native_program,
                 shots=params.shots,
                 context=context,
@@ -142,19 +142,31 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
 
             qio_result = native_result_to_qio_result(result)
 
-            return pb2.RunResponse(
+            return pb2.SampleResponse(
                 result=self._serialize_result(qio_result),
                 context=context_to_proto(context),
             )
         except Exception as exc:
             print("exception occured in worker.run", exc)
 
-            return pb2.RunResponse(
+            return pb2.SampleResponse(
                 error=pb2.Error(
                     code=pb2.Error.EXECUTION_FAILED,
                     message=str(exc),
                 )
             )
+
+    def Estimate(
+        self,
+        request: pb2.EstimateRequest,
+        grpc_context: grpc.ServicerContext,
+    ) -> pb2.EstimateResponse:
+        return pb2.EstimateResponse(
+            error=pb2.Error(
+                code=pb2.Error.EXECUTION_FAILED,
+                message="not implemented",
+            )
+        )
 
     def CloseContext(
         self,
@@ -187,7 +199,7 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
         c = self.__worker.capabilities
 
         return pb2.Capabilities(
-            input_format=c.input_format, output_format=c.output_format
+            input_formats=c.input_formats, output_formats=c.output_formats
         )
 
     def _deserialize_program(

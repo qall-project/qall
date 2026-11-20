@@ -43,10 +43,16 @@ class ApiStub(object):
             response_deserializer=qc__worker__api__v1__pb2.QuantumContext.FromString,
             _registered_method=True,
         )
-        self.Run = channel.unary_unary(
-            "/qc_worker_api_v1.Api/Run",
-            request_serializer=qc__worker__api__v1__pb2.RunRequest.SerializeToString,
-            response_deserializer=qc__worker__api__v1__pb2.RunResponse.FromString,
+        self.Sample = channel.unary_unary(
+            "/qc_worker_api_v1.Api/Sample",
+            request_serializer=qc__worker__api__v1__pb2.SampleRequest.SerializeToString,
+            response_deserializer=qc__worker__api__v1__pb2.SampleResponse.FromString,
+            _registered_method=True,
+        )
+        self.Estimate = channel.unary_unary(
+            "/qc_worker_api_v1.Api/Estimate",
+            request_serializer=qc__worker__api__v1__pb2.EstimateRequest.SerializeToString,
+            response_deserializer=qc__worker__api__v1__pb2.EstimateResponse.FromString,
             _registered_method=True,
         )
         self.CloseContext = channel.unary_unary(
@@ -72,7 +78,13 @@ class ApiServicer(object):
         context.set_details("Method not implemented!")
         raise NotImplementedError("Method not implemented!")
 
-    def Run(self, request, context):
+    def Sample(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
+    def Estimate(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details("Method not implemented!")
@@ -98,10 +110,15 @@ def add_ApiServicer_to_server(servicer, server):
             request_deserializer=qc__worker__api__v1__pb2.CreateContextRequest.FromString,
             response_serializer=qc__worker__api__v1__pb2.QuantumContext.SerializeToString,
         ),
-        "Run": grpc.unary_unary_rpc_method_handler(
-            servicer.Run,
-            request_deserializer=qc__worker__api__v1__pb2.RunRequest.FromString,
-            response_serializer=qc__worker__api__v1__pb2.RunResponse.SerializeToString,
+        "Sample": grpc.unary_unary_rpc_method_handler(
+            servicer.Sample,
+            request_deserializer=qc__worker__api__v1__pb2.SampleRequest.FromString,
+            response_serializer=qc__worker__api__v1__pb2.SampleResponse.SerializeToString,
+        ),
+        "Estimate": grpc.unary_unary_rpc_method_handler(
+            servicer.Estimate,
+            request_deserializer=qc__worker__api__v1__pb2.EstimateRequest.FromString,
+            response_serializer=qc__worker__api__v1__pb2.EstimateResponse.SerializeToString,
         ),
         "CloseContext": grpc.unary_unary_rpc_method_handler(
             servicer.CloseContext,
@@ -156,7 +173,7 @@ class Api(object):
         )
 
     @staticmethod
-    def Run(
+    def Sample(
         request,
         target,
         options=(),
@@ -171,9 +188,39 @@ class Api(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/qc_worker_api_v1.Api/Run",
-            qc__worker__api__v1__pb2.RunRequest.SerializeToString,
-            qc__worker__api__v1__pb2.RunResponse.FromString,
+            "/qc_worker_api_v1.Api/Sample",
+            qc__worker__api__v1__pb2.SampleRequest.SerializeToString,
+            qc__worker__api__v1__pb2.SampleResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True,
+        )
+
+    @staticmethod
+    def Estimate(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            "/qc_worker_api_v1.Api/Estimate",
+            qc__worker__api__v1__pb2.EstimateRequest.SerializeToString,
+            qc__worker__api__v1__pb2.EstimateResponse.FromString,
             options,
             channel_credentials,
             insecure,

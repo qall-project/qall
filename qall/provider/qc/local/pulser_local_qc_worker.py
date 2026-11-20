@@ -50,9 +50,7 @@ class PulserLocalQuantumWorker(QuantumWorker):
         self.__device = devices_map.get(resource, MockDevice)
 
         context.bin_metadata["device"] = self.__device
-        context.metadata["device_name"] = getattr(
-            self.__device, "name", str(self.__device)
-        )
+        context.metadata["device_name"] = self.__device.name
         return context
 
     def get_context_status(self, context: str):
@@ -76,7 +74,7 @@ class PulserLocalQuantumWorker(QuantumWorker):
 
         return dict(sim_res.final_bitstrings)
 
-    def run(
+    def sample(
         self,
         program: Any,
         shots: int,

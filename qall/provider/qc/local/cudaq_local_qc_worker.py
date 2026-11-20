@@ -29,14 +29,10 @@ from qall.provider.qc import (
     provider="local",
 )
 class CudaQLocalQuantumWorker(QuantumWorker):
-    """Quantum worker executing CUDA-Q programs on local emulator backends
-
-    (e.g., qpp-cpu, density-matrix-cpu, nvidia).
-    """
+    """Quantum worker executing CUDA-Q programs on local emulator backends"""
 
     def __init__(self) -> None:
         super().__init__()
-        self.__target = None
 
     def create_context(
         self,
@@ -44,9 +40,14 @@ class CudaQLocalQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> QuantumContext:
-        self.__target = resource if resource else "qpp-cpu"
+        devices_map = {
+            "LOCAL-CUDAQ-CPU": "qpp-cpu",
+            "LOCAL-CUDAQ-GPU": "gpu",
+        }
 
-        cudaq.set_target(self.__target)
+        backend_name = devices_map.get(resource, "qpp-cpu")
+
+        cudaq.set_target(target=backend_name)
 
         return context
 
@@ -55,7 +56,7 @@ class CudaQLocalQuantumWorker(QuantumWorker):
             raise RuntimeError("No target has been configured yet.")
         return True
 
-    def run(
+    def sample(
         self,
         program: Any,
         shots: int,

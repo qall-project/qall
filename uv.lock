@@ -2004,7 +2004,7 @@ wheels = [
 
 [[package]]
 name = "qall"
-version = "0.1.14"
+version = "0.1.15"
 source = { editable = "." }
 dependencies = [
     { name = "cloudpickle" },
@@ -2053,7 +2053,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "qall-daemon-client", specifier = ">=0.1.10" },
     { name = "qall-registry-client", specifier = ">=0.1.2" },
-    { name = "qio", specifier = ">=0.2.10" },
+    { name = "qio", specifier = ">=0.2.11" },
     { name = "retry", specifier = "==0.9.2" },
     { name = "rustworkx", specifier = "==0.17.1" },
     { name = "s3fs", specifier = ">=2025.6.0" },
@@ -2105,16 +2105,16 @@ wheels = [
 
 [[package]]
 name = "qio"
-version = "0.2.10"
+version = "0.2.11"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dataclasses-json" },
     { name = "openqasm3", extra = ["parser"] },
     { name = "pyqasm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/03/94/4ccc728dc05ea4d29573ba672e37cd6050604d10db27d25a84c39e8697a4/qio-0.2.10.tar.gz", hash = "sha256:6616da9d924a524f93eecb9f6d9829d2a2d09efb9a8a9e55e632a395bec1123c", size = 56590, upload-time = "2026-11-13T18:24:04.226Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/40/eab0def850b8164b456ed1f0a244add992452909c285e04d141bed0fa5ae/qio-0.2.11.tar.gz", hash = "sha256:84743de2df583d5fb91d06d6e548a0196b0edfd06ad493a5e67bd1205f8bb1fa", size = 57326, upload-time = "2026-11-20T08:33:59.888Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/de/4e/5285cea3e86c1fbceaebb182c9d26f64b65df81d81816a085ec1dd668821/qio-0.2.10-py3-none-any.whl", hash = "sha256:0e705df3cc42ae59fbe54f548fa61be6a6d31a1339110b43bc601d7fd05cc458", size = 97772, upload-time = "2026-11-13T18:24:03.154Z" },
+    { url = "https://files.pythonhosted.org/packages/2a/c0/d57799a7ccf619b4e27711581d662d0dd9adf9a418fc31ac155ef76c9834/qio-0.2.11-py3-none-any.whl", hash = "sha256:a3ffedf468fa1f540261ddf6db02ac3f1512a29dc42d5194038a48e3e3a8fc18", size = 99153, upload-time = "2026-11-20T08:33:58.871Z" },
 ]
 
 [[package]]

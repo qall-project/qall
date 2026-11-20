@@ -46,7 +46,7 @@ class QuantumWorker(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def run(
+    def sample(
         self,
         program: Any,
         shots: int,
@@ -54,7 +54,22 @@ class QuantumWorker(ABC):
         **kwargs,
     ) -> Any:
         """
-        Execute a quantum program.
+        Sample a quantum program.
+
+        The returned context may contain updated provider session information.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def estimate(
+        self,
+        program: Any,
+        shots: int,
+        context: QuantumContext,
+        **kwargs,
+    ) -> Any:
+        """
+        Estimate a quantum program.
 
         The returned context may contain updated provider session information.
         """
@@ -78,8 +93,8 @@ class QuantumWorker(ABC):
         """
         return self.__capabilities
 
-    def set_capabilities(self, input_format: str, output_format: str):
+    def set_capabilities(self, input_formats: list[str], output_formats: list[str]):
         self.__capabilities = QuantumCapabilities(
-            input_format=input_format,
-            output_format=output_format,
+            input_formats=input_formats,
+            output_formats=output_formats,
         )

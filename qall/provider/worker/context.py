@@ -55,5 +55,5 @@ class QuantumContext:
 
 @dataclass
 class QuantumCapabilities:
-    input_format: str
-    output_format: str
+    input_formats: list[str]
+    output_formats: list[str]

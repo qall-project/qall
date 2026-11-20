@@ -73,7 +73,7 @@ class QuantumWorkerManager:
         for w in self.__workers:
             capabilities = w.capabilities
 
-            if input_format != capabilities.input_format:
+            if input_format not in capabilities.input_formats:
                 continue
 
             candidates.append(w)
@@ -83,16 +83,34 @@ class QuantumWorkerManager:
 
         return candidates[0]
 
-    def run(self, program: Any, shots: int, **kwargs) -> Any:
+    def sample(self, program: Any, shots: int, **kwargs) -> Any:
         input_format = normalize_circuit_type(program)
 
         worker = self._resolve(input_format=input_format)
 
-        result, context = worker.client.run(
+        result, context = worker.client.sample(
             program=program,
             shots=shots,
             context=self.__context,
-            output_format=worker.capabilities.output_format,
+            output_format=worker.capabilities.output_formats[0],
+            **kwargs,
+        )
+
+        if context:
+            self.__context = context
+
+        return result
+
+    def estimate(self, program: Any, shots: int, **kwargs) -> Any:
+        input_format = normalize_circuit_type(program)
+
+        worker = self._resolve(input_format=input_format)
+
+        result, context = worker.client.estimate(
+            program=program,
+            shots=shots,
+            context=self.__context,
+            output_format=worker.capabilities.output_formats[0],
             **kwargs,
         )
 

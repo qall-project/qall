@@ -14,7 +14,7 @@ dependencies = [
     "matplotlib>=3.11.0",
     "pyan3>=2.9.0,<3",
     "pyyaml>=6.0.3",
-    "qio>=0.2.10",
+    "qio>=0.2.11",
     "rustworkx==0.17.1",
     "typer>=0.26.7",
     "lmdb>=2.3.0",

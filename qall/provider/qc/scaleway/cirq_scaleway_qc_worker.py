@@ -87,7 +87,7 @@ class CirqScalewayQuantumWorker(QuantumWorker):
 
         return True
 
-    def run(
+    def sample(
         self,
         program: Any,
         shots: int,
