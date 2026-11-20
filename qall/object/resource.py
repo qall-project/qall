@@ -130,17 +130,5 @@ class Resource:
 class TaskResourceAssignment:
     task_hash: str
     provider: str
-    resource: Resource
+    resources: list[Resource]
     worker_hash: str
-
-    @property
-    def qpu_name(self) -> Optional[str]:
-        return self.resource.qpu.model_name if self.resource.qpu else None
-
-    @property
-    def cpu_name(self) -> Optional[str]:
-        return self.resource.cpu.model_name if self.resource.cpu else None
-
-    @property
-    def gpu_name(self) -> Optional[str]:
-        return self.resource.gpu.model_name if self.resource.gpu else None

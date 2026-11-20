@@ -43,6 +43,12 @@ class WorkerCatalog:
                 return entry
         return None
 
+    def get_by_name(self, worker_name: str) -> WorkerEntry | None:
+        for entry in self.__entries.values():
+            if entry.name == worker_name:
+                return entry
+        return None
+
     def find(
         self,
         provider: str,

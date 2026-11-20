@@ -13,7 +13,7 @@
 # limitations under the License.
 import os
 
-from typing import List
+from typing import List, Optional
 
 from qall.object import (
     CpuSpec,
@@ -28,10 +28,14 @@ from qall.object import (
 )
 
 from qall.provider.workflow import WorkflowProviderClient, workflow_provider
+from qall.provider.qc.local import get_local_worker_catalog, LocalWorkerType
 
 
 @workflow_provider("local")
 class LocalWorkflowProviderClient(WorkflowProviderClient):
+    def __init__(self):
+        self.__worker_catalog = get_local_worker_catalog()
+
     def get_default_config_template(self) -> str:
         return """# Qall Configuration File (.qall.yml)
 profiles:
@@ -56,285 +60,343 @@ profiles:
         return True
 
     def list_resources(self, filters: Optional[dict] = None) -> list[Resource]:
-        self.register_provider_workers("local")
-        return [get_local_resource(), *self._build_local_qpu_resources()]
+        return [
+            self._get_local_clasical_resource(),
+            *self._get_local_quantum_resources(),
+        ]
 
-    def _build_local_qpu_resources(self) -> list[Resource]:
-        aer_workers = self.compatible_workers(LocalWorker.QISKIT)
-        qsim_workers = self.compatible_workers(LocalWorker.CIRQ)
-        cudaq_workers = self.compatible_workers(LocalWorker.CUDAQ)
-        pulser_workers = self.compatible_workers(LocalWorker.PULSER)
-        perceval_workers = self.compatible_workers(LocalWorker.PERCEVAL)
+    def _get_local_clasical_resource(self) -> Resource:
+        cores = os.cpu_count() or 1
 
+        return Resource(
+            id="localhost",
+            name="localhost",
+            provider="local",
+            availability=ResourceAvailability.available,
+            cpu=CpuSpec(
+                model_name="local-cpu",
+                available_cores=cores,
+                available_memory_gb=16,
+            ),
+            gpu=None,
+            price=ResourcePrice(price_per_shot=0.0, price_per_hour=0.0, currency="EUR"),
+        )
 
-def get_local_resource() -> Resource:
-    cores = os.cpu_count() or 1
-
-    return Resource(
-        id="localhost",
-        name="localhost",
-        provider="local",
-        availability=ResourceAvailability.available,
-        cpu=CpuSpec(
-            model_name="local-cpu",
-            available_cores=cores,
-            available_memory_gb=16,
-        ),
-        gpu=None,
-        price=ResourcePrice(price_per_shot=0.0, price_per_hour=0.0, currency="EUR"),
-    )
-
-
-def get_local_qpu_resources() -> List[Resource]:
-    return [
-        Resource(
-            id="local-aer-emulator",
-            name="LOCAL-AER",
-            provider="local",
-            availability=ResourceAvailability.available,
-            qpu=QpuSpec(
-                available_qubits=32,
-                max_shots=100000,
-                modality=QpuModality.gate_based,
-                topology=QpuTopology.all_to_all,
-                technology=QpuTechnology.unknown,
-                gateset=["cx", "cz", "rz", "rx", "h", "x", "y", "z", "s", "t"],
-                model_name="Qiskit Aer emulator",
-                type=QpuType.emulator,
-                bookable=False,
-                mcm_support=True,
-                reset_support=True,
+    def _get_local_quantum_resources(self) -> List[Resource]:
+        return [
+            Resource(
+                id="local-aer-emulator",
+                name="LOCAL-AER",
+                provider="local",
+                availability=ResourceAvailability.available,
+                qpu=QpuSpec(
+                    available_qubits=32,
+                    max_shots=100000,
+                    modality=QpuModality.gate_based,
+                    topology=QpuTopology.all_to_all,
+                    technology=QpuTechnology.unknown,
+                    gateset=["cx", "cz", "rz", "rx", "h", "x", "y", "z", "s", "t"],
+                    model_name="Qiskit Aer emulator",
+                    type=QpuType.emulator,
+                    bookable=False,
+                    mcm_support=True,
+                    reset_support=True,
+                ),
+                compatible_workers=[
+                    self.__worker_catalog.get_by_name(LocalWorkerType.AER)
+                ],
+                price=ResourcePrice(
+                    price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
+                ),
             ),
-            price=ResourcePrice(price_per_shot=0.0, price_per_hour=0.0, currency="EUR"),
-        ),
-        Resource(
-            id="local-qsim-emulator",
-            name="LOCAL-QSIM",
-            provider="local",
-            availability=ResourceAvailability.available,
-            qpu=QpuSpec(
-                available_qubits=32,
-                max_shots=100000,
-                modality=QpuModality.gate_based,
-                topology=QpuTopology.all_to_all,
-                technology=QpuTechnology.unknown,
-                gateset=["cz", "rz", "rx", "h", "x", "t", "s"],
-                model_name="Cirq QSim emulator",
-                type=QpuType.emulator,
-                bookable=False,
-                mcm_support=True,
-                reset_support=True,
+            Resource(
+                id="local-qsim-emulator",
+                name="LOCAL-QSIM",
+                provider="local",
+                availability=ResourceAvailability.available,
+                qpu=QpuSpec(
+                    available_qubits=32,
+                    max_shots=100000,
+                    modality=QpuModality.gate_based,
+                    topology=QpuTopology.all_to_all,
+                    technology=QpuTechnology.unknown,
+                    gateset=["cz", "rz", "rx", "h", "x", "t", "s"],
+                    model_name="Cirq QSim emulator",
+                    type=QpuType.emulator,
+                    bookable=False,
+                    mcm_support=True,
+                    reset_support=True,
+                ),
+                compatible_workers=[
+                    self.__worker_catalog.get_by_name(LocalWorkerType.QSIM)
+                ],
+                price=ResourcePrice(
+                    price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
+                ),
             ),
-            price=ResourcePrice(price_per_shot=0.0, price_per_hour=0.0, currency="EUR"),
-        ),
-        Resource(
-            id="local-cudaq-emulator",
-            name="LOCAL-CUDAQ",
-            provider="local",
-            availability=ResourceAvailability.available,
-            qpu=QpuSpec(
-                available_qubits=32,
-                max_shots=100000,
-                modality=QpuModality.gate_based,
-                topology=QpuTopology.all_to_all,
-                technology=QpuTechnology.unknown,
-                gateset=["cz", "rz", "rx", "h", "x", "t", "s"],
-                model_name="CUDA-Q runtime emulator",
-                type=QpuType.emulator,
-                bookable=False,
-                mcm_support=True,
-                reset_support=True,
+            Resource(
+                id="local-cudaq-emulator",
+                name="LOCAL-CUDAQ",
+                provider="local",
+                availability=ResourceAvailability.available,
+                qpu=QpuSpec(
+                    available_qubits=32,
+                    max_shots=100000,
+                    modality=QpuModality.gate_based,
+                    topology=QpuTopology.all_to_all,
+                    technology=QpuTechnology.unknown,
+                    gateset=["cz", "rz", "rx", "h", "x", "t", "s"],
+                    model_name="CUDA-Q runtime emulator",
+                    type=QpuType.emulator,
+                    bookable=False,
+                    mcm_support=True,
+                    reset_support=True,
+                ),
+                compatible_workers=[
+                    self.__worker_catalog.get_by_name(LocalWorkerType.CUDAQ)
+                ],
+                price=ResourcePrice(
+                    price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
+                ),
             ),
-            price=ResourcePrice(price_per_shot=0.0, price_per_hour=0.0, currency="EUR"),
-        ),
-        Resource(
-            id="local-pulser-analog-emulator",
-            name="LOCAL-PULSER-ANALOG",
-            provider="local",
-            availability=ResourceAvailability.available,
-            qpu=QpuSpec(
-                available_qubits=32,
-                max_shots=2000,
-                modality=QpuModality.analog,
-                topology=QpuTopology.grid,
-                technology=QpuTechnology.unknown,
-                model_name="Pulser emulator",
-                type=QpuType.emulator,
-                bookable=False,
-                mcm_support=True,
-                reset_support=True,
+            Resource(
+                id="local-pulser-analog-emulator",
+                name="LOCAL-PULSER-ANALOG",
+                provider="local",
+                availability=ResourceAvailability.available,
+                qpu=QpuSpec(
+                    available_qubits=32,
+                    max_shots=2000,
+                    modality=QpuModality.analog,
+                    topology=QpuTopology.grid,
+                    technology=QpuTechnology.unknown,
+                    model_name="Pulser emulator",
+                    type=QpuType.emulator,
+                    bookable=False,
+                    mcm_support=True,
+                    reset_support=True,
+                ),
+                compatible_workers=[
+                    self.__worker_catalog.get_by_name(LocalWorkerType.PULSER)
+                ],
+                price=ResourcePrice(
+                    price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
+                ),
             ),
-            price=ResourcePrice(price_per_shot=0.0, price_per_hour=0.0, currency="EUR"),
-        ),
-        Resource(
-            id="local-pulser-mock-emulator",
-            name="LOCAL-PULSER-MOCK",
-            provider="local",
-            availability=ResourceAvailability.available,
-            qpu=QpuSpec(
-                available_qubits=32,
-                max_shots=2000,
-                modality=QpuModality.analog,
-                topology=QpuTopology.grid,
-                technology=QpuTechnology.unknown,
-                model_name="Pulser emulator",
-                type=QpuType.emulator,
-                bookable=False,
-                mcm_support=True,
-                reset_support=True,
+            Resource(
+                id="local-pulser-mock-emulator",
+                name="LOCAL-PULSER-MOCK",
+                provider="local",
+                availability=ResourceAvailability.available,
+                qpu=QpuSpec(
+                    available_qubits=32,
+                    max_shots=2000,
+                    modality=QpuModality.analog,
+                    topology=QpuTopology.grid,
+                    technology=QpuTechnology.unknown,
+                    model_name="Pulser emulator",
+                    type=QpuType.emulator,
+                    bookable=False,
+                    mcm_support=True,
+                    reset_support=True,
+                ),
+                compatible_workers=[
+                    self.__worker_catalog.get_by_name(LocalWorkerType.PULSER)
+                ],
+                price=ResourcePrice(
+                    price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
+                ),
             ),
-            price=ResourcePrice(price_per_shot=0.0, price_per_hour=0.0, currency="EUR"),
-        ),
-        Resource(
-            id="local-pulser-digital-analog-emulator",
-            name="LOCAL-PULSER-DIGITAL-ANALOG",
-            provider="local",
-            availability=ResourceAvailability.available,
-            qpu=QpuSpec(
-                available_qubits=32,
-                max_shots=2000,
-                modality=QpuModality.analog,
-                topology=QpuTopology.grid,
-                technology=QpuTechnology.unknown,
-                model_name="Pulser emulator",
-                type=QpuType.emulator,
-                bookable=False,
-                mcm_support=True,
-                reset_support=True,
+            Resource(
+                id="local-pulser-digital-analog-emulator",
+                name="LOCAL-PULSER-DIGITAL-ANALOG",
+                provider="local",
+                availability=ResourceAvailability.available,
+                qpu=QpuSpec(
+                    available_qubits=32,
+                    max_shots=2000,
+                    modality=QpuModality.analog,
+                    topology=QpuTopology.grid,
+                    technology=QpuTechnology.unknown,
+                    model_name="Pulser emulator",
+                    type=QpuType.emulator,
+                    bookable=False,
+                    mcm_support=True,
+                    reset_support=True,
+                ),
+                compatible_workers=[
+                    self.__worker_catalog.get_by_name(LocalWorkerType.PULSER)
+                ],
+                price=ResourcePrice(
+                    price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
+                ),
             ),
-            price=ResourcePrice(price_per_shot=0.0, price_per_hour=0.0, currency="EUR"),
-        ),
-        Resource(
-            id="local-perceval-emulator",
-            name="LOCAL-PERCEVAL-SLOS",
-            provider="local",
-            availability=ResourceAvailability.available,
-            qpu=QpuSpec(
-                available_qubits=32,
-                max_shots=100000,
-                modality=QpuModality.linear_optic,
-                topology=QpuTopology.all_to_all,
-                technology=QpuTechnology.discrete_photon,
-                model_name="Perceval emulator",
-                type=QpuType.emulator,
-                bookable=False,
-                mcm_support=True,
-                reset_support=True,
+            Resource(
+                id="local-perceval-emulator-slos",
+                name="LOCAL-PERCEVAL-SLOS",
+                provider="local",
+                availability=ResourceAvailability.available,
+                qpu=QpuSpec(
+                    available_qubits=32,
+                    max_shots=100000,
+                    modality=QpuModality.linear_optic,
+                    topology=QpuTopology.all_to_all,
+                    technology=QpuTechnology.discrete_photon,
+                    model_name="Perceval emulator",
+                    type=QpuType.emulator,
+                    bookable=False,
+                    mcm_support=True,
+                    reset_support=True,
+                ),
+                compatible_workers=[
+                    self.__worker_catalog.get_by_name(LocalWorkerType.PERCEVAL)
+                ],
+                price=ResourcePrice(
+                    price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
+                ),
             ),
-            price=ResourcePrice(price_per_shot=0.0, price_per_hour=0.0, currency="EUR"),
-        ),
-        Resource(
-            id="local-perceval-emulator",
-            name="LOCAL-PERCEVAL-MPS",
-            provider="local",
-            availability=ResourceAvailability.available,
-            qpu=QpuSpec(
-                available_qubits=32,
-                max_shots=100000,
-                modality=QpuModality.linear_optic,
-                topology=QpuTopology.all_to_all,
-                technology=QpuTechnology.discrete_photon,
-                model_name="Perceval emulator",
-                type=QpuType.emulator,
-                bookable=False,
-                mcm_support=True,
-                reset_support=True,
+            Resource(
+                id="local-perceval-emulator-mps",
+                name="LOCAL-PERCEVAL-MPS",
+                provider="local",
+                availability=ResourceAvailability.available,
+                qpu=QpuSpec(
+                    available_qubits=32,
+                    max_shots=100000,
+                    modality=QpuModality.linear_optic,
+                    topology=QpuTopology.all_to_all,
+                    technology=QpuTechnology.discrete_photon,
+                    model_name="Perceval emulator",
+                    type=QpuType.emulator,
+                    bookable=False,
+                    mcm_support=True,
+                    reset_support=True,
+                ),
+                compatible_workers=[
+                    self.__worker_catalog.get_by_name(LocalWorkerType.PERCEVAL)
+                ],
+                price=ResourcePrice(
+                    price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
+                ),
             ),
-            price=ResourcePrice(price_per_shot=0.0, price_per_hour=0.0, currency="EUR"),
-        ),
-        Resource(
-            id="local-perceval-emulator",
-            name="LOCAL-PERCEVAL-NAIVE",
-            provider="local",
-            availability=ResourceAvailability.available,
-            qpu=QpuSpec(
-                available_qubits=32,
-                max_shots=100000,
-                modality=QpuModality.linear_optic,
-                topology=QpuTopology.all_to_all,
-                technology=QpuTechnology.discrete_photon,
-                model_name="Perceval emulator",
-                type=QpuType.emulator,
-                bookable=False,
-                mcm_support=True,
-                reset_support=True,
+            Resource(
+                id="local-perceval-emulator-naive",
+                name="LOCAL-PERCEVAL-NAIVE",
+                provider="local",
+                availability=ResourceAvailability.available,
+                qpu=QpuSpec(
+                    available_qubits=32,
+                    max_shots=100000,
+                    modality=QpuModality.linear_optic,
+                    topology=QpuTopology.all_to_all,
+                    technology=QpuTechnology.discrete_photon,
+                    model_name="Perceval emulator",
+                    type=QpuType.emulator,
+                    bookable=False,
+                    mcm_support=True,
+                    reset_support=True,
+                ),
+                compatible_workers=[
+                    self.__worker_catalog.get_by_name(LocalWorkerType.PERCEVAL)
+                ],
+                price=ResourcePrice(
+                    price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
+                ),
             ),
-            price=ResourcePrice(price_per_shot=0.0, price_per_hour=0.0, currency="EUR"),
-        ),
-        Resource(
-            id="local-perceval-emulator",
-            name="LOCAL-PERCEVAL-NAIVE-APPROX",
-            provider="local",
-            availability=ResourceAvailability.available,
-            qpu=QpuSpec(
-                available_qubits=32,
-                max_shots=100000,
-                modality=QpuModality.linear_optic,
-                topology=QpuTopology.all_to_all,
-                technology=QpuTechnology.discrete_photon,
-                model_name="Perceval emulator",
-                type=QpuType.emulator,
-                bookable=False,
-                mcm_support=True,
-                reset_support=True,
+            Resource(
+                id="local-perceval-emulator-naive-approx",
+                name="LOCAL-PERCEVAL-NAIVE-APPROX",
+                provider="local",
+                availability=ResourceAvailability.available,
+                qpu=QpuSpec(
+                    available_qubits=32,
+                    max_shots=100000,
+                    modality=QpuModality.linear_optic,
+                    topology=QpuTopology.all_to_all,
+                    technology=QpuTechnology.discrete_photon,
+                    model_name="Perceval emulator",
+                    type=QpuType.emulator,
+                    bookable=False,
+                    mcm_support=True,
+                    reset_support=True,
+                ),
+                compatible_workers=[
+                    self.__worker_catalog.get_by_name(LocalWorkerType.PERCEVAL)
+                ],
+                price=ResourcePrice(
+                    price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
+                ),
             ),
-            price=ResourcePrice(price_per_shot=0.0, price_per_hour=0.0, currency="EUR"),
-        ),
-        Resource(
-            id="local-perceval-emulator",
-            name="LOCAL-PERCEVAL-SLAP",
-            provider="local",
-            availability=ResourceAvailability.available,
-            qpu=QpuSpec(
-                available_qubits=32,
-                max_shots=100000,
-                modality=QpuModality.linear_optic,
-                topology=QpuTopology.all_to_all,
-                technology=QpuTechnology.discrete_photon,
-                model_name="Perceval emulator",
-                type=QpuType.emulator,
-                bookable=False,
-                mcm_support=True,
-                reset_support=True,
+            Resource(
+                id="local-perceval-emulator-slap",
+                name="LOCAL-PERCEVAL-SLAP",
+                provider="local",
+                availability=ResourceAvailability.available,
+                qpu=QpuSpec(
+                    available_qubits=32,
+                    max_shots=100000,
+                    modality=QpuModality.linear_optic,
+                    topology=QpuTopology.all_to_all,
+                    technology=QpuTechnology.discrete_photon,
+                    model_name="Perceval emulator",
+                    type=QpuType.emulator,
+                    bookable=False,
+                    mcm_support=True,
+                    reset_support=True,
+                ),
+                compatible_workers=[
+                    self.__worker_catalog.get_by_name(LocalWorkerType.PERCEVAL)
+                ],
+                price=ResourcePrice(
+                    price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
+                ),
             ),
-            price=ResourcePrice(price_per_shot=0.0, price_per_hour=0.0, currency="EUR"),
-        ),
-        Resource(
-            id="local-perceval-emulator",
-            name="LOCAL-PERCEVAL-SAMPLING",
-            provider="local",
-            availability=ResourceAvailability.available,
-            qpu=QpuSpec(
-                available_qubits=32,
-                max_shots=100000,
-                modality=QpuModality.linear_optic,
-                topology=QpuTopology.all_to_all,
-                technology=QpuTechnology.discrete_photon,
-                model_name="Perceval emulator",
-                type=QpuType.emulator,
-                bookable=False,
-                mcm_support=True,
-                reset_support=True,
+            Resource(
+                id="local-perceval-emulator-sampling",
+                name="LOCAL-PERCEVAL-SAMPLING",
+                provider="local",
+                availability=ResourceAvailability.available,
+                qpu=QpuSpec(
+                    available_qubits=32,
+                    max_shots=100000,
+                    modality=QpuModality.linear_optic,
+                    topology=QpuTopology.all_to_all,
+                    technology=QpuTechnology.discrete_photon,
+                    model_name="Perceval emulator",
+                    type=QpuType.emulator,
+                    bookable=False,
+                    mcm_support=True,
+                    reset_support=True,
+                ),
+                compatible_workers=[
+                    self.__worker_catalog.get_by_name(LocalWorkerType.PERCEVAL)
+                ],
+                price=ResourcePrice(
+                    price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
+                ),
             ),
-            price=ResourcePrice(price_per_shot=0.0, price_per_hour=0.0, currency="EUR"),
-        ),
-        Resource(
-            id="local-perceval-emulator",
-            name="LOCAL-PERCEVAL-CLIFFORD",
-            provider="local",
-            availability=ResourceAvailability.available,
-            qpu=QpuSpec(
-                available_qubits=32,
-                max_shots=100000,
-                modality=QpuModality.linear_optic,
-                topology=QpuTopology.all_to_all,
-                technology=QpuTechnology.discrete_photon,
-                model_name="Perceval emulator",
-                type=QpuType.emulator,
-                bookable=False,
-                mcm_support=True,
-                reset_support=True,
+            Resource(
+                id="local-perceval-emulator-clifford",
+                name="LOCAL-PERCEVAL-CLIFFORD",
+                provider="local",
+                availability=ResourceAvailability.available,
+                qpu=QpuSpec(
+                    available_qubits=32,
+                    max_shots=100000,
+                    modality=QpuModality.linear_optic,
+                    topology=QpuTopology.all_to_all,
+                    technology=QpuTechnology.discrete_photon,
+                    model_name="Perceval emulator",
+                    type=QpuType.emulator,
+                    bookable=False,
+                    mcm_support=True,
+                    reset_support=True,
+                ),
+                compatible_workers=[
+                    self.__worker_catalog.get_by_name(LocalWorkerType.PERCEVAL)
+                ],
+                price=ResourcePrice(
+                    price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
+                ),
             ),
-            price=ResourcePrice(price_per_shot=0.0, price_per_hour=0.0, currency="EUR"),
-        ),
-    ]
+        ]

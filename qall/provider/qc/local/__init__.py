@@ -21,20 +21,20 @@ from qall.specification import WorkerSpec
 from ..catalog import WorkerCatalog, WorkerEntry
 
 
-class LocalWorker(StrEnum):
+class LocalWorkerType(StrEnum):
     QSIM = "cirq_local_qc_worker"
-    AER = "qiskit_local_qc_worker"
+    AER = "aer_local_qc_worker"
     CUDAQ = "cudaq_local_qc_worker"
     PULSER = "pulser_local_qc_worker"
     PERCEVAL = "perceval_local_qc_worker"
 
 
-def register_local_workers(catalog: WorkerCatalog = None) -> WorkerCatalog:
-    catalog = catalog if catalog else WorkerCatalog()
+def get_local_worker_catalog() -> WorkerCatalog:
+    catalog = WorkerCatalog()
     local_entries = {}
     base_dir = Path(__file__).parent.resolve()
 
-    for worker in LocalWorker:
+    for worker in LocalWorkerType:
         file_path = base_dir / f"{worker.value}.py"
         if not file_path.exists():
             raise FileNotFoundError(f"Local worker file not found: {file_path}")
@@ -54,5 +54,4 @@ def register_local_workers(catalog: WorkerCatalog = None) -> WorkerCatalog:
             input_format=worker_spec.input_format,
         )
 
-    catalog.batch_add_and_save(local_entries)
     return catalog

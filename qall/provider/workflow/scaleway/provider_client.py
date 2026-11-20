@@ -36,7 +36,7 @@ from qall.object import (
 
 from qall.provider.workflow import WorkflowProviderClient, workflow_provider
 from qall.provider.login import get_credentials_from_env
-
+from qall.provider.qc.scaleway import get_scaleway_worker_catalog, ScalewayWorkerType
 
 from scaleway_qaas_client.v1alpha1 import QaaSClient, QaaSPlatform
 
@@ -45,6 +45,7 @@ from scaleway_qaas_client.v1alpha1 import QaaSClient, QaaSPlatform
 class ScalewayWorkflowProviderClient(WorkflowProviderClient):
     def __init__(self):
         self.__client = None
+        self.__worker_catalog = get_scaleway_worker_catalog()
 
     def get_default_config_template(self) -> str:
         """
@@ -167,6 +168,24 @@ profiles:
         return resources
 
     def _map_platform_to_resource(self, p: QaaSPlatform) -> Resource:
+        qiskit_worker = self.__worker_catalog.get_by_name(ScalewayWorkerType.QISKIT)
+        cirq_worker = self.__worker_catalog.get_by_name(ScalewayWorkerType.CIRQ)
+        cudaq_worker = self.__worker_catalog.get_by_name(ScalewayWorkerType.CUDAQ)
+        pulser_worker = self.__worker_catalog.get_by_name(ScalewayWorkerType.PULSER)
+        perceval_worker = self.__worker_catalog.get_by_name(ScalewayWorkerType.PERCEVAL)
+
+        provider_to_worker_mapping = {
+            "pasq al": [pulser_worker],
+            "quandela": [perceval_worker],
+            "aqt": [qiskit_worker, cirq_worker, cudaq_worker],
+            "iqm": [qiskit_worker, cirq_worker, cudaq_worker],
+            "quobly": [qiskit_worker, cirq_worker, cudaq_worker],
+            "qiskit": [qiskit_worker, cirq_worker, cudaq_worker],
+            "quantumlib": [qiskit_worker, cudaq_worker],
+            "qperfect": [qiskit_worker, cirq_worker, cudaq_worker],
+            "nvidia": [qiskit_worker, cirq_worker, cudaq_worker],
+        }
+
         platform_id = p.id
         name = p.name
         provider_name = p.provider_name.lower()
@@ -221,6 +240,7 @@ profiles:
             price=price,
             availability=availability,
             description=description,
+            compatible_workers=provider_to_worker_mapping[provider_name],
         )
 
     @staticmethod

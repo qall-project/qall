@@ -14,28 +14,29 @@
 import qall.core as core
 
 from pathlib import Path
+from enum import StrEnum
 
 from qall.specification import WorkerSpec
 
 from ..catalog import WorkerCatalog, WorkerEntry
 
-__FILES = [
-    "cirq_scaleway_qc_worker.py",
-    "qiskit_scaleway_qc_worker.py",
-    "cudaq_scaleway_qc_worker.py",
-    "pulser_scaleway_qc_worker.py",
-    "perceval_scaleway_qc_worker.py",
-]
+
+class ScalewayWorkerType(StrEnum):
+    CIRQ = "cirq_scaleway_qc_worker"
+    QISKIT = "qiskit_scaleway_qc_worker"
+    CUDAQ = "cudaq_scaleway_qc_worker"
+    PULSER = "pulser_scaleway_qc_worker"
+    PERCEVAL = "perceval_scaleway_qc_worker"
 
 
-def register_scaleway_workers(catalog: WorkerCatalog = None) -> WorkerCatalog:
-    catalog = catalog if catalog else WorkerCatalog()
+def get_scaleway_worker_catalog() -> WorkerCatalog:
+    catalog = WorkerCatalog()
     local_entries = {}
 
     base_dir = Path(__file__).parent.resolve()
 
-    for file_name in __FILES:
-        file_path = base_dir / file_name
+    for worker in ScalewayWorkerType:
+        file_path = base_dir / f"{worker.value}.py"
 
         if not file_path.exists():
             raise FileNotFoundError(f"Scaleway worker file not found: {file_path}")
@@ -53,9 +54,7 @@ def register_scaleway_workers(catalog: WorkerCatalog = None) -> WorkerCatalog:
             hash=dag.root_hash,
             version=tag.version,
             provider="scaleway",
-            input_formats=[worker_spec.input_format],
+            input_format=worker_spec.input_format,
         )
-
-    catalog.batch_add_and_save(local_entries)
 
     return catalog

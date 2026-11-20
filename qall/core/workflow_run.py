@@ -189,7 +189,6 @@ def create_workflow_run(
         replace_to_local=local_only,
     )
 
-    worker_definitions = _get_provider_workers(active_provider)
     artifacts = None
 
     if local_only:
@@ -204,9 +203,8 @@ def create_workflow_run(
             logger.info("Daemon not running. Starting local daemon...")
             start_daemon(detach=True)
 
-        if worker_definitions or resource_assignments:
+        if resource_assignments:
             apply_resource_assignments(
-                worker_definitions=worker_definitions,
                 resource_assignments=resource_assignments,
             )
 
@@ -316,23 +314,3 @@ def fix_workflow_run(
     provider_credentials: Optional[ProviderCredentials] = None,
 ) -> WorkflowRun:
     raise NotImplementedError()
-
-
-def _get_provider_workers(provider: str):
-    if not provider:
-        logger.info("No worker provider defined.")
-        return
-
-    catalog = WorkerCatalog()
-
-    if provider == "local":
-        catalog = register_local_workers(catalog)
-    elif provider == "scaleway":
-        catalog = register_scaleway_workers(catalog)
-    else:
-        raise RuntimeError(f"Worker provider {provider} is not supported.")
-
-    if not catalog:
-        raise RuntimeError("could not load catalog properly")
-
-    return catalog.get_by_provider(provider)
