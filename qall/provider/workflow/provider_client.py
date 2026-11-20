@@ -14,8 +14,6 @@
 from abc import ABC
 from typing import Optional
 
-from qall.provider.qc import WorkerCatalog
-
 from qall.object import (
     Workflow,
     Tag,

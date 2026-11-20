@@ -54,9 +54,6 @@ from qall.config import (
     config_exists,
 )
 from qall.resolver import resolve_workflow_resources
-from qall.provider.qc import WorkerCatalog
-from qall.provider.qc.local import register_local_workers
-from qall.provider.qc.scaleway import register_scaleway_workers
 
 logger = logging.getLogger(__name__)
 
@@ -163,30 +160,24 @@ def create_workflow_run(
             f"in configuration. Available: {list(local_config.profiles.keys())}"
         )
 
-    profile = apply_resource_overrides(
-        profile=profile,
-        allowed_qpu=allowed_qpus,
-        allowed_cpu=allowed_cpus,
-        allowed_gpu=allowed_gpus,
-    )
-
-    available_resources = []
-
-    if active_provider != "local" and provider_credentials:
-        provider_client = provider_client or get_provider_client_by_name(
-            active_provider
+    if allowed_qpus or allowed_cpus or allowed_gpus:
+        profile = apply_resource_overrides(
+            profile=profile,
+            allowed_qpu=allowed_qpus,
+            allowed_cpu=allowed_cpus,
+            allowed_gpu=allowed_gpus,
         )
-        if not provider_client.login(provider_credentials):
-            raise RuntimeError(
-                f"Failed to authenticate against provider '{active_provider}'."
-            )
-        available_resources = provider_client.list_resources()
+
+    available_resources = _list_resources_from_config(
+        active_provider=active_provider,
+        provider_credentials=provider_credentials,
+        local_only=local_only,
+    )
 
     resource_assignments = resolve_workflow_resources(
         task_dag=dag,
         profile=profile,
         available_resources=available_resources,
-        replace_to_local=local_only,
     )
 
     artifacts = None
@@ -314,3 +305,25 @@ def fix_workflow_run(
     provider_credentials: Optional[ProviderCredentials] = None,
 ) -> WorkflowRun:
     raise NotImplementedError()
+
+
+def _list_resources_from_config(
+    active_provider: str, provider_credentials: dict, local_only: bool
+):
+    available_resources = []
+
+    if local_only:
+        provider_client = get_provider_client_by_name("local")
+        available_resources.extend(provider_client.list_resources())
+
+    if active_provider != "local" and provider_credentials:
+        provider_client = provider_client or get_provider_client_by_name(
+            active_provider
+        )
+        if not provider_client.login(provider_credentials):
+            raise RuntimeError(
+                f"Failed to authenticate against provider '{active_provider}'."
+            )
+        available_resources.extend(provider_client.list_resources())
+
+    return available_resources
