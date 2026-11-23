@@ -45,7 +45,6 @@ from scaleway_qaas_client.v1alpha1 import QaaSClient, QaaSPlatform
 class ScalewayWorkflowProviderClient(WorkflowProviderClient):
     def __init__(self):
         self.__client = None
-        self.__worker_catalog = get_scaleway_worker_catalog()
 
     def get_default_config_template(self) -> str:
         """
@@ -162,23 +161,24 @@ profiles:
     def list_quantum_resources(self) -> list[Resource]:
         platforms = self.__client.list_platforms()
         resources: list[Resource] = []
+        worker_catalog = get_scaleway_worker_catalog()
 
         for p in platforms:
-            resource = self._map_platform_to_resource(p)
+            resource = self._map_platform_to_resource(worker_catalog, p)
 
             resources.append(resource)
 
         return resources
 
-    def _map_platform_to_resource(self, p: QaaSPlatform) -> Resource:
-        qiskit_worker = self.__worker_catalog.get_by_name(ScalewayWorkerType.QISKIT)
-        cirq_worker = self.__worker_catalog.get_by_name(ScalewayWorkerType.CIRQ)
-        cudaq_worker = self.__worker_catalog.get_by_name(ScalewayWorkerType.CUDAQ)
-        pulser_worker = self.__worker_catalog.get_by_name(ScalewayWorkerType.PULSER)
-        perceval_worker = self.__worker_catalog.get_by_name(ScalewayWorkerType.PERCEVAL)
+    def _map_platform_to_resource(self, worker_catalog, p: QaaSPlatform) -> Resource:
+        qiskit_worker = worker_catalog.get_by_name(ScalewayWorkerType.QISKIT).hash
+        cirq_worker = worker_catalog.get_by_name(ScalewayWorkerType.CIRQ).hash
+        cudaq_worker = worker_catalog.get_by_name(ScalewayWorkerType.CUDAQ).hash
+        pulser_worker = worker_catalog.get_by_name(ScalewayWorkerType.PULSER).hash
+        perceval_worker = worker_catalog.get_by_name(ScalewayWorkerType.PERCEVAL).hash
 
         provider_to_worker_mapping = {
-            "pasq al": [pulser_worker],
+            "pasqal": [pulser_worker],
             "quandela": [perceval_worker],
             "aqt": [qiskit_worker, cirq_worker, cudaq_worker],
             "iqm": [qiskit_worker, cirq_worker, cudaq_worker],
@@ -201,8 +201,8 @@ profiles:
         is_bookable = p.is_bookable
 
         price_per_hour, _ = self._parse_grpc_money(p.price_per_hour)
-        price_per_shot = self._parse_grpc_money(p.price_per_shot)
-        price_per_circuit = self._parse_grpc_money(p.price_per_circuit)
+        price_per_shot, _ = self._parse_grpc_money(p.price_per_shot)
+        price_per_circuit, _ = self._parse_grpc_money(p.price_per_circuit)
 
         qpu_type = self._resolve_qpu_type(type_raw)
         technology = self._resolve_technology(technology_raw)

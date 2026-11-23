@@ -34,7 +34,6 @@ from qall.provider.qc.scaleway.utils import (
 @quantum_worker(
     requirements=["pulser-scaleway"],
     input_format="pulser",
-    output_format="pulser",
     provider="scaleway",
 )
 class PulserScalewayQuantumWorker(QuantumWorker):

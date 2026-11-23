@@ -52,6 +52,7 @@ def get_local_worker_catalog() -> WorkerCatalog:
             version=tag.version,
             provider="local",
             input_format=worker_spec.input_format,
+            name=worker.value,
         )
 
     return catalog

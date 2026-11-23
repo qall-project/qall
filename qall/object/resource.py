@@ -131,4 +131,4 @@ class TaskResourceAssignment:
     task_hash: str
     provider: str
     resources: list[Resource]
-    worker_hash: str
+    worker_hash: Optional[str] = None

@@ -32,7 +32,10 @@ def logout_provider() -> str:
 
 
 def list_resources(
-    provider_name: str, provider_credentials: dict, local_is_classical: bool
+    provider_name: str,
+    provider_client,
+    provider_credentials: dict,
+    local_is_classical: bool,
 ):
     available_resources = []
 

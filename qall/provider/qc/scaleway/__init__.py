@@ -55,6 +55,7 @@ def get_scaleway_worker_catalog() -> WorkerCatalog:
             version=tag.version,
             provider="scaleway",
             input_format=worker_spec.input_format,
+            name=worker.value,
         )
 
     return catalog

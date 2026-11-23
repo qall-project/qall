@@ -35,7 +35,7 @@ from .daemon import daemon_cli
 from .task import task_cli
 from .worker import worker_cli
 from .dataloader import dataloader_cli
-from .utils import parse_cli_args, parse_extra_args
+from .utils import parse_cli_args, parse_extra_args, pretty_artifact
 
 cli = typer.Typer(
     name="qall",
@@ -137,7 +137,7 @@ def run(
 
     typer.echo(f"Initiating compilation run for: {entrypoint}")
 
-    run_obj = core.create_workflow_run(
+    run_obj, artifacts = core.create_workflow_run(
         entrypoint=entrypoint,
         workflow_name=name,
         workflow_version=version,
@@ -149,7 +149,14 @@ def run(
         allowed_qpus=allowed_qpus,
         auto_start_daemon=True,
     )
-    typer.echo(f"Workflow run ID: {run_obj.id}")
+
+    typer.echo(f"Workflow run triggered execution sequence. Run ID: {run_obj.id}")
+
+    # QoL: let the user launch `qall artifact show <hash>` to display the
+    # actual output(s), annotated with the entrypoint task that produced them.
+
+    if artifacts:
+        typer.echo(pretty_artifact(artifacts))
 
 
 @cli.command("fix")

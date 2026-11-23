@@ -33,9 +33,6 @@ from qall.provider.qc.local import LocalWorkerType, get_local_worker_catalog
 
 @workflow_provider("local")
 class LocalWorkflowProviderClient(WorkflowProviderClient):
-    def __init__(self):
-        self.__worker_catalog = get_local_worker_catalog()
-
     def get_default_config_template(self) -> str:
         return """# Qall Configuration File (.qall.yml)
 profiles:
@@ -85,6 +82,8 @@ profiles:
         )
 
     def _get_local_quantum_resources(self) -> List[Resource]:
+        worker_catalog = get_local_worker_catalog()
+
         return [
             Resource(
                 id="local-aer-emulator",
@@ -105,7 +104,7 @@ profiles:
                     reset_support=True,
                 ),
                 compatible_workers=[
-                    self.__worker_catalog.get_by_name(LocalWorkerType.AER)
+                    worker_catalog.get_by_name(LocalWorkerType.AER).hash
                 ],
                 price=ResourcePrice(
                     price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
@@ -130,7 +129,7 @@ profiles:
                     reset_support=True,
                 ),
                 compatible_workers=[
-                    self.__worker_catalog.get_by_name(LocalWorkerType.QSIM)
+                    worker_catalog.get_by_name(LocalWorkerType.QSIM).hash
                 ],
                 price=ResourcePrice(
                     price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
@@ -155,7 +154,7 @@ profiles:
                     reset_support=True,
                 ),
                 compatible_workers=[
-                    self.__worker_catalog.get_by_name(LocalWorkerType.CUDAQ)
+                    worker_catalog.get_by_name(LocalWorkerType.CUDAQ).hash
                 ],
                 price=ResourcePrice(
                     price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
@@ -179,7 +178,7 @@ profiles:
                     reset_support=True,
                 ),
                 compatible_workers=[
-                    self.__worker_catalog.get_by_name(LocalWorkerType.PULSER)
+                    worker_catalog.get_by_name(LocalWorkerType.PULSER).hash
                 ],
                 price=ResourcePrice(
                     price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
@@ -203,7 +202,7 @@ profiles:
                     reset_support=True,
                 ),
                 compatible_workers=[
-                    self.__worker_catalog.get_by_name(LocalWorkerType.PULSER)
+                    worker_catalog.get_by_name(LocalWorkerType.PULSER).hash
                 ],
                 price=ResourcePrice(
                     price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
@@ -227,7 +226,7 @@ profiles:
                     reset_support=True,
                 ),
                 compatible_workers=[
-                    self.__worker_catalog.get_by_name(LocalWorkerType.PULSER)
+                    worker_catalog.get_by_name(LocalWorkerType.PULSER).hash
                 ],
                 price=ResourcePrice(
                     price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
@@ -251,7 +250,7 @@ profiles:
                     reset_support=True,
                 ),
                 compatible_workers=[
-                    self.__worker_catalog.get_by_name(LocalWorkerType.PERCEVAL)
+                    worker_catalog.get_by_name(LocalWorkerType.PERCEVAL).hash
                 ],
                 price=ResourcePrice(
                     price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
@@ -275,7 +274,7 @@ profiles:
                     reset_support=True,
                 ),
                 compatible_workers=[
-                    self.__worker_catalog.get_by_name(LocalWorkerType.PERCEVAL)
+                    worker_catalog.get_by_name(LocalWorkerType.PERCEVAL).hash
                 ],
                 price=ResourcePrice(
                     price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
@@ -299,7 +298,7 @@ profiles:
                     reset_support=True,
                 ),
                 compatible_workers=[
-                    self.__worker_catalog.get_by_name(LocalWorkerType.PERCEVAL)
+                    worker_catalog.get_by_name(LocalWorkerType.PERCEVAL).hash
                 ],
                 price=ResourcePrice(
                     price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
@@ -323,7 +322,7 @@ profiles:
                     reset_support=True,
                 ),
                 compatible_workers=[
-                    self.__worker_catalog.get_by_name(LocalWorkerType.PERCEVAL)
+                    worker_catalog.get_by_name(LocalWorkerType.PERCEVAL).hash
                 ],
                 price=ResourcePrice(
                     price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
@@ -347,7 +346,7 @@ profiles:
                     reset_support=True,
                 ),
                 compatible_workers=[
-                    self.__worker_catalog.get_by_name(LocalWorkerType.PERCEVAL)
+                    worker_catalog.get_by_name(LocalWorkerType.PERCEVAL).hash
                 ],
                 price=ResourcePrice(
                     price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
@@ -371,7 +370,7 @@ profiles:
                     reset_support=True,
                 ),
                 compatible_workers=[
-                    self.__worker_catalog.get_by_name(LocalWorkerType.PERCEVAL)
+                    worker_catalog.get_by_name(LocalWorkerType.PERCEVAL).hash
                 ],
                 price=ResourcePrice(
                     price_per_shot=0.0, price_per_hour=0.0, currency="EUR"
@@ -395,7 +394,7 @@ profiles:
                     reset_support=True,
                 ),
                 compatible_workers=[
-                    self.__worker_catalog.get_by_name(LocalWorkerType.PERCEVAL)
+                    worker_catalog.get_by_name(LocalWorkerType.PERCEVAL).hash
                 ],
                 price=ResourcePrice(
                     price_per_shot=0.0, price_per_hour=0.0, currency="EUR"

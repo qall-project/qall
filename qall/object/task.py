@@ -230,6 +230,32 @@ class TaskNode:
         )
 
     @property
+    def is_quantum(self) -> bool:
+        if not self.resources:
+            return False
+
+        constraints = self.resources.quantum
+
+        if not constraints or not any(
+            [
+                constraints.min_qubits > 0,
+                constraints.min_shots > 0,
+                constraints.min_ops > 0,
+                constraints.qpu_modality is not None,
+                constraints.qpu_provider is not None,
+                constraints.qpu_technology is not None,
+                constraints.qpu_topology is not None,
+                constraints.qpu_gateset is not None
+                and len(constraints.qpu_gateset) > 0,
+                constraints.qpu_mcm_support,
+                constraints.qpu_reset_support,
+            ]
+        ):
+            return False
+
+        return True
+
+    @property
     def hash(self) -> str:
         h, _ = self._encode()
         return h
@@ -255,3 +281,10 @@ class TaskDag:
     @property
     def items(self):
         return self.nodes + self.payloads
+
+    def find(self, hash: str):
+        for i in self.items:
+            if i.hash == hash:
+                return i
+
+        return None
