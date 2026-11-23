@@ -97,7 +97,10 @@ class WorkflowProviderClient(ABC):
     def list_checkpoints(self, workflow_run_id: str) -> list[Checkpoint]:
         raise NotImplementedError
 
-    def list_resources(self, filters: Optional[dict] = None) -> list[Resource]:
+    def list_quantum_resources(self) -> list[Resource]:
+        raise NotImplementedError
+
+    def list_classical_resources(self) -> list[Resource]:
         raise NotImplementedError
 
     def list_logs(self, workflow_run_id: str) -> list[Log]:

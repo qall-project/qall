@@ -28,7 +28,7 @@ from qall.object import (
 )
 
 from qall.provider.workflow import WorkflowProviderClient, workflow_provider
-from qall.provider.qc.local import get_local_worker_catalog, LocalWorkerType
+from qall.provider.qc.local import LocalWorkerType, get_local_worker_catalog
 
 
 @workflow_provider("local")
@@ -59,11 +59,13 @@ profiles:
     def login(self, credentials: Optional[dict] = None) -> bool:
         return True
 
-    def list_resources(self, filters: Optional[dict] = None) -> list[Resource]:
+    def list_classical_resources(self) -> list[Resource]:
         return [
             self._get_local_clasical_resource(),
-            *self._get_local_quantum_resources(),
         ]
+
+    def list_quantum_resources(self) -> list[Resource]:
+        return self._get_local_quantum_resources()
 
     def _get_local_clasical_resource(self) -> Resource:
         cores = os.cpu_count() or 1

@@ -15,6 +15,8 @@ import typer
 
 import qall.core as core
 
+from .utils import pretty_artifact
+
 workflow_cli = typer.Typer(
     name="workflow",
     help="Manage and control lifecycle workflows.",
@@ -75,5 +77,11 @@ def workflow_run(
     )
 ):
     """Execute a pre-compiled workflow asset that has already been registered on the cloud platform."""
-    run_obj = core.run_workflow(workflow_id=workflow_id)
+    run_obj, artifacts = core.run_workflow(workflow_id=workflow_id)
     typer.echo(f"Workflow run triggered execution sequence. Run ID: {run_obj.id}")
+
+    # QoL: let the user launch `qall artifact show <hash>` to display the
+    # actual output(s), annotated with the entrypoint task that produced them.
+
+    if artifacts:
+        typer.echo(pretty_artifact(artifacts))

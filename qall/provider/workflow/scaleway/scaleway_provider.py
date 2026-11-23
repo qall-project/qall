@@ -156,7 +156,10 @@ profiles:
     def list_logs(self, workflow_run_id: str) -> list[Log]:
         raise NotImplementedError
 
-    def list_resources(self, filters: Optional[dict] = None) -> list[Resource]:
+    def list_classical_resources(self) -> list[Resource]:
+        return []
+
+    def list_quantum_resources(self) -> list[Resource]:
         platforms = self.__client.list_platforms()
         resources: list[Resource] = []
 

@@ -18,6 +18,25 @@ import typer
 from typing import Any
 
 
+def pretty_artifact(artifacts) -> str:
+    """Copy-paste ``qall artifact show <hash>`` hints for each generated artifact.
+
+    Each hint lets the user launch the CLI command that deserializes and prints
+    the matching local artifact, optionally annotated with the producing task.
+    Artifacts without a usable content hash are skipped.
+    """
+    hints = ["To show an artifact, run the following command(s):"] if artifacts else []
+    for artifact in artifacts or []:
+        artifact_hash = artifact.hash
+        if not artifact_hash:
+            continue
+
+        hint = f"\n\t-> 'qall artifact show {artifact_hash}'"
+        hints.append(hint)
+
+    return "".join(hints)
+
+
 def parse_daemon_backend(value: str) -> str:
     """
     Validate and normalize the ``--daemon-backend`` CLI value.

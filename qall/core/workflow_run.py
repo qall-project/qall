@@ -43,6 +43,7 @@ from qall.core.daemon import (
     stop_daemon,
     apply_resource_assignments,
 )
+from qall.core.provider import list_resources
 from qall.core.dataloader import (
     provision_dataloader_files_for_dag,
     cleanup_dataloader_files,
@@ -56,25 +57,6 @@ from qall.config import (
 from qall.resolver import resolve_workflow_resources
 
 logger = logging.getLogger(__name__)
-
-
-def _artifact_show_hints(artifacts) -> str:
-    """Copy-paste ``qall artifact show <hash>`` hints for each generated artifact.
-
-    Each hint lets the user launch the CLI command that deserializes and prints
-    the matching local artifact, optionally annotated with the producing task.
-    Artifacts without a usable content hash are skipped.
-    """
-    hints = ["To show an artifact, run the following command(s):"] if artifacts else []
-    for artifact in artifacts or []:
-        artifact_hash = getattr(artifact, "hash", None)
-        if not artifact_hash:
-            continue
-
-        hint = f"\n\t-> 'qall artifact show {artifact_hash}'"
-        hints.append(hint)
-
-    return "".join(hints)
 
 
 def create_workflow_run(
@@ -168,10 +150,10 @@ def create_workflow_run(
             allowed_gpu=allowed_gpus,
         )
 
-    available_resources = _list_resources_from_config(
-        active_provider=active_provider,
+    available_resources = list_resources(
+        provider_name=active_provider,
         provider_credentials=provider_credentials,
-        local_only=local_only,
+        local_is_classical=local_only,
     )
 
     resource_assignments = resolve_workflow_resources(
@@ -218,12 +200,6 @@ def create_workflow_run(
                     else "No artifacts generated."
                 )
             )
-
-            # QoL: let the user launch `qall artifact show <hash>` to display the
-            # actual output(s), annotated with the entrypoint task that produced them.
-            hints = _artifact_show_hints(artifacts)
-            if hints:
-                logger.info(hints)
 
             workflow_run = WorkflowRun(
                 id=str(uuid.uuid4()),
@@ -305,25 +281,3 @@ def fix_workflow_run(
     provider_credentials: Optional[ProviderCredentials] = None,
 ) -> WorkflowRun:
     raise NotImplementedError()
-
-
-def _list_resources_from_config(
-    active_provider: str, provider_credentials: dict, local_only: bool
-):
-    available_resources = []
-
-    if local_only:
-        provider_client = get_provider_client_by_name("local")
-        available_resources.extend(provider_client.list_resources())
-
-    if active_provider != "local" and provider_credentials:
-        provider_client = provider_client or get_provider_client_by_name(
-            active_provider
-        )
-        if not provider_client.login(provider_credentials):
-            raise RuntimeError(
-                f"Failed to authenticate against provider '{active_provider}'."
-            )
-        available_resources.extend(provider_client.list_resources())
-
-    return available_resources
