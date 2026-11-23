@@ -134,19 +134,14 @@ def start_daemon(
 
 
 def apply_resource_assignments(
-    worker_definitions: Optional[list] = None,
-    resource_assignments: Optional[dict] = None,
+    resource_assignments: dict,
     backend: Optional[str] = None,
     **manager_kwargs,
 ):
     try:
         daemon_mgr = get_daemon_manager(backend=backend, **manager_kwargs)
 
-        if worker_definitions:
-            daemon_mgr.register_workers(worker_definitions)
-
-        if resource_assignments:
-            daemon_mgr.register_resource_assignments(resource_assignments)
+        daemon_mgr.register_resource_assignments(resource_assignments)
 
     except Exception as e:
         logger.error(f"Could not connect to local daemon.")

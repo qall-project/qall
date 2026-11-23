@@ -131,9 +131,7 @@ message GetCapabilitiesRequest {}
 message Capabilities {
   string provider = 1;
 
-  repeated string input_formats = 2;
-
-  repeated string output_formats = 3;
+  string input_format = 2;
 }
 
 message CloseContextRequest {

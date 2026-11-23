@@ -128,7 +128,7 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
             params = self._deserialize_params(request.parameters)
 
             native_program = qio_program_to_native_program(
-                program, self.__worker.capabilities.input_formats[0]
+                program, self.__worker.capabilities.input_format
             )
 
             result = self.__worker.sample(
@@ -198,9 +198,7 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
 
         c = self.__worker.capabilities
 
-        return pb2.Capabilities(
-            input_formats=c.input_formats, output_formats=c.output_formats
-        )
+        return pb2.Capabilities(input_formats=c.input_format)
 
     def _deserialize_program(
         self,
@@ -230,47 +228,6 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
             version="1",
             payload=result.to_json_str().encode("utf-8"),
         )
-
-    def _qio_program_to_native_program(
-        self,
-        program: QuantumProgram,
-        worker_input_format: str,
-    ):
-        mapping = {
-            "qiskit.QuantumCircuit": program.to_qiskit_circuit(),
-            "qiskit": program.to_qiskit_circuit(),
-            "cirq.Circuit": program.to_cirq_circuit(),
-            "cirq": program.to_cirq_circuit(),
-            "cudaq.PyKernel": program.to_cudaq_kernel(),
-            "cudaq": program.to_cudaq_kernel(),
-            "mimiqcircuits.Circuit": program.to_mimiq_circuit(),
-            "mimiq": program.to_mimiq_circuit(),
-            "qasm2": program.to_qasm2_circuit(),
-            "qio.QuantumProgram": program,
-            "qio": program,
-        }
-
-        return mapping.get(worker_input_format, program)
-
-    def _native_result_to_qio_result(
-        self,
-        result,
-        worker_output_format: str,
-    ) -> QuantumProgramResult:
-        mapping = {
-            "qiskit.result.Result": QuantumProgramResult.from_qiskit_result(result),
-            "qiskit": QuantumProgramResult.from_qiskit_result(result),
-            "cirq.Result": QuantumProgramResult.from_cirq_result(result),
-            "cirq": QuantumProgramResult.from_cirq_result(result),
-            "cudaq.SampleResult": QuantumProgramResult.from_cudaq_sample_result(result),
-            "cudaq": QuantumProgramResult.from_cudaq_sample_result(result),
-            "mimiqcircuits.QCSResults": QuantumProgramResult.from_mimiq_qcsr(result),
-            "mimiq": QuantumProgramResult.from_mimiq_qcsr(result),
-            "qio.QuantumProgramResult": result,
-            "qio": result,
-        }
-
-        return mapping.get(worker_output_format, result)
 
     def serve(
         self,

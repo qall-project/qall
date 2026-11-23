@@ -13,7 +13,12 @@
 # limitations under the License.
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
+
+from qall.interop.mapping import is_circuit_convertible, normalize_circuit_type
+
+from qall.registry import BlockRegistry
 
 from qall.object import (
     Resource,
@@ -26,10 +31,18 @@ from qall.object import (
 )
 
 
+@dataclass(frozen=True)
+class _WorkerCandidate:
+    worker_hash: str
+    worker_input_format: str
+    conversion_cost: int
+
+
 def resolve_workflow_resources(
     task_dag: TaskDag,
     profile: ResourceProfile,
     available_resources: List[Resource],
+    registry: Optional[BlockRegistry] = None,
 ) -> Dict[str, TaskResourceAssignment]:
     """
     Resolves hardware assignments for every TaskNode in a compiled TaskDag.
@@ -43,10 +56,13 @@ def resolve_workflow_resources(
         A mapping of task_hash -> TaskResourceAssignment for the DAG.
     """
     assignments: Dict[str, TaskResourceAssignment] = {}
+    block_registry = registry or BlockRegistry(read_only=True)
 
     for node in task_dag.nodes:
         task_hash = node.hash
         task_resources = []
+        quantum_res: Optional[Resource] = None
+        worker_hash: Optional[str] = None
 
         if node.is_quantum:
             payload = task_dag.find(node.payload_hash)
@@ -77,8 +93,16 @@ def resolve_task_quantum(
     payload: TaskPayload,
     profile: ResourceProfile,
     available_resources: List[Resource],
+    registry: Optional[BlockRegistry] = None,
 ) -> Optional[Resource]:
+    registry = registry or BlockRegistry(read_only=True)
     constraints = node.resources.quantum
+    quantum_runs = payload.metadata.get("quantum_runs", []) if payload else []
+    client_formats = [
+        normalize_circuit_type(quantum_run["input_format"])
+        for quantum_run in quantum_runs
+        if isinstance(quantum_run, dict) and quantum_run.get("input_format")
+    ]
 
     allowed_names = profile.allowed.qpu
     candidates: List[Resource] = []
@@ -139,7 +163,16 @@ def resolve_task_quantum(
             if not required_gates.issubset(supported_gates):
                 continue
 
-        candidates.append(res)
+        best_worker = _select_best_worker(
+            compatible_workers=res.compatible_workers,
+            client_formats=client_formats,
+            registry=registry,
+        )
+
+        if best_worker is None:
+            continue
+
+        candidates.append((res, best_worker))
 
     if not candidates:
         raise RuntimeError(
@@ -237,6 +270,44 @@ def _compare_str_or_enum(val1: Any, val2: Any) -> bool:
     str2 = val2.value if hasattr(val2, "value") else str(val2)
 
     return str1.lower() == str2.lower()
+
+
+def _select_best_worker(
+    compatible_workers: list[str],
+    client_formats: list[str],
+    registry: BlockRegistry,
+) -> Optional[_WorkerCandidate]:
+    eligible: list[_WorkerCandidate] = []
+
+    for worker_hash in compatible_workers or []:
+        if not worker_hash:
+            continue
+
+        worker_node = registry.get_worker_node_from_local(hash=worker_hash)
+        raw_fmt = (worker_node.metadata or {}).get("input_format", "")
+        if not raw_fmt:
+            continue
+
+        worker_fmt = normalize_circuit_type(raw_fmt)
+        if not all(
+            is_circuit_convertible(client_fmt, worker_fmt)
+            for client_fmt in client_formats
+        ):
+            continue
+
+        conversion_cost = sum(1 for fmt in client_formats if fmt != worker_fmt)
+        eligible.append(
+            _WorkerCandidate(
+                worker_hash=worker_hash,
+                worker_input_format=worker_fmt,
+                conversion_cost=conversion_cost,
+            )
+        )
+
+    if not eligible:
+        return None
+
+    return min(eligible, key=lambda w: w.conversion_cost)
 
 
 def _apply_matching_strategy(

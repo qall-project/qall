@@ -26,6 +26,7 @@ from ..protobuf.qc_worker_api_v1 import (
 )
 
 from qall.interop.mapping import (
+    get_result_type_for_circuit,
     native_program_to_qio_program,
     qio_result_to_native_result,
 )
@@ -100,10 +101,11 @@ class QuantumWorkerClient:
         program: Any,
         shots: int,
         context: QuantumContext,
-        output_format: str,
         **kwargs,
     ) -> tuple[Any, QuantumContext]:
         proto_context = context_to_proto(context)
+
+        expected_result_format = get_result_type_for_circuit(program)
 
         qio_program = native_program_to_qio_program(program)
 
@@ -126,7 +128,7 @@ class QuantumWorkerClient:
 
         deser_result = self._deserialize_result(response.result)
 
-        result = qio_result_to_native_result(deser_result, output_format)
+        result = qio_result_to_native_result(deser_result, expected_result_format)
 
         return (
             result,

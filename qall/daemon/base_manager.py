@@ -113,19 +113,20 @@ class BaseDaemonManager(abc.ABC):
                 )
 
                 if assignment.worker_hash is not None:
-                    if (
-                        not assignment.worker_hash
-                        in assignment.resource.compatible_workers
+                    if not any(
+                        assignment.worker_hash in r.compatible_workers
+                        for r in assignment.resources
                     ):
                         raise RuntimeError(
-                            f"Worker assignment {assignment.worker_hash} to Task must be in resource compatible workers {assignment.resource.compatible_workers}"
+                            f"Worker assignment {assignment.worker_hash} for task {task_hash} "
+                            "is not in any assigned resource's compatible_workers."
                         )
 
                 res_entry = client.create_resource_assignment(
                     task_hash=task_hash,
                     resource_provider=assignment.provider,
                     resource_name=resource_name,
-                    worker_hash=assignment.worker_hash,
+                    worker_hash=assignment.worker_hash or "",
                 )
 
                 if not res_entry:

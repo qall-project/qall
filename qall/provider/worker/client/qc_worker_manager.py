@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from typing import Any, Optional
 
-from qall.interop.mapping import normalize_circuit_type
+from qall.interop.mapping import normalize_circuit_type, is_circuit_convertible
 
 from ..context import QuantumContext, QuantumCapabilities
 from .grpc_client import QuantumWorkerClient
@@ -64,22 +64,20 @@ class QuantumWorkerManager:
         if context:
             self.__context = context
 
-    def _resolve(
-        self,
-        input_format: str,
-    ) -> _RegisteredWorker:
-        candidates = []
-
-        for w in self.__workers:
-            capabilities = w.capabilities
-
-            if input_format not in capabilities.input_formats:
-                continue
-
-            candidates.append(w)
-
+    def _resolve(self, client_format: str) -> _RegisteredWorker:
+        candidates = [
+            w
+            for w in self.__workers
+            if is_circuit_convertible(client_format, w.capabilities.input_format)
+        ]
         if not candidates:
-            raise RuntimeError(f"No worker found for input format: {input_format}")
+            raise RuntimeError(
+                f"No worker compatible with client circuit format: {client_format}"
+            )
+
+        for w in candidates:
+            if normalize_circuit_type(w.capabilities.input_format) == client_format:
+                return w
 
         return candidates[0]
 
@@ -92,7 +90,6 @@ class QuantumWorkerManager:
             program=program,
             shots=shots,
             context=self.__context,
-            output_format=worker.capabilities.output_formats[0],
             **kwargs,
         )
 
@@ -110,7 +107,6 @@ class QuantumWorkerManager:
             program=program,
             shots=shots,
             context=self.__context,
-            output_format=worker.capabilities.output_formats[0],
             **kwargs,
         )
 

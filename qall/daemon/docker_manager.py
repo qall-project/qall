@@ -266,26 +266,6 @@ class DockerDaemonManager(BaseDaemonManager):
                         f"Failed to create resource assignment entry into daemon for task_hash '{task_hash}'"
                     )
 
-    def register_workers(self, worker_definitions: list):
-        with self.client as client:
-            for wd in worker_definitions:
-                if len(wd.input_formats) == 0:
-                    raise RuntimeError("worker definition must have one input format")
-
-                if len(wd.input_formats) != 1:
-                    raise RuntimeError(
-                        "worker definition doesn't support multiple input formats"
-                    )
-
-                we = client.create_worker_entry(
-                    worker_hash=wd.hash,
-                    worker_provider=wd.provider,
-                    input_format=wd.input_formats[0],
-                )
-
-                if not we:
-                    raise RuntimeError("failed to create worker entry into daemon")
-
     def _ensure_image_exists(self):
         """
         Checks if the image exists on the local host.
