@@ -29,8 +29,15 @@ class LocalWorkerType(StrEnum):
     PERCEVAL = "perceval_local_qc_worker"
 
 
+__CATALOG: WorkerCatalog = None
+
+
 def get_local_worker_catalog() -> WorkerCatalog:
-    catalog = WorkerCatalog()
+    if __CATALOG:
+        return __CATALOG
+
+    global __CATALOG
+    __CATALOG = WorkerCatalog()
     local_entries = {}
     base_dir = Path(__file__).parent.resolve()
 
@@ -55,4 +62,4 @@ def get_local_worker_catalog() -> WorkerCatalog:
             name=worker.value,
         )
 
-    return catalog
+    return __CATALOG

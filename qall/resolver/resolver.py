@@ -56,7 +56,7 @@ def resolve_workflow_resources(
         A mapping of task_hash -> TaskResourceAssignment for the DAG.
     """
     assignments: Dict[str, TaskResourceAssignment] = {}
-    block_registry = registry or BlockRegistry(read_only=True)
+    registry = registry or BlockRegistry(read_only=True)
 
     for node in task_dag.nodes:
         task_hash = node.hash
@@ -64,10 +64,12 @@ def resolve_workflow_resources(
         quantum_res: Optional[Resource] = None
         worker_hash: Optional[str] = None
 
-        if node.is_quantum:
-            payload = task_dag.find(node.payload_hash)
-            quantum_res = resolve_task_quantum(
-                node, payload, profile, available_resources
+        payload = task_dag.find(node.payload_hash)
+        quantum_runs = payload.metadata.get("quantum_runs", []) if payload else []
+
+        if node.is_quantum or bool(quantum_runs):
+            quantum_res, worker_hash = resolve_task_quantum(
+                node, payload, profile, available_resources, registry
             )
             task_resources.append(quantum_res)
 
@@ -83,6 +85,7 @@ def resolve_workflow_resources(
             task_hash=task_hash,
             provider=provider,
             resources=task_resources,
+            worker_hash=worker_hash,
         )
 
     return assignments
@@ -94,7 +97,7 @@ def resolve_task_quantum(
     profile: ResourceProfile,
     available_resources: List[Resource],
     registry: Optional[BlockRegistry] = None,
-) -> Optional[Resource]:
+) -> tuple[Resource, str]:
     registry = registry or BlockRegistry(read_only=True)
     constraints = node.resources.quantum
     quantum_runs = payload.metadata.get("quantum_runs", []) if payload else []
@@ -169,7 +172,7 @@ def resolve_task_quantum(
             registry=registry,
         )
 
-        if best_worker is None:
+        if not best_worker:
             continue
 
         candidates.append((res, best_worker))
@@ -182,9 +185,17 @@ def resolve_task_quantum(
             f"among authorized profile resources: {allowed_names}"
         )
 
-    return _apply_matching_strategy(
-        candidates, profile.match_strategy, resource_type="qpu"
-    )
+    if profile.match_strategy == "performance":
+        candidates.sort(
+            key=lambda pair: (-pair[0].qpu.available_qubits, pair[1].conversion_cost)
+        )
+    else:
+        candidates.sort(
+            key=lambda pair: (pair[0].price.price_per_shot, pair[1].conversion_cost)
+        )
+
+    best_resource, best_worker = candidates[0]
+    return best_resource, best_worker.worker_hash
 
 
 def resolve_task_classical(
