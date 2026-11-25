@@ -25,7 +25,7 @@ from qall.provider.qc import (
 
 
 @quantum_worker(
-    requirements=["perceval-quandela", "drawsvg>=2.4.0"],
+    requirements=["perceval-quandela==1.3.1", "drawsvg>=2.4.0"],
     input_format="perceval.Experiment",
     provider="local",
 )
@@ -95,6 +95,9 @@ class PercevalLocalQuantumWorker(QuantumWorker):
             self.__backend.noise = None
 
         return results
+
+    def estimate(self, program, shots, context, **kwargs):
+        return super().estimate(program, shots, context, **kwargs)
 
     def close_context(
         self,

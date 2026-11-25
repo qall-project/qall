@@ -56,7 +56,7 @@ def create_quantum_run(
     if __qw_manager is None:
         raise RuntimeError("QuantumWorkerManager has not been initialized.")
 
-    return __qw_manager.run(
+    return __qw_manager.sample(
         program=program,
         shots=shots,
         **kwargs,

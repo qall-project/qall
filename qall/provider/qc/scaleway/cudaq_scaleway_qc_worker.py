@@ -113,6 +113,9 @@ class CudaQScalewayQuantumWorker(QuantumWorker):
 
         return result
 
+    def estimate(self, program, shots, context, **kwargs):
+        return super().estimate(program, shots, context, **kwargs)
+
     def close_context(
         self,
         context: QuantumContext,

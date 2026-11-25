@@ -64,19 +64,19 @@ class QuantumWorkerManager:
         if context:
             self.__context = context
 
-    def _resolve(self, client_format: str) -> _RegisteredWorker:
+    def _resolve(self, input_format: str) -> _RegisteredWorker:
         candidates = [
             w
             for w in self.__workers
-            if is_circuit_convertible(client_format, w.capabilities.input_format)
+            if is_circuit_convertible(input_format, w.capabilities.input_format)
         ]
         if not candidates:
             raise RuntimeError(
-                f"No worker compatible with client circuit format: {client_format}"
+                f"No worker compatible with client circuit format: {input_format}"
             )
 
         for w in candidates:
-            if normalize_circuit_type(w.capabilities.input_format) == client_format:
+            if normalize_circuit_type(w.capabilities.input_format) == input_format:
                 return w
 
         return candidates[0]
