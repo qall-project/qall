@@ -20,7 +20,7 @@ from qall.object import WorkerEntry
 
 class WorkerCatalog:
     def __init__(self) -> None:
-        self.__entries: dict[str, WorkerEntry] = self.__load()
+        self.__entries: dict[str, WorkerEntry] = {}
 
     @property
     def entries(self) -> list[WorkerEntry]:
@@ -59,11 +59,17 @@ class WorkerCatalog:
                 return entry
         return None
 
+    def add(self, key: str, entry: WorkerEntry):
+        self.__entries[key] = entry
+
     def add_and_save(self, key: str, entry: WorkerEntry):
         new_entries = self.__entries.copy()
         new_entries[key] = entry
         self.__save(new_entries)
         self.__entries = self.__load()
+
+    def batch_add(self, entries: dict[str, WorkerEntry]):
+        self.__entries.update(entries)
 
     def batch_add_and_save(self, entries: dict[str, WorkerEntry]):
         new_entries = self.__entries.copy()

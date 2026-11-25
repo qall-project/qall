@@ -23,7 +23,6 @@ from qall.object import (
     Resource,
     ResourceProfile,
     Log,
-    Resource,
     QpuSpec,
     ResourcePrice,
     QpuType,
@@ -36,7 +35,6 @@ from qall.object import (
 
 from qall.provider.workflow import WorkflowProviderClient, workflow_provider
 from qall.provider.login import get_credentials_from_env
-from qall.provider.qc.scaleway import get_scaleway_worker_catalog, ScalewayWorkerType
 
 from scaleway_qaas_client.v1alpha1 import QaaSClient, QaaSPlatform
 
@@ -159,6 +157,8 @@ profiles:
         return []
 
     def list_quantum_resources(self) -> list[Resource]:
+        from qall.provider.qc.scaleway import get_scaleway_worker_catalog
+
         platforms = self.__client.list_platforms()
         resources: list[Resource] = []
         worker_catalog = get_scaleway_worker_catalog()
@@ -171,6 +171,8 @@ profiles:
         return resources
 
     def _map_platform_to_resource(self, worker_catalog, p: QaaSPlatform) -> Resource:
+        from qall.provider.qc.scaleway import ScalewayWorkerType
+
         qiskit_worker = worker_catalog.get_by_name(ScalewayWorkerType.QISKIT).hash
         cirq_worker = worker_catalog.get_by_name(ScalewayWorkerType.CIRQ).hash
         cudaq_worker = worker_catalog.get_by_name(ScalewayWorkerType.CUDAQ).hash

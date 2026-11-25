@@ -28,7 +28,6 @@ from qall.object import (
 )
 
 from qall.provider.workflow import WorkflowProviderClient, workflow_provider
-from qall.provider.qc.local import LocalWorkerType, get_local_worker_catalog
 
 
 @workflow_provider("local")
@@ -82,6 +81,8 @@ profiles:
         )
 
     def _get_local_quantum_resources(self) -> List[Resource]:
+        from qall.provider.qc.local import LocalWorkerType, get_local_worker_catalog
+
         worker_catalog = get_local_worker_catalog()
 
         return [

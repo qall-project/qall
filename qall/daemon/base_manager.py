@@ -105,13 +105,6 @@ class BaseDaemonManager(abc.ABC):
         """
         with self.client as client:
             for task_hash, assignment in resource_assigments.items():
-                resource_name = (
-                    assignment.qpu_name
-                    or assignment.gpu_name
-                    or assignment.cpu_name
-                    or ""
-                )
-
                 if assignment.worker_hash is not None:
                     if not any(
                         assignment.worker_hash in r.compatible_workers
@@ -125,7 +118,7 @@ class BaseDaemonManager(abc.ABC):
                 res_entry = client.create_resource_assignment(
                     task_hash=task_hash,
                     resource_provider=assignment.provider,
-                    resource_name=resource_name,
+                    resource_names=[i.name for i in assignment.resources],
                     worker_hash=assignment.worker_hash or "",
                 )
 

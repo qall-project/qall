@@ -152,6 +152,7 @@ def create_workflow_run(
 
     available_resources = list_resources(
         provider_name=active_provider,
+        provider_client=provider_client,
         provider_credentials=provider_credentials,
         local_is_classical=local_only,
     )

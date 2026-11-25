@@ -29,9 +29,15 @@ class ScalewayWorkerType(StrEnum):
     PERCEVAL = "perceval_scaleway_qc_worker"
 
 
+__CATALOG: WorkerCatalog = None
+
+
 def get_scaleway_worker_catalog() -> WorkerCatalog:
-    catalog = WorkerCatalog()
-    local_entries = {}
+    global __CATALOG
+    if __CATALOG:
+        return __CATALOG
+
+    __CATALOG = WorkerCatalog()
 
     base_dir = Path(__file__).parent.resolve()
 
@@ -50,12 +56,15 @@ def get_scaleway_worker_catalog() -> WorkerCatalog:
             local_only=True,
         )
 
-        local_entries[tag.name] = WorkerEntry(
-            hash=dag.root_hash,
-            version=tag.version,
-            provider="scaleway",
-            input_format=worker_spec.input_format,
-            name=worker.value,
+        __CATALOG.add(
+            tag.name,
+            WorkerEntry(
+                hash=dag.root_hash,
+                version=tag.version,
+                provider="scaleway",
+                input_format=worker_spec.input_format,
+                name=worker.value,
+            ),
         )
 
     return catalog

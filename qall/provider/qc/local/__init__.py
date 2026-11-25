@@ -22,7 +22,7 @@ from ..catalog import WorkerCatalog, WorkerEntry
 
 
 class LocalWorkerType(StrEnum):
-    QSIM = "cirq_local_qc_worker"
+    QSIM = "qsim_local_qc_worker"
     AER = "aer_local_qc_worker"
     CUDAQ = "cudaq_local_qc_worker"
     PULSER = "pulser_local_qc_worker"
@@ -33,12 +33,11 @@ __CATALOG: WorkerCatalog = None
 
 
 def get_local_worker_catalog() -> WorkerCatalog:
+    global __CATALOG
     if __CATALOG:
         return __CATALOG
 
-    global __CATALOG
     __CATALOG = WorkerCatalog()
-    local_entries = {}
     base_dir = Path(__file__).parent.resolve()
 
     for worker in LocalWorkerType:
@@ -54,12 +53,15 @@ def get_local_worker_catalog() -> WorkerCatalog:
             local_only=True,
         )
 
-        local_entries[tag.name] = WorkerEntry(
-            hash=dag.root_hash,
-            version=tag.version,
-            provider="local",
-            input_format=worker_spec.input_format,
-            name=worker.value,
+        __CATALOG.add(
+            tag.name,
+            WorkerEntry(
+                hash=dag.root_hash,
+                version=tag.version,
+                provider="local",
+                input_format=worker_spec.input_format,
+                name=worker.value,
+            ),
         )
 
     return __CATALOG
