@@ -22,9 +22,9 @@ from ..catalog import WorkerCatalog, WorkerEntry
 
 
 class LocalWorkerType(StrEnum):
+    CUDAQ = "cudaq_local_qc_worker"
     QSIM = "qsim_local_qc_worker"
     AER = "aer_local_qc_worker"
-    CUDAQ = "cudaq_local_qc_worker"
     PULSER = "pulser_local_qc_worker"
     PERCEVAL = "perceval_local_qc_worker"
 

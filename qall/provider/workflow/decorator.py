@@ -13,7 +13,7 @@
 # limitations under the License.
 import logging
 
-from typing import Dict, Type, Callable, List
+from typing import Dict, Type, Callable
 
 from .provider_client import WorkflowProviderClient
 

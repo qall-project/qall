@@ -13,10 +13,12 @@
 # limitations under the License.
 from __future__ import annotations
 
+from typing import Optional
+
 from qall.provider import (
-    WorkflowProviderClient,
-    ProviderCredentials,
     get_provider_client_by_name,
+    get_provider_login_credentials,
+    get_logged_provider_name,
     login,
     logout,
 )
@@ -38,11 +40,11 @@ def logout_provider() -> str:
 
 
 def list_resources(
-    provider_name: str,
-    provider_client: WorkflowProviderClient,
-    provider_credentials: ProviderCredentials | dict,
-    local_is_classical: bool,
+    provider_name: Optional[str] = None,
+    local_is_classical: bool = False,
 ):
+    provider_name = provider_name or get_logged_provider_name() or "local"
+
     available_resources = []
 
     if local_is_classical:
@@ -52,8 +54,10 @@ def list_resources(
         if provider_name == "local":
             available_resources.extend(provider_client.list_quantum_resources())
 
-    if provider_name != "local" and provider_credentials:
-        provider_client = provider_client or get_provider_client_by_name(provider_name)
+    if provider_name != "local":
+        provider_credentials = get_provider_login_credentials()
+
+        provider_client = get_provider_client_by_name(provider_name)
 
         if not provider_client.login(provider_credentials):
             raise RuntimeError(

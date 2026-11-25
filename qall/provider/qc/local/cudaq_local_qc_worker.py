@@ -51,8 +51,6 @@ class CudaQLocalQuantumWorker(QuantumWorker):
         return context
 
     def get_context_status(self, context: str):
-        if self.__target is None:
-            raise RuntimeError("No target has been configured yet.")
         return True
 
     def sample(

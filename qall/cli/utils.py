@@ -17,7 +17,87 @@ import typer
 
 from typing import Any, Optional
 
-from qall.object import Tag, TaskDag, WorkflowPlan
+from qall.object import Tag, TaskDag, WorkflowPlan, Resource, ResourceAvailability
+
+
+def pretty_resources(resources: list[Resource]) -> str:
+    if not resources:
+        return "No resources available."
+
+    qpus = [r for r in resources if r.qpu]
+    gpus = [r for r in resources if not r.qpu and r.gpu]
+    cpus = [r for r in resources if not r.qpu and not r.gpu and r.cpu]
+
+    sections: list[str] = []
+
+    if qpus:
+        sections.append(f"Quantum Resources ({len(qpus)}):")
+        for r in qpus:
+            q = r.qpu
+            status = r.availability.value
+            color = (
+                typer.colors.GREEN
+                if r.availability == ResourceAvailability.available
+                else typer.colors.YELLOW
+            )
+            price_parts = []
+            if r.price.price_per_hour:
+                price_parts.append(f"{r.price.price_per_hour:g} {r.price.currency}/h")
+            if r.price.price_per_shot:
+                price_parts.append(
+                    f"{r.price.price_per_shot:g} {r.price.currency}/shot"
+                )
+            if r.price.price_per_circuit:
+                price_parts.append(
+                    f"{r.price.price_per_circuit:g} {r.price.currency}/circuit"
+                )
+            pricing = ", ".join(price_parts) if price_parts else "free"
+            workers = (
+                f" | {len(r.compatible_workers)} worker(s)"
+                if r.compatible_workers
+                else ""
+            )
+
+            sections.append(
+                f"  - {typer.style(r.name, bold=True)} [{r.provider}] ({typer.style(status, fg=color)})\n"
+                f"      type={q.type.value} | modality={q.modality.value} | tech={q.technology.value} "
+                f"| qubits={q.available_qubits} | max_shots={q.max_shots} | price={pricing}{workers}"
+            )
+
+    if gpus:
+        sections.append(f"GPU Resources ({len(gpus)}):")
+        for r in gpus:
+            g = r.gpu
+            c_info = (
+                f" | {r.cpu.available_cores} vCPU, {r.cpu.available_memory_gb} GB RAM"
+                if r.cpu
+                else ""
+            )
+            pricing = (
+                f"{r.price.price_per_hour:g} {r.price.currency}/h"
+                if r.price.price_per_hour
+                else "free"
+            )
+            sections.append(
+                f"  - {typer.style(r.name, bold=True)} [{r.provider}] ({r.availability.value})\n"
+                f"      {g.gpu_count}x {g.model_name or 'GPU'} ({g.vram_per_gpu_gb} GB VRAM){c_info} | price={pricing}"
+            )
+
+    if cpus:
+        sections.append(f"CPU Resources ({len(cpus)}):")
+        for r in cpus:
+            c = r.cpu
+            pricing = (
+                f"{r.price.price_per_hour:g} {r.price.currency}/h"
+                if r.price.price_per_hour
+                else "free"
+            )
+            sections.append(
+                f"  - {typer.style(r.name, bold=True)} [{r.provider}] ({r.availability.value})\n"
+                f"      {c.available_cores} cores | {c.available_memory_gb} GB RAM | {c.architecture} | price={pricing}"
+            )
+
+    return "\n".join(sections)
 
 
 def pretty_workflow_build(tag: Tag, dag: TaskDag) -> str:

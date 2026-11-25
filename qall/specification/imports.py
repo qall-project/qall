@@ -468,44 +468,43 @@ class _StubLoader(importlib.abc.Loader):
 
 
 class _LenientImportFinder(importlib.abc.MetaPathFinder):
-    """Last-resort finder that stubs imports of missing third-party modules."""
-
-    def __init__(self, stub_set: set[str], injected: set[str]):
+    def __init__(
+        self, stub_set: set[str], injected: set[str], force_stub: bool = False
+    ):
         self._stub_set = stub_set
         self._injected = injected
+        self._force_stub = force_stub
 
     def find_spec(self, fullname, path=None, target=None):
         top = fullname.split(".")[0]
         if top not in self._stub_set:
             return None
 
-        existing = sys.modules.get(fullname)
-        if existing is not None and not isinstance(existing, _StubModule):
-            # Already imported for real (e.g. the top-level package exists).
-            return None
+        if not self._force_stub:
+            existing = sys.modules.get(fullname)
+            if existing is not None and not isinstance(existing, _StubModule):
+                return None
 
         self._injected.add(fullname)
         return importlib.machinery.ModuleSpec(fullname, _StubLoader(), is_package=True)
 
 
 @contextmanager
-def lenient_imports(stub_set: Iterable[str]) -> Iterator[None]:
-    """
-    Context manager under which imports of missing *third-party* modules listed
-    in ``stub_set`` resolve to inert stubs instead of raising.
-
-    Only modules that fail every real finder are considered, so packages that
-    are actually installed import normally. Stub modules injected into
-    ``sys.modules`` are removed on exit so the environment is not polluted.
-    """
+def lenient_imports(
+    stub_set: Iterable[str], force_stub: bool = False
+) -> Iterator[None]:
     stub_set = {str(name) for name in stub_set if name}
     if not stub_set:
         yield
         return
 
     injected: set[str] = set()
-    finder = _LenientImportFinder(stub_set, injected)
-    sys.meta_path.append(finder)
+    finder = _LenientImportFinder(stub_set, injected, force_stub=force_stub)
+
+    if force_stub:
+        sys.meta_path.insert(0, finder)
+    else:
+        sys.meta_path.append(finder)
     try:
         yield
     finally:

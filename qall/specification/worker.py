@@ -190,7 +190,7 @@ class WorkerSpec:
         discovered = discover_external_imports(filepath.parent)
 
         try:
-            with lenient_imports(discovered):
+            with lenient_imports(discovered, force_stub=True):
                 exec(compile(tree, str(filepath), "exec"), module_globals)
 
             decorated_spec = module_globals.get(worker_cls.class_name)

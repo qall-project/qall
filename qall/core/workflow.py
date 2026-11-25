@@ -76,20 +76,15 @@ def plan_workflow(
     allowed_gpus: Optional[list[str]] = None,
     allowed_qpus: Optional[list[str]] = None,
     local_only: bool = False,
-    registry_client: Optional[BlockRegistry] = None,
-    provider_client: Optional[WorkflowProviderClient] = None,
-    provider_credentials: Optional[ProviderCredentials] = None,
 ) -> WorkflowPlan:
     workflow_tag = (
         Tag.parse(workflow_tag) if isinstance(workflow_tag, str) else workflow_tag
     )
-    registry = registry_client or BlockRegistry(read_only=True)
+    registry = BlockRegistry()
     dag = registry.get_workflow_dag(workflow_tag)
 
-    creds = provider_credentials or get_provider_login_credentials()
     profile = resolve_active_profile(
         profile_name=profile_name,
-        provider_credentials=creds,
         allowed_qpus=allowed_qpus,
         allowed_cpus=allowed_cpus,
         allowed_gpus=allowed_gpus,
@@ -97,8 +92,6 @@ def plan_workflow(
 
     available_resources = list_resources(
         provider_name=profile.provider,
-        provider_client=provider_client,
-        provider_credentials=creds,
         local_is_classical=local_only or profile.provider == "local",
     )
 

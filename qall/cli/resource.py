@@ -13,7 +13,12 @@
 # limitations under the License.
 import typer
 
+from typing import Optional
+
 import qall.core as core
+from qall.core.config import resolve_active_profile
+
+from .utils import pretty_resources
 
 resource_cli = typer.Typer(
     name="resource",
@@ -23,6 +28,23 @@ resource_cli = typer.Typer(
 
 
 @resource_cli.command("ls")
-def resource_list():
+def resource_list(
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="Target configuration profile name."
+    ),
+    local: bool = typer.Option(
+        False, "--local", "-l", help="List local resources only."
+    ),
+):
     """Poll the compute provider to list all accessible CPU, GPU, and physical/emulated QPU hardware."""
-    typer.echo("Polling cloud control plane for active available hardware...")
+    active_profile = resolve_active_profile(
+        profile_name=profile,
+    )
+    provider_name = "local" if local else active_profile.provider
+
+    resources = core.list_resources(
+        provider_name=provider_name,
+        local_is_classical=local or provider_name == "local",
+    )
+
+    typer.echo(pretty_resources(resources))

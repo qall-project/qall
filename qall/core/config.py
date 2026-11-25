@@ -27,7 +27,6 @@ from qall.config import (
 from qall.provider import (
     get_provider_client_by_name,
     get_provider_login_credentials,
-    ProviderCredentials,
 )
 
 
@@ -76,12 +75,11 @@ def override_profile_resources(
 
 def resolve_active_profile(
     profile_name: Optional[str] = None,
-    provider_credentials: Optional[ProviderCredentials] = None,
     allowed_qpus: Optional[list[str]] = None,
     allowed_cpus: Optional[list[str]] = None,
     allowed_gpus: Optional[list[str]] = None,
 ) -> ResourceProfile:
-    creds = provider_credentials or get_provider_login_credentials()
+    creds = get_provider_login_credentials()
     default_provider = creds.provider if creds else "local"
 
     local_config = (
