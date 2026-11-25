@@ -198,7 +198,7 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
 
         c = self.__worker.capabilities
 
-        return pb2.Capabilities(input_formats=c.input_format)
+        return pb2.Capabilities(input_format=c.input_format)
 
     def _deserialize_program(
         self,

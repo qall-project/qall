@@ -235,37 +235,6 @@ class DockerDaemonManager(BaseDaemonManager):
         except APIError as e:
             raise RuntimeError(f"Error launching the daemon: {e}")
 
-    def register_resource_assignments(self, resource_assigments: dict):
-        with self.client as client:
-            for task_hash, assignment in resource_assigments.items():
-                if not task_hash:
-                    raise RuntimeError(
-                        "resource assignment must have a target task hash"
-                    )
-
-                if not assignment.provider:
-                    raise RuntimeError(
-                        "resource assignment must have a target provider"
-                    )
-
-                resource_name = (
-                    assignment.qpu_name
-                    or assignment.gpu_name
-                    or assignment.cpu_name
-                    or ""
-                )
-
-                res_entry = client.create_resource_assignment(
-                    task_hash=task_hash,
-                    resource_provider=assignment.provider,
-                    resource_name=resource_name,
-                )
-
-                if not res_entry:
-                    raise RuntimeError(
-                        f"Failed to create resource assignment entry into daemon for task_hash '{task_hash}'"
-                    )
-
     def _ensure_image_exists(self):
         """
         Checks if the image exists on the local host.

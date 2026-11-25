@@ -6,7 +6,6 @@ from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from typing import (
     ClassVar as _ClassVar,
-    Iterable as _Iterable,
     Mapping as _Mapping,
     Optional as _Optional,
     Union as _Union,
@@ -225,18 +224,13 @@ class GetCapabilitiesRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class Capabilities(_message.Message):
-    __slots__ = ("provider", "input_formats", "output_formats")
+    __slots__ = ("provider", "input_format")
     PROVIDER_FIELD_NUMBER: _ClassVar[int]
-    INPUT_FORMATS_FIELD_NUMBER: _ClassVar[int]
-    OUTPUT_FORMATS_FIELD_NUMBER: _ClassVar[int]
+    INPUT_FORMAT_FIELD_NUMBER: _ClassVar[int]
     provider: str
-    input_formats: _containers.RepeatedScalarFieldContainer[str]
-    output_formats: _containers.RepeatedScalarFieldContainer[str]
+    input_format: str
     def __init__(
-        self,
-        provider: _Optional[str] = ...,
-        input_formats: _Optional[_Iterable[str]] = ...,
-        output_formats: _Optional[_Iterable[str]] = ...,
+        self, provider: _Optional[str] = ..., input_format: _Optional[str] = ...
     ) -> None: ...
 
 class CloseContextRequest(_message.Message):

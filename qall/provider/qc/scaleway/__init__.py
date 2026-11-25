@@ -67,4 +67,4 @@ def get_scaleway_worker_catalog() -> WorkerCatalog:
             ),
         )
 
-    return catalog
+    return __CATALOG

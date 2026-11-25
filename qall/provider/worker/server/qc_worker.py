@@ -93,8 +93,7 @@ class QuantumWorker(ABC):
         """
         return self.__capabilities
 
-    def set_capabilities(self, input_formats: list[str], output_formats: list[str]):
+    def set_capabilities(self, input_format: str):
         self.__capabilities = QuantumCapabilities(
-            input_formats=input_formats,
-            output_formats=output_formats,
+            input_format=input_format,
         )
