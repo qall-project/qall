@@ -15,7 +15,73 @@ import ast
 import json
 import typer
 
-from typing import Any
+from typing import Any, Optional
+
+from qall.object import Tag, TaskDag, WorkflowPlan
+
+
+def pretty_workflow_build(tag: Tag, dag: TaskDag) -> str:
+    nodes_by_hash = {node.hash: node for node in dag.nodes}
+    payloads_by_hash = {payload.hash: payload for payload in dag.payloads}
+
+    lines = [
+        f"Workflow built: {typer.style(str(tag), bold=True)} ({dag.root_hash})",
+        f"Tasks ({len(dag.nodes)}):",
+    ]
+
+    for node in dag.nodes:
+        role = "entrypoint" if node.metadata.entrypoint else "task"
+        payload = payloads_by_hash.get(node.payload_hash)
+        quantum_runs = payload.metadata.get("quantum_runs", []) if payload else []
+        formats = [
+            r.get("input_format")
+            for r in quantum_runs
+            if isinstance(r, dict) and r.get("input_format")
+        ]
+        kind = f"quantum ({', '.join(formats)})" if formats else "classical"
+        children = [
+            nodes_by_hash[h].metadata.name if h in nodes_by_hash else h[:12]
+            for h in node.children.values()
+        ]
+        deps = f" -> [{', '.join(children)}]" if children else ""
+
+        lines.append(
+            f"  - {typer.style(node.metadata.name, bold=True)} [{role}, {kind}] ({node.hash[:16]}...){deps}"
+        )
+
+    return "\n".join(lines)
+
+
+def pretty_workflow_plan(plan: WorkflowPlan, dag: Optional[TaskDag] = None) -> str:
+    nodes_by_hash = {node.hash: node for node in dag.nodes} if dag else {}
+
+    lines = [
+        f"Execution plan for {typer.style(str(plan.tag), bold=True)}:",
+    ]
+
+    for task_hash, assignment in plan.task_assignments.items():
+        node = nodes_by_hash.get(task_hash)
+        task_label = (
+            f"{node.metadata.name} ({task_hash[:12]}...)" if node else task_hash
+        )
+        res_summary = (
+            ", ".join(
+                f"{r.name} ({'QPU' if r.qpu else 'GPU' if r.gpu else 'CPU'})"
+                for r in assignment.resources
+            )
+            or "none"
+        )
+        worker_info = (
+            f" | worker: {assignment.worker_hash[:16]}..."
+            if assignment.worker_hash
+            else ""
+        )
+
+        lines.append(
+            f"  - {typer.style(task_label, bold=True)} [{assignment.provider}]: {res_summary}{worker_info}"
+        )
+
+    return "\n".join(lines)
 
 
 def pretty_artifact(artifacts) -> str:

@@ -15,7 +15,11 @@ import typer
 
 import qall.core as core
 
-from .utils import pretty_artifact
+from qall.registry import BlockRegistry
+
+from typing import Optional
+
+from .utils import pretty_artifact, pretty_workflow_build, pretty_workflow_plan
 
 workflow_cli = typer.Typer(
     name="workflow",
@@ -24,54 +28,85 @@ workflow_cli = typer.Typer(
 )
 
 
-@workflow_cli.command("plan")
-def workflow_plan(
-    uri: str = typer.Argument(
-        ..., help="Target canonical URI string formatted as 'name:version'."
-    ),
-    profile: str = typer.Argument(
-        ..., help="The resource profile name to apply to this orchestration model."
-    ),
-):
-    """Register or update a formal workflow definition inside the cloud provider control plane infrastructure."""
-    if ":" not in uri:
-        typer.echo(
-            "Error: URI must match the 'name:version' format constraint.", err=True
-        )
-        raise typer.Exit(code=1)
-    name, version = uri.split(":", 1)
-
-    wf = core.plan_workflow(
-        workflow_name=name, workflow_version=version, profile=profile
-    )
-    typer.echo(
-        f"Workflow reference compiled on provider ecosystem. Endpoint: {wf.endpoint}"
-    )
-
-
 @workflow_cli.command("build")
 def workflow_build(
-    uri: str = typer.Argument(
-        ..., help="Target canonical URI string formatted as 'name:version'."
+    entrypoint: str = typer.Argument(
+        ..., help="Path to the Python script containing tasks."
     ),
-    profile: str = typer.Argument(
-        ..., help="The resource profile name to apply to this orchestration model."
+    name: Optional[str] = typer.Option(
+        None,
+        "--name",
+        "-n",
+        help="Name of the workflow to declare. Script file name if not provided.",
+    ),
+    version: Optional[str] = typer.Option(
+        "latest", "--version", "-v", help="Version tag for the target build."
+    ),
+    local: bool = typer.Option(
+        True, "--local", "-l", help="Store blocks only in the local registry."
     ),
 ):
-    """Register or update a formal workflow definition inside the cloud provider control plane infrastructure."""
-    if ":" not in uri:
-        typer.echo(
-            "Error: URI must match the 'name:version' format constraint.", err=True
+    """Compile a workflow script into an IPLD DAG and push it to the registry."""
+    try:
+        tag, dag = core.build_workflow(
+            entrypoint=entrypoint,
+            workflow_name=name,
+            workflow_version=version,
+            local_only=local,
         )
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(code=1)
-    name, version = uri.split(":", 1)
 
-    wf = core.build_workflow(
-        workflow_name=name, workflow_version=version, profile=profile
-    )
-    typer.echo(
-        f"Workflow reference compiled on provider ecosystem. Endpoint: {wf.endpoint}"
-    )
+    typer.echo(pretty_workflow_build(tag, dag))
+
+
+@workflow_cli.command("plan")
+def workflow_plan(
+    workflow_tag: str = typer.Argument(
+        ..., help="Target workflow tag formatted as 'name:version' (or 'name')."
+    ),
+    profile: Optional[str] = typer.Option(
+        None, "--profile", "-p", help="Target configuration profile name."
+    ),
+    allowed_qpus: Optional[list[str]] = typer.Option(
+        None,
+        "--allowed-qpu",
+        "-q",
+        help="Override allowed QPU from provided profile.",
+    ),
+    allowed_cpus: Optional[list[str]] = typer.Option(
+        None,
+        "--allowed-cpu",
+        "-c",
+        help="Override allowed CPU from provided profile.",
+    ),
+    allowed_gpus: Optional[list[str]] = typer.Option(
+        None,
+        "--allowed-gpu",
+        "-g",
+        help="Override allowed GPU from provided profile.",
+    ),
+    local: bool = typer.Option(
+        True, "--local", "-l", help="Resolve classical tasks against local resources."
+    ),
+):
+    """Resolve hardware and quantum worker assignments for a built workflow."""
+    try:
+        plan = core.plan_workflow(
+            workflow_tag=workflow_tag,
+            profile_name=profile,
+            allowed_cpus=allowed_cpus,
+            allowed_gpus=allowed_gpus,
+            allowed_qpus=allowed_qpus,
+            local_only=local,
+        )
+        dag = BlockRegistry(read_only=True).get_workflow_dag(plan.tag)
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
+
+    typer.echo(pretty_workflow_plan(plan, dag))
 
 
 @workflow_cli.command("info")
