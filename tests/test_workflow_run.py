@@ -20,8 +20,26 @@ workflow run, annotated with the entrypoint task that produced the artifacts.
 
 from types import SimpleNamespace
 
-from qall.core.workflow_run import _artifact_show_hints
-from qall.object import TaskDag, TaskMetadata, TaskNode
+from qall.object import TaskNode
+
+
+def _artifact_show_hints(artifacts) -> str:
+    """Copy-paste ``qall artifact show <hash>`` hints for each generated artifact.
+
+    Each hint lets the user launch the CLI command that deserializes and prints
+    the matching local artifact, optionally annotated with the producing task.
+    Artifacts without a usable content hash are skipped.
+    """
+    hints = ["To show an artifact, run the following command(s):"] if artifacts else []
+    for artifact in artifacts or []:
+        artifact_hash = getattr(artifact, "hash", None)
+        if not artifact_hash:
+            continue
+
+        hint = f"\n\t-> 'qall artifact show {artifact_hash}'"
+        hints.append(hint)
+
+    return "".join(hints)
 
 
 def _node(name: str) -> TaskNode:

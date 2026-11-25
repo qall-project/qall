@@ -130,27 +130,21 @@ def run(
             "Cannot combine CLI arguments with --input-artifact-hash."
         )
 
-    if parsed_args or parsed_kwargs:
-        input_artifact_hash = core.push_artifact(
-            {"args": parsed_args, "kwargs": parsed_kwargs}
-        )
-
     typer.echo(f"Initiating compilation run for: {entrypoint}")
 
-    run_obj, artifacts = core.create_workflow_run(
+    artifacts = core.run(
         entrypoint=entrypoint,
+        local_only=local,
+        allowed_qpus=allowed_qpus,
+        allowed_gpus=allowed_gpus,
+        allowed_cpus=allowed_cpus,
+        profile=profile,
         workflow_name=name,
         workflow_version=version,
-        profile_name=profile,
-        local_only=local,
-        input_artifact_hash=input_artifact_hash,
-        allowed_cpus=allowed_cpus,
-        allowed_gpus=allowed_gpus,
-        allowed_qpus=allowed_qpus,
-        auto_start_daemon=True,
+        run_args=parsed_args,
+        run_kwargs=parsed_kwargs,
+        run_input_artifact_hash=input_artifact_hash,
     )
-
-    typer.echo(f"Workflow run triggered execution sequence. Run ID: {run_obj.id}")
 
     # QoL: let the user launch `qall artifact show <hash>` to display the
     # actual output(s), annotated with the entrypoint task that produced them.

@@ -42,10 +42,13 @@ def test_worker_spec_from_file_with_missing_third_party_imports():
 
             @quantum_worker(
                 input_format="qiskit",
-                output_format="qiskit",
             )
             class MyWorker(QuantumWorker):
-                def run(self, program, shots, context, **kwargs):
+                def sample(self, program, shots, context, **kwargs):
+                    backend = AerSimulator()
+                    return backend.run(program, shots=shots).result()
+
+                def estimate(self, program, shots, context, **kwargs):
                     backend = AerSimulator()
                     return backend.run(program, shots=shots).result()
             """
@@ -79,10 +82,12 @@ def test_worker_spec_without_third_party_imports():
 
             @quantum_worker(
                 input_format="qiskit",
-                output_format="qiskit",
             )
             class PlainWorker(QuantumWorker):
-                def run(self, program, shots, context, **kwargs):
+                def sample(self, program, shots, context, **kwargs):
+                    return program
+
+                def estimate(self, program, shots, context, **kwargs):
                     return program
             """
             )
@@ -116,10 +121,12 @@ def test_worker_imported_global_not_serialized():
 
             @quantum_worker(
                 input_format="qiskit",
-                output_format="qiskit",
             )
             class ExpWorker(QuantumWorker):
-                def run(self, program, shots, context, **kwargs):
+                def sample(self, program, shots, context, **kwargs):
+                    return exp(shots)
+
+                def estimate(self, program, shots, context, **kwargs):
                     return exp(shots)
             """
             )
@@ -163,10 +170,12 @@ def test_worker_nested_helper_import_synthesized():
 
             @quantum_worker(
                 input_format="qiskit",
-                output_format="qiskit",
             )
             class NestedExpWorker(QuantumWorker):
-                def run(self, program, shots, context, **kwargs):
+                def sample(self, program, shots, context, **kwargs):
+                    return expo(shots)
+
+                def estimate(self, program, shots, context, **kwargs):
                     return expo(shots)
             """
             )

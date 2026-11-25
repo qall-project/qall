@@ -13,7 +13,13 @@
 # limitations under the License.
 from __future__ import annotations
 
-from qall.provider import get_provider_client_by_name, login, logout
+from qall.provider import (
+    WorkflowProviderClient,
+    ProviderCredentials,
+    get_provider_client_by_name,
+    login,
+    logout,
+)
 
 
 def login_provider(provider_name: str, **kwargs) -> bool:
@@ -33,8 +39,8 @@ def logout_provider() -> str:
 
 def list_resources(
     provider_name: str,
-    provider_client,
-    provider_credentials: dict,
+    provider_client: WorkflowProviderClient,
+    provider_credentials: ProviderCredentials | dict,
     local_is_classical: bool,
 ):
     available_resources = []

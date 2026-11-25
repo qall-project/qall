@@ -24,8 +24,8 @@ workflow_cli = typer.Typer(
 )
 
 
-@workflow_cli.command("create")
-def workflow_create(
+@workflow_cli.command("plan")
+def workflow_plan(
     uri: str = typer.Argument(
         ..., help="Target canonical URI string formatted as 'name:version'."
     ),
@@ -41,7 +41,32 @@ def workflow_create(
         raise typer.Exit(code=1)
     name, version = uri.split(":", 1)
 
-    wf = core.create_workflow(
+    wf = core.plan_workflow(
+        workflow_name=name, workflow_version=version, profile=profile
+    )
+    typer.echo(
+        f"Workflow reference compiled on provider ecosystem. Endpoint: {wf.endpoint}"
+    )
+
+
+@workflow_cli.command("build")
+def workflow_build(
+    uri: str = typer.Argument(
+        ..., help="Target canonical URI string formatted as 'name:version'."
+    ),
+    profile: str = typer.Argument(
+        ..., help="The resource profile name to apply to this orchestration model."
+    ),
+):
+    """Register or update a formal workflow definition inside the cloud provider control plane infrastructure."""
+    if ":" not in uri:
+        typer.echo(
+            "Error: URI must match the 'name:version' format constraint.", err=True
+        )
+        raise typer.Exit(code=1)
+    name, version = uri.split(":", 1)
+
+    wf = core.build_workflow(
         workflow_name=name, workflow_version=version, profile=profile
     )
     typer.echo(

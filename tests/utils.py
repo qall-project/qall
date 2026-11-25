@@ -20,7 +20,7 @@ from typing import Any, Optional
 
 from qall.core.artifact import deserialize_local_artifact, list_local_artifacts
 from qall.core.daemon import get_daemon_status, start_daemon, stop_daemon, push_artifact
-from qall.core.workflow_run import create_workflow_run
+from qall.core.run import run
 from qall.object import DaemonStatus, Tag, WorkflowRunStatus
 from qall.registry import BlockRegistry
 from qall.specification import WorkflowSpec
@@ -120,11 +120,11 @@ def run_workflow_file(
         input_artifact_hash = push_artifact({"args": args, "kwargs": kwargs})
         excluded_hashes.add(input_artifact_hash)
 
-    wf_run, artifacts = create_workflow_run(
-        entrypoint=str(wf_path),
+    wf_run, artifacts = run(
+        entrypoint_file=str(wf_path),
         workflow_name=wf_path.stem,
         local_only=True,
-        input_artifact_hash=input_artifact_hash,
+        run_input_artifact_hash=input_artifact_hash,
     )
     assert wf_run.status == WorkflowRunStatus.DONE, f"Workflow '{wf_path.stem}' failed"
     _ensure_host_registry_writable()

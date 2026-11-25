@@ -14,6 +14,8 @@
 
 from abc import ABC, abstractmethod
 
+from qall.object import Tag
+
 
 class Datastore(ABC):
 
@@ -39,4 +41,8 @@ class Datastore(ABC):
 
     @abstractmethod
     def clear(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_tag_by_hash(self, root_hash: str) -> Tag | None:
         raise NotImplementedError

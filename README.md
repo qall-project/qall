@@ -88,7 +88,7 @@ The same execution model is designed to extend from local development to managed
 Qall can execute quantum circuits from within a classical workflow.
 
 ```python
-from qall import task, workflow, run
+from qall import task, workflow, sample
 import qiskit
 
 @task(min_qubit=5, qpu_modality="gate_based", requirements=["qiskit"])
@@ -101,7 +101,7 @@ def execute_quantum(size):
 
     qc.measure_all()
 
-    result = run(qc, shots=100)
+    result = sample(qc, shots=100)
     return result.get_counts()
 
 @workflow
@@ -112,7 +112,7 @@ def main():
 
 The same workflow can combine classical computation and quantum execution without exposing provider-specific infrastructure in the workflow code.
 
-`qall.run()`: hide the execution plumbing. Calling a quantum backend typically involves more than submitting a circuit: provider and SDK compatibility; authentication and credentials; backend discovery and selection; session or execution context creation; circuit submission and job management; queues and asynchronous execution provider-specific result formats; connection and execution state.
+`qall.sample()`: hide the execution plumbing. Calling a quantum backend typically involves more than submitting a circuit: provider and SDK compatibility; authentication and credentials; backend discovery and selection; session or execution context creation; circuit submission and job management; queues and asynchronous execution provider-specific result formats; connection and execution state.
 
 ## What Qall takes care of
 
@@ -130,7 +130,7 @@ Qall is designed for developers who want to stay hands-on with their workloads w
 For example, instead of embedding provider-specific backend and execution logic into a workflow, a developer can simply write:
 
 ```python
-result = qall.run(circuit, shots=100)
+result = qall.sample(circuit, shots=100)
 ```
 
 Qall handles the execution details required by the selected backend while keeping the workflow independent from a specific infrastructure.

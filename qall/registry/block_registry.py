@@ -141,7 +141,7 @@ class BlockRegistry:
 
         return True
 
-    def resolve_reference(self, ref: str) -> str:
+    def get_hash_from_ref(self, ref: str) -> str:
         """Resolves a tag ('qaoa:v1') or verifies an existing block hash ('bafy...')."""
         cleaned = ref.strip()
         if ":" in cleaned:
@@ -165,6 +165,24 @@ class BlockRegistry:
         if not root_hash:
             raise RuntimeError(f"Reference '{cleaned}' not found as hash or tag.")
         return root_hash
+
+    def get_workflow_dag(self, tag: Tag | str) -> TaskDag:
+        target_tag = Tag.parse(tag) if isinstance(tag, str) else tag
+        root_hash = self.pull(target_tag)
+
+        if not root_hash:
+            raise RuntimeError(f"Workflow '{target_tag}' not found in registry.")
+
+        nodes = self._collect_external_nodes([root_hash])
+        payloads: list[TaskPayload] = []
+        seen_payloads: set[str] = set()
+
+        for node in nodes:
+            if node.payload_hash and node.payload_hash not in seen_payloads:
+                payloads.append(self.get_payload_from_local(hash=node.payload_hash))
+                seen_payloads.add(node.payload_hash)
+
+        return TaskDag(nodes=nodes, payloads=payloads, root_hash=root_hash)
 
     def create_workflow_dag(self, spec: WorkflowSpec) -> TaskDag:
         """
@@ -203,7 +221,7 @@ class BlockRegistry:
 
             # 2. External workflows or tasks pinned via qall.run("<ref>", ...)
             for ref in task.external_runs:
-                resolved_hash = self.resolve_reference(ref)
+                resolved_hash = self.get_hash_from_ref(ref)
                 children_mapping[ref] = resolved_hash
                 external_roots.append(resolved_hash)
 
@@ -340,6 +358,16 @@ class BlockRegistry:
                 return True
 
         return False
+
+    def get_workflow_tag_from_hash(self, root_hash: str) -> Tag:
+        if not self.__local_client:
+            raise RuntimeError("Local client is not available for get_tag_from_hash.")
+
+        tag = self.__local_client.get_tag_by_hash(root_hash)
+        if not tag:
+            raise RuntimeError(f"No workflow tag found for hash '{root_hash}'.")
+
+        return tag
 
     def get_node_from_local(self, hash: str) -> TaskNode:
         block = self._get_local_block(hash)

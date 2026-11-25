@@ -14,11 +14,11 @@
 import logging
 import os
 import uuid
+import cloudpickle
 
 from typing import Optional, Union, Any
 from pathlib import Path
 
-import cloudpickle
 from qall.object import Artifact, DaemonStatus, Daemon, TaskRunStatus
 from qall.daemon import get_daemon_manager
 from qall.registry import BlockRegistry
