@@ -32,7 +32,7 @@ from .base_manager import BaseDaemonManager
 logger = logging.getLogger(__name__)
 
 # _DEFAULT_IMAGE = "scw/qall-daemon:latest"
-_DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project/qall-daemon:v0.1.12"
+_DEFAULT_IMAGE = "rg.fr-par.scw.cloud/qall-project/qall-daemon:v0.1.13"
 
 
 class DockerDaemonManager(BaseDaemonManager):

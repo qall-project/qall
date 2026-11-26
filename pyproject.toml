@@ -24,7 +24,7 @@ dependencies = [
     "py-ipld-dag==0.3.0",
     "scaleway-qaas-client>=0.1.0",
     "qall-registry-client>=0.1.2",
-    "qall-daemon-client>=0.1.12",
+    "qall-daemon-client>=0.1.13",
 ]
 
 ### Dependencies ###
