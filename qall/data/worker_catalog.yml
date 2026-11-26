@@ -1,30 +1,31 @@
 cirq_local_qc_worker:
   provider: local
   version: latest
-  hash: zdpuB3d5xZnZkNvCxvtwgdDgZ2Qta942bjdThk9NbBUmVMYy5
+  hash: zdpuB35HKVwBKJwGG6s7hRqEjBZp72P9SHrM49f9B8SvQtoxC
   input_formats:
-  - cirq.Circuit
+  - - cirq.Circuit
 qiskit_local_qc_worker:
   provider: local
   version: latest
-  hash: zdpuAqcr9tgZGpeUzD52nCUXMjVgevs35GvcCdGwNP3RxXVaw
+  hash: zdpuAxvrxMEB8LNyFsYonJtn6RtcdZSuixXk2t8EsR72uA9pN
   input_formats:
-  - qiskit.QuantumCircuit
+  - - qiskit.QuantumCircuit
 cudaq_local_qc_worker:
   provider: local
   version: latest
-  hash: zdpuAs6hRMdSKW8QqrdgZQ9UtEcmJniEihSxEgpwaHtWi5oSF
+  hash: zdpuB2DDKE6cggwFPnTzNjR7uWEXakGPRWoycNQzyg1gqoR78
   input_formats:
-  - cudaq.PyKernel
+  - - cudaq.PyKernel
 pulser_local_qc_worker:
   provider: local
   version: latest
-  hash: zdpuAxNXSmjqc1StsL6PNrRHQPknFCFwURS2i92t1RQUnfBhU
+  hash: zdpuAwM2UsgvGybbYxz1vbbdECuMH9dsKuwU9s5qCRq3mTBAL
   input_formats:
-  - pulser.Sequence
+  - - pulser.Sequence
 perceval_local_qc_worker:
   provider: local
   version: latest
-  hash: zdpuApZ7XTk6qJWJ3sM3gFLWuEHdPqQQaBzsKdjddGXqM7Jyz
+  hash: zdpuAnFBMQ4gorG145u2GvoCsogDwbaFnpHjEwNi3ZkdVdPjN
   input_formats:
-  - perceval.Circuit
+  - - perceval.Experiment
+    - perceval.Circuit

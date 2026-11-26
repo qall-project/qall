@@ -20,7 +20,7 @@ from qall.registry import BlockRegistry
 from qall.object import WorkerNode, WorkerPayload, WorkerMetadata, Tag
 from qall.runtime import WorkerRuntimeExecutor
 from qall.provider.worker import QuantumWorker
-from qall.interop.mapping import normalize_circuit_type, normalize_result_type
+from qall.interop.mapping import normalize_circuit_type
 
 
 @pytest.fixture
@@ -59,14 +59,17 @@ def test_worker_spec_inlining_and_relative_import_stripping(tmp_path: Path):
 
             @quantum_worker(
                 input_format="qiskit",
-                output_format="qiskit",
                 provider="local_test",
             )
             class LocalTestWorker(QuantumWorker):
                 def create_context(self, resource, context, **kwargs):
                     return context
 
-                def run(self, program, shots, context, **kwargs):
+                def sample(self, program, shots, context, **kwargs):
+                    clean_shots = format_shots(shots)
+                    return program
+
+                def estimate(self, program, shots, context, **kwargs):
                     clean_shots = format_shots(shots)
                     return program
 
@@ -80,7 +83,6 @@ def test_worker_spec_inlining_and_relative_import_stripping(tmp_path: Path):
 
     assert spec.name == "LocalTestWorker"
     assert spec.input_format == normalize_circuit_type("qiskit")
-    assert spec.output_format == normalize_result_type("qiskit")
     assert spec.provider == "local_test"
 
     assert "from .utils import" not in spec.source
@@ -109,14 +111,16 @@ def test_worker_push_and_pull_from_registry(
 
             @quantum_worker(
                 input_format="cirq",
-                output_format="cirq",
                 provider="test_provider",
             )
             class DummyWorker(QuantumWorker):
                 def create_context(self, resource, context, **kwargs):
                     return context
 
-                def run(self, program, shots, context, **kwargs):
+                def sample(self, program, shots, context, **kwargs):
+                    return local_helper(shots)
+
+                def estimate(self, program, shots, context, **kwargs):
                     return local_helper(shots)
 
                 def close_context(self, context, **kwargs):
@@ -137,7 +141,6 @@ def test_worker_push_and_pull_from_registry(
     assert node is not None
     assert node.metadata["name"] == "DummyWorker"
     assert node.metadata["input_format"] == normalize_circuit_type("cirq")
-    assert node.metadata["output_format"] == normalize_result_type("cirq")
     assert node.metadata["provider"] == "test_provider"
 
     payload: WorkerPayload = local_registry.get_worker_payload_from_local(
@@ -165,14 +168,16 @@ def test_worker_reconstruction_and_loading(
 
             @quantum_worker(
                 input_format="qiskit",
-                output_format="qiskit",
                 provider="exec_provider",
             )
             class ExecutableWorker(QuantumWorker):
                 def create_context(self, resource, context, **kwargs):
                     return context
 
-                def run(self, program, shots, context, **kwargs):
+                def sample(self, program, shots, context, **kwargs):
+                    return shots * compute_multiplier()
+
+                def estimate(self, program, shots, context, **kwargs):
                     return shots * compute_multiplier()
 
                 def close_context(self, context, **kwargs):
@@ -198,5 +203,4 @@ def test_worker_reconstruction_and_loading(
     worker_instance = executor._load_worker(payload=payload, metadata=metadata)
     assert isinstance(worker_instance, QuantumWorker)
     assert worker_instance.capabilities.input_format == normalize_circuit_type("qiskit")
-    assert worker_instance.capabilities.output_format == normalize_result_type("qiskit")
-    assert worker_instance.run(None, 5, None) == 50
+    assert worker_instance.sample(None, 5, None) == 50

@@ -112,11 +112,11 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
                 str(exc),
             )
 
-    def Run(
+    def Sample(
         self,
-        request: pb2.RunRequest,
+        request: pb2.SampleRequest,
         grpc_context: grpc.ServicerContext,
-    ) -> pb2.RunResponse:
+    ) -> pb2.SampleResponse:
 
         print("received run")
 
@@ -131,7 +131,7 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
                 program, self.__worker.capabilities.input_format
             )
 
-            result = self.__worker.run(
+            result = self.__worker.sample(
                 program=native_program,
                 shots=params.shots,
                 context=context,
@@ -142,19 +142,31 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
 
             qio_result = native_result_to_qio_result(result)
 
-            return pb2.RunResponse(
+            return pb2.SampleResponse(
                 result=self._serialize_result(qio_result),
                 context=context_to_proto(context),
             )
         except Exception as exc:
             print("exception occured in worker.run", exc)
 
-            return pb2.RunResponse(
+            return pb2.SampleResponse(
                 error=pb2.Error(
                     code=pb2.Error.EXECUTION_FAILED,
                     message=str(exc),
                 )
             )
+
+    def Estimate(
+        self,
+        request: pb2.EstimateRequest,
+        grpc_context: grpc.ServicerContext,
+    ) -> pb2.EstimateResponse:
+        return pb2.EstimateResponse(
+            error=pb2.Error(
+                code=pb2.Error.EXECUTION_FAILED,
+                message="not implemented",
+            )
+        )
 
     def CloseContext(
         self,
@@ -186,9 +198,7 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
 
         c = self.__worker.capabilities
 
-        return pb2.Capabilities(
-            input_format=c.input_format, output_format=c.output_format
-        )
+        return pb2.Capabilities(input_format=c.input_format)
 
     def _deserialize_program(
         self,
@@ -218,47 +228,6 @@ class QuantumWorkerApi(pb2_grpc.ApiServicer):
             version="1",
             payload=result.to_json_str().encode("utf-8"),
         )
-
-    def _qio_program_to_native_program(
-        self,
-        program: QuantumProgram,
-        worker_input_format: str,
-    ):
-        mapping = {
-            "qiskit.QuantumCircuit": program.to_qiskit_circuit(),
-            "qiskit": program.to_qiskit_circuit(),
-            "cirq.Circuit": program.to_cirq_circuit(),
-            "cirq": program.to_cirq_circuit(),
-            "cudaq.PyKernel": program.to_cudaq_kernel(),
-            "cudaq": program.to_cudaq_kernel(),
-            "mimiqcircuits.Circuit": program.to_mimiq_circuit(),
-            "mimiq": program.to_mimiq_circuit(),
-            "qasm2": program.to_qasm2_circuit(),
-            "qio.QuantumProgram": program,
-            "qio": program,
-        }
-
-        return mapping.get(worker_input_format, program)
-
-    def _native_result_to_qio_result(
-        self,
-        result,
-        worker_output_format: str,
-    ) -> QuantumProgramResult:
-        mapping = {
-            "qiskit.result.Result": QuantumProgramResult.from_qiskit_result(result),
-            "qiskit": QuantumProgramResult.from_qiskit_result(result),
-            "cirq.Result": QuantumProgramResult.from_cirq_result(result),
-            "cirq": QuantumProgramResult.from_cirq_result(result),
-            "cudaq.SampleResult": QuantumProgramResult.from_cudaq_sample_result(result),
-            "cudaq": QuantumProgramResult.from_cudaq_sample_result(result),
-            "mimiqcircuits.QCSResults": QuantumProgramResult.from_mimiq_qcsr(result),
-            "mimiq": QuantumProgramResult.from_mimiq_qcsr(result),
-            "qio.QuantumProgramResult": result,
-            "qio": result,
-        }
-
-        return mapping.get(worker_output_format, result)
 
     def serve(
         self,

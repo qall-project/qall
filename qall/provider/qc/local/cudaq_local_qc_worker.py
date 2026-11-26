@@ -25,18 +25,13 @@ from qall.provider.qc import (
 @quantum_worker(
     requirements=["cudaq"],
     input_format="cudaq",
-    output_format="cudaq",
     provider="local",
 )
 class CudaQLocalQuantumWorker(QuantumWorker):
-    """Quantum worker executing CUDA-Q programs on local emulator backends
-
-    (e.g., qpp-cpu, density-matrix-cpu, nvidia).
-    """
+    """Quantum worker executing CUDA-Q programs on local emulator backends"""
 
     def __init__(self) -> None:
         super().__init__()
-        self.__target = None
 
     def create_context(
         self,
@@ -44,26 +39,31 @@ class CudaQLocalQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> QuantumContext:
-        self.__target = resource if resource else "qpp-cpu"
+        devices_map = {
+            "LOCAL-CUDAQ-CPU": "qpp-cpu",
+            "LOCAL-CUDAQ-GPU": "gpu",
+        }
 
-        cudaq.set_target(self.__target)
+        backend_name = devices_map.get(resource, "qpp-cpu")
+
+        cudaq.set_target(target=backend_name)
 
         return context
 
     def get_context_status(self, context: str):
-        if self.__target is None:
-            raise RuntimeError("No target has been configured yet.")
         return True
 
-    def run(
+    def sample(
         self,
         program: Any,
         shots: int,
         context: QuantumContext,
         **kwargs,
     ) -> Any:
-        result = cudaq.sample(program, shots_count=shots, **kwargs)
-        return result
+        return cudaq.sample(program, shots_count=shots, **kwargs)
+
+    def estimate(self, program, shots, context, **kwargs):
+        return super().estimate(program, shots, context, **kwargs)
 
     def close_context(
         self,

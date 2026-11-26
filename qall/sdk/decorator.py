@@ -15,8 +15,6 @@ from __future__ import annotations
 
 from typing import Callable, Optional
 
-from qall.specification import TaskSpec
-
 
 def task(
     func: Optional[Callable] = None,
@@ -39,6 +37,8 @@ def task(
     """
 
     def decorator_task(func):
+        from qall.specification import TaskSpec
+
         quantum_resources = {
             "min_qubits": kwargs.pop("min_qubits", 0),
             "min_shots": kwargs.pop("min_shots", 0),

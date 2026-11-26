@@ -85,9 +85,16 @@ class LocalDatastore:
     def put_tag(self, tag: Tag) -> None:
         key = tag.uri.encode("utf-8")
         data = json.dumps(tag.to_dict()).encode("utf-8")
+        hash_key = (
+            f"hash:{tag.root_hash}".encode("utf-8")
+            if getattr(tag, "root_hash", None)
+            else None
+        )
 
         with self.__env.begin(write=True) as txn:
             txn.put(key, data)
+            if hash_key:
+                txn.put(hash_key, data)
 
     def put_tags(self, tags: list[Tag]) -> None:
         with self.__env.begin(write=True) as txn:
@@ -128,6 +135,20 @@ class LocalDatastore:
 
         with self.__env.begin(write=True) as txn:
             return txn.delete(key)
+
+    def get_tag_by_hash(self, root_hash: str) -> Tag | None:
+        with self.__env.begin(write=False) as txn:
+            val = txn.get(f"hash:{root_hash}".encode("utf-8"))
+            if val is not None:
+                return Tag(**json.loads(val.decode("utf-8")))
+
+            # Fallback scan for tags written before reverse indexing
+            for k, v in txn.cursor():
+                if k.startswith(b"hash:"):
+                    continue
+                tag_data = json.loads(v.decode("utf-8"))
+                if tag_data.get("root_hash") == root_hash:
+                    return Tag(**tag_data)
 
     def clear(self) -> None:
         pass

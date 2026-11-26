@@ -13,7 +13,8 @@
 # limitations under the License.
 from typing import Any
 
-from qsimcirq import QSimSimulator
+from qiskit_aer import AerSimulator
+from qiskit import QuantumCircuit
 
 from qall.provider.qc import (
     QuantumWorker,
@@ -23,14 +24,13 @@ from qall.provider.qc import (
 
 
 @quantum_worker(
-    requirements=["cirq", "qsimcirq", "ply"],
-    input_format="cirq",
-    output_format="cirq",
+    requirements=["qiskit", "qiskit-aer", "qiskit-qasm3-import"],
+    input_format="qiskit",
     provider="local",
 )
-class CirqLocalQuantumWorker(QuantumWorker):
+class AerLocalQuantumWorker(QuantumWorker):
     """
-    Quantum worker executing Qiskit programs with Qsim backend.
+    Quantum worker executing Qiskit programs with Aer backend.
     """
 
     def __init__(
@@ -46,7 +46,7 @@ class CirqLocalQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> QuantumContext:
-        self.__backend = QSimSimulator()
+        self.__backend = AerSimulator()
 
         return context
 
@@ -56,17 +56,19 @@ class CirqLocalQuantumWorker(QuantumWorker):
 
         return True
 
-    def run(
+    def sample(
         self,
-        program: Any,
+        program: QuantumCircuit,
         shots: int,
         context: QuantumContext,
         **kwargs,
     ) -> Any:
-        result = self.__backend.run(program, repetitions=shots)
-        result._params = None
+        result = self.__backend.run(program, shots=shots).result()
 
         return result
+
+    def estimate(self, program, shots, context, **kwargs):
+        return super().estimate(program, shots, context, **kwargs)
 
     def close_context(
         self,

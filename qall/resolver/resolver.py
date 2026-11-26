@@ -13,28 +13,36 @@
 # limitations under the License.
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from qall.provider.workflow.local import get_local_resource, get_local_qpu_resources
+from qall.interop.mapping import is_circuit_convertible, normalize_circuit_type
+
+from qall.registry import BlockRegistry
 
 from qall.object import (
     Resource,
     ResourceProfile,
     ResourceAvailability,
-    ResourcePrice,
-    ClassicalResourceConstraints,
-    QuantumResourceConstraints,
     TaskResourceAssignment,
+    TaskNode,
+    TaskPayload,
     TaskDag,
-    QpuHosting,
 )
+
+
+@dataclass(frozen=True)
+class _WorkerCandidate:
+    worker_hash: str
+    worker_input_format: str
+    conversion_cost: int
 
 
 def resolve_workflow_resources(
     task_dag: TaskDag,
     profile: ResourceProfile,
     available_resources: List[Resource],
-    replace_to_local: bool = False,
+    registry: Optional[BlockRegistry] = None,
 ) -> Dict[str, TaskResourceAssignment]:
     """
     Resolves hardware assignments for every TaskNode in a compiled TaskDag.
@@ -48,75 +56,56 @@ def resolve_workflow_resources(
         A mapping of task_hash -> TaskResourceAssignment for the DAG.
     """
     assignments: Dict[str, TaskResourceAssignment] = {}
-
-    is_local_provider = profile.provider == "local"
-
-    qpu_pool = get_local_qpu_resources() if is_local_provider else available_resources
+    registry = registry or BlockRegistry(read_only=True)
 
     for node in task_dag.nodes:
         task_hash = node.hash
+        task_resources = []
+        quantum_res: Optional[Resource] = None
+        worker_hash: Optional[str] = None
 
-        q_constraints = node.resources.quantum
-        c_constraints = node.resources.classical
+        payload = task_dag.find(node.payload_hash)
+        quantum_runs = payload.metadata.get("quantum_runs", []) if payload else []
 
-        quantum_res = resolve_task_quantum(q_constraints, profile, qpu_pool)
-
-        is_on_premise = (
-            quantum_res is not None
-            and quantum_res.qpu is not None
-            and quantum_res.qpu.hosting == QpuHosting.on_premise
-        )
-
-        if is_on_premise and not replace_to_local:
-            classical_res = None
-        elif replace_to_local or is_local_provider:
-            classical_res = get_local_resource()
-        else:
-            classical_res = resolve_task_classical(
-                c_constraints, profile, available_resources
+        if node.is_quantum or bool(quantum_runs):
+            quantum_res, worker_hash = resolve_task_quantum(
+                node, payload, profile, available_resources, registry
             )
+            task_resources.append(quantum_res)
+
+        classical_res = resolve_task_classical(node, profile, available_resources)
+        task_resources.append(classical_res)
 
         provider = profile.provider
         if not provider or provider == "*":
             active = quantum_res or classical_res
             provider = active.provider if active else "local"
 
-        merged_resource = _merge_task_resource(
-            classical_res=classical_res,
-            quantum_res=quantum_res,
-            provider=provider,
-        )
-
         assignments[task_hash] = TaskResourceAssignment(
             task_hash=task_hash,
             provider=provider,
-            resource=merged_resource,
+            resources=task_resources,
+            worker_hash=worker_hash,
         )
 
     return assignments
 
 
 def resolve_task_quantum(
-    constraints: Optional[QuantumResourceConstraints],
+    node: TaskNode,
+    payload: TaskPayload,
     profile: ResourceProfile,
     available_resources: List[Resource],
-) -> Optional[Resource]:
-    """Valide et résout les contraintes quantiques vers un QPU éligible."""
-    if not constraints or not any(
-        [
-            constraints.min_qubits > 0,
-            constraints.min_shots > 0,
-            constraints.min_ops > 0,
-            constraints.qpu_modality is not None,
-            constraints.qpu_provider is not None,
-            constraints.qpu_technology is not None,
-            constraints.qpu_topology is not None,
-            constraints.qpu_gateset is not None and len(constraints.qpu_gateset) > 0,
-            constraints.qpu_mcm_support,
-            constraints.qpu_reset_support,
-        ]
-    ):
-        return None
+    registry: Optional[BlockRegistry] = None,
+) -> tuple[Resource, str]:
+    registry = registry or BlockRegistry(read_only=True)
+    constraints = node.resources.quantum
+    quantum_runs = payload.metadata.get("quantum_runs", []) if payload else []
+    client_formats = [
+        normalize_circuit_type(quantum_run["input_format"])
+        for quantum_run in quantum_runs
+        if isinstance(quantum_run, dict) and quantum_run.get("input_format")
+    ]
 
     allowed_names = profile.allowed.qpu
     candidates: List[Resource] = []
@@ -177,7 +166,16 @@ def resolve_task_quantum(
             if not required_gates.issubset(supported_gates):
                 continue
 
-        candidates.append(res)
+        best_worker = _select_best_worker(
+            compatible_workers=res.compatible_workers,
+            client_formats=client_formats,
+            registry=registry,
+        )
+
+        if not best_worker:
+            continue
+
+        candidates.append((res, best_worker))
 
     if not candidates:
         raise RuntimeError(
@@ -187,16 +185,26 @@ def resolve_task_quantum(
             f"among authorized profile resources: {allowed_names}"
         )
 
-    return _apply_matching_strategy(
-        candidates, profile.match_strategy, resource_type="qpu"
-    )
+    if profile.match_strategy == "performance":
+        candidates.sort(
+            key=lambda pair: (-pair[0].qpu.available_qubits, pair[1].conversion_cost)
+        )
+    else:
+        candidates.sort(
+            key=lambda pair: (pair[0].price.price_per_shot, pair[1].conversion_cost)
+        )
+
+    best_resource, best_worker = candidates[0]
+    return best_resource, best_worker.worker_hash
 
 
 def resolve_task_classical(
-    constraints: Optional[ClassicalResourceConstraints],
+    node: TaskNode,
     profile: ResourceProfile,
     available_resources: List[Resource],
 ) -> Resource:
+    constraints = node.resources.classical
+
     min_cpu = constraints.min_cpu if constraints else 0
     min_ram_gb = constraints.min_ram_gb if constraints else 0
     min_gpu = constraints.min_gpu if constraints else 0
@@ -275,6 +283,44 @@ def _compare_str_or_enum(val1: Any, val2: Any) -> bool:
     return str1.lower() == str2.lower()
 
 
+def _select_best_worker(
+    compatible_workers: list[str],
+    client_formats: list[str],
+    registry: BlockRegistry,
+) -> Optional[_WorkerCandidate]:
+    eligible: list[_WorkerCandidate] = []
+
+    for worker_hash in compatible_workers or []:
+        if not worker_hash:
+            continue
+
+        worker_node = registry.get_worker_node_from_local(hash=worker_hash)
+        raw_fmt = (worker_node.metadata or {}).get("input_format", "")
+        if not raw_fmt:
+            continue
+
+        worker_fmt = normalize_circuit_type(raw_fmt)
+        if not all(
+            is_circuit_convertible(client_fmt, worker_fmt)
+            for client_fmt in client_formats
+        ):
+            continue
+
+        conversion_cost = sum(1 for fmt in client_formats if fmt != worker_fmt)
+        eligible.append(
+            _WorkerCandidate(
+                worker_hash=worker_hash,
+                worker_input_format=worker_fmt,
+                conversion_cost=conversion_cost,
+            )
+        )
+
+    if not eligible:
+        return None
+
+    return min(eligible, key=lambda w: w.conversion_cost)
+
+
 def _apply_matching_strategy(
     candidates: List[Resource], strategy: str, resource_type: str
 ) -> Resource:
@@ -294,88 +340,3 @@ def _apply_matching_strategy(
             )
 
     return candidates[0]
-
-
-def _merge_task_resource(
-    quantum_res: Optional[Resource] = None,
-    classical_res: Optional[Resource] = None,
-    provider: str = "local",
-) -> Resource:
-    if (
-        quantum_res
-        and quantum_res.qpu
-        and quantum_res.qpu.hosting == QpuHosting.on_premise
-    ):
-        return Resource(
-            id=quantum_res.id,
-            name=quantum_res.name,
-            provider=provider or quantum_res.provider,
-            availability=quantum_res.availability,
-            qpu=quantum_res.qpu,
-            cpu=quantum_res.cpu,
-            gpu=quantum_res.gpu,
-            price=quantum_res.price if quantum_res.price else ResourcePrice(),
-            metadata=dict(quantum_res.metadata) if quantum_res.metadata else {},
-            description=quantum_res.description,
-            region=quantum_res.region,
-        )
-
-    primary = quantum_res or classical_res
-    if not primary:
-        raise RuntimeError("quantum resource or classical resource must be not None")
-
-    resource_name = primary.name
-    resource_id = primary.id
-
-    qpu_spec = quantum_res.qpu if quantum_res else None
-
-    cpu_spec = (
-        classical_res.cpu
-        if classical_res
-        else (quantum_res.cpu if quantum_res else None)
-    )
-    gpu_spec = (
-        classical_res.gpu
-        if classical_res
-        else (quantum_res.gpu if quantum_res else None)
-    )
-
-    price_per_shot = (
-        quantum_res.price.price_per_shot if (quantum_res and quantum_res.price) else 0.0
-    )
-    price_per_circuit = (
-        quantum_res.price.price_per_circuit
-        if (quantum_res and quantum_res.price)
-        else 0.0
-    )
-    price_per_hour = 0.0
-
-    if classical_res and classical_res.price:
-        price_per_hour += classical_res.price.price_per_hour
-    if quantum_res and quantum_res.price:
-        price_per_hour += quantum_res.price.price_per_hour
-
-    currency = (
-        primary.price.currency
-        if (primary and primary.price and primary.price.currency)
-        else "EUR"
-    )
-
-    return Resource(
-        id=resource_id,
-        name=resource_name,
-        provider=provider,
-        availability=ResourceAvailability.available,
-        qpu=qpu_spec,
-        cpu=cpu_spec,
-        gpu=gpu_spec,
-        price=ResourcePrice(
-            price_per_shot=price_per_shot,
-            price_per_circuit=price_per_circuit,
-            price_per_hour=price_per_hour,
-            currency=currency,
-        ),
-        metadata=dict(primary.metadata) if primary.metadata else {},
-        description=primary.description,
-        region=primary.region,
-    )

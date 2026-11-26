@@ -16,6 +16,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
+from .resource import TaskResourceAssignment
+from .tag import Tag
+
 
 @dataclass(frozen=True)
 class Workflow:
@@ -36,3 +39,9 @@ class Workflow:
     registry: str
     allowed_resources: list[str]
     resource_allocation_strategy: str
+
+
+@dataclass(frozen=True)
+class WorkflowPlan:
+    task_assignments: dict[str, TaskResourceAssignment]
+    tag: Tag

@@ -33,7 +33,6 @@ from qall.provider.qc.scaleway.utils import (
 @quantum_worker(
     requirements=["cirq-scaleway"],
     input_format="cirq",
-    output_format="cirq",
     provider="scaleway",
 )
 class CirqScalewayQuantumWorker(QuantumWorker):
@@ -87,7 +86,7 @@ class CirqScalewayQuantumWorker(QuantumWorker):
 
         return True
 
-    def run(
+    def sample(
         self,
         program: Any,
         shots: int,
@@ -102,6 +101,9 @@ class CirqScalewayQuantumWorker(QuantumWorker):
         result = self.__session.run(program, repetitions=shots)
 
         return result
+
+    def estimate(self, program, shots, context, **kwargs):
+        return super().estimate(program, shots, context, **kwargs)
 
     def close_context(
         self,

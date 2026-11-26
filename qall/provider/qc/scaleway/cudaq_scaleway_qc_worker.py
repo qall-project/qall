@@ -35,7 +35,6 @@ from qall.provider.qc.scaleway.utils import (
 @quantum_worker(
     requirements=["cudaq", "scaleway-qaas-client"],
     input_format="cudaq",
-    output_format="cudaq",
     provider="scaleway",
 )
 class CudaQScalewayQuantumWorker(QuantumWorker):
@@ -103,7 +102,7 @@ class CudaQScalewayQuantumWorker(QuantumWorker):
 
         return True
 
-    def run(
+    def sample(
         self,
         program: Any,
         shots: int,
@@ -113,6 +112,9 @@ class CudaQScalewayQuantumWorker(QuantumWorker):
         result = cudaq.sample(kernel=program, shots_count=shots)
 
         return result
+
+    def estimate(self, program, shots, context, **kwargs):
+        return super().estimate(program, shots, context, **kwargs)
 
     def close_context(
         self,

@@ -20,7 +20,7 @@ from qall.object import WorkerEntry
 
 class WorkerCatalog:
     def __init__(self) -> None:
-        self.__entries: dict[str, WorkerEntry] = self.__load()
+        self.__entries: dict[str, WorkerEntry] = {}
 
     @property
     def entries(self) -> list[WorkerEntry]:
@@ -37,21 +37,39 @@ class WorkerCatalog:
             entry for entry in self.__entries.values() if entry.provider == provider
         ]
 
+    def get_by_hash(self, worker_hash: str) -> WorkerEntry | None:
+        for entry in self.__entries.values():
+            if entry.hash == worker_hash:
+                return entry
+        return None
+
+    def get_by_name(self, worker_name: str) -> WorkerEntry | None:
+        for entry in self.__entries.values():
+            if entry.name == worker_name:
+                return entry
+        return None
+
     def find(
         self,
         provider: str,
         input_format: str,
     ) -> WorkerEntry | None:
         for entry in self.__entries.values():
-            if entry.provider == provider and input_format in entry.input_formats:
+            if entry.provider == provider and entry.input_format == input_format:
                 return entry
         return None
+
+    def add(self, key: str, entry: WorkerEntry):
+        self.__entries[key] = entry
 
     def add_and_save(self, key: str, entry: WorkerEntry):
         new_entries = self.__entries.copy()
         new_entries[key] = entry
         self.__save(new_entries)
         self.__entries = self.__load()
+
+    def batch_add(self, entries: dict[str, WorkerEntry]):
+        self.__entries.update(entries)
 
     def batch_add_and_save(self, entries: dict[str, WorkerEntry]):
         new_entries = self.__entries.copy()

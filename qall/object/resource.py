@@ -123,22 +123,12 @@ class Resource:
     qpu: Optional[QpuSpec] = None
     price: ResourcePrice = field(default_factory=ResourcePrice)
     availability: ResourceAvailability = ResourceAvailability.unknown
+    compatible_workers: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
 class TaskResourceAssignment:
     task_hash: str
     provider: str
-    resource: Resource
-
-    @property
-    def qpu_name(self) -> Optional[str]:
-        return self.resource.qpu.model_name if self.resource.qpu else None
-
-    @property
-    def cpu_name(self) -> Optional[str]:
-        return self.resource.cpu.model_name if self.resource.cpu else None
-
-    @property
-    def gpu_name(self) -> Optional[str]:
-        return self.resource.gpu.model_name if self.resource.gpu else None
+    resources: list[Resource]
+    worker_hash: Optional[str] = None

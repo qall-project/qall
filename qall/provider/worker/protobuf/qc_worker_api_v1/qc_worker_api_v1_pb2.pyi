@@ -114,7 +114,7 @@ class CreateContextResponse(_message.Message):
         error: _Optional[_Union[Error, _Mapping]] = ...,
     ) -> None: ...
 
-class RunRequest(_message.Message):
+class SampleRequest(_message.Message):
     __slots__ = ("program", "parameters", "context")
     PROGRAM_FIELD_NUMBER: _ClassVar[int]
     PARAMETERS_FIELD_NUMBER: _ClassVar[int]
@@ -129,7 +129,37 @@ class RunRequest(_message.Message):
         context: _Optional[_Union[QuantumContext, _Mapping]] = ...,
     ) -> None: ...
 
-class RunResponse(_message.Message):
+class SampleResponse(_message.Message):
+    __slots__ = ("result", "context", "error")
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    result: QuantumProgramResult
+    context: QuantumContext
+    error: Error
+    def __init__(
+        self,
+        result: _Optional[_Union[QuantumProgramResult, _Mapping]] = ...,
+        context: _Optional[_Union[QuantumContext, _Mapping]] = ...,
+        error: _Optional[_Union[Error, _Mapping]] = ...,
+    ) -> None: ...
+
+class EstimateRequest(_message.Message):
+    __slots__ = ("program", "parameters", "context")
+    PROGRAM_FIELD_NUMBER: _ClassVar[int]
+    PARAMETERS_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_FIELD_NUMBER: _ClassVar[int]
+    program: QuantumProgram
+    parameters: QuantumProgramParameters
+    context: QuantumContext
+    def __init__(
+        self,
+        program: _Optional[_Union[QuantumProgram, _Mapping]] = ...,
+        parameters: _Optional[_Union[QuantumProgramParameters, _Mapping]] = ...,
+        context: _Optional[_Union[QuantumContext, _Mapping]] = ...,
+    ) -> None: ...
+
+class EstimateResponse(_message.Message):
     __slots__ = ("result", "context", "error")
     RESULT_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_FIELD_NUMBER: _ClassVar[int]
@@ -194,18 +224,13 @@ class GetCapabilitiesRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class Capabilities(_message.Message):
-    __slots__ = ("provider", "input_format", "output_format")
+    __slots__ = ("provider", "input_format")
     PROVIDER_FIELD_NUMBER: _ClassVar[int]
     INPUT_FORMAT_FIELD_NUMBER: _ClassVar[int]
-    OUTPUT_FORMAT_FIELD_NUMBER: _ClassVar[int]
     provider: str
     input_format: str
-    output_format: str
     def __init__(
-        self,
-        provider: _Optional[str] = ...,
-        input_format: _Optional[str] = ...,
-        output_format: _Optional[str] = ...,
+        self, provider: _Optional[str] = ..., input_format: _Optional[str] = ...
     ) -> None: ...
 
 class CloseContextRequest(_message.Message):

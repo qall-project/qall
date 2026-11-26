@@ -33,7 +33,6 @@ from qall.provider.qc.scaleway.utils import (
 @quantum_worker(
     requirements=["perceval-quandela"],
     input_format="perceval",
-    output_format="perceval",
     provider="scaleway",
 )
 class PercevalScalewayQuantumWorker(QuantumWorker):
@@ -88,7 +87,7 @@ class PercevalScalewayQuantumWorker(QuantumWorker):
 
         return True
 
-    def run(
+    def sample(
         self,
         program: Any,
         shots: int,
@@ -113,6 +112,9 @@ class PercevalScalewayQuantumWorker(QuantumWorker):
             self.__backend.noise = None
 
         return results
+
+    def estimate(self, program, shots, context, **kwargs):
+        return super().estimate(program, shots, context, **kwargs)
 
     def close_context(
         self,

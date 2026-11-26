@@ -34,7 +34,6 @@ from qall.provider.qc.scaleway.utils import (
 @quantum_worker(
     requirements=["pulser-scaleway"],
     input_format="pulser",
-    output_format="pulser",
     provider="scaleway",
 )
 class PulserScalewayQuantumWorker(QuantumWorker):
@@ -111,7 +110,7 @@ class PulserScalewayQuantumWorker(QuantumWorker):
 
         return True
 
-    def run(
+    def sample(
         self,
         program: Any,
         shots: int,
@@ -140,6 +139,9 @@ class PulserScalewayQuantumWorker(QuantumWorker):
             )
 
         return results
+
+    def estimate(self, program, shots, context, **kwargs):
+        return super().estimate(program, shots, context, **kwargs)
 
     def close_context(
         self,

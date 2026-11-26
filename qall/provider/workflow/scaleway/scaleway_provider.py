@@ -23,7 +23,6 @@ from qall.object import (
     Resource,
     ResourceProfile,
     Log,
-    Resource,
     QpuSpec,
     ResourcePrice,
     QpuType,
@@ -37,7 +36,6 @@ from qall.object import (
 from qall.provider.workflow import WorkflowProviderClient, workflow_provider
 from qall.provider.login import get_credentials_from_env
 
-
 from scaleway_qaas_client.v1alpha1 import QaaSClient, QaaSPlatform
 
 
@@ -45,12 +43,6 @@ from scaleway_qaas_client.v1alpha1 import QaaSClient, QaaSPlatform
 class ScalewayWorkflowProviderClient(WorkflowProviderClient):
     def __init__(self):
         self.__client = None
-
-    def __enter__(self):
-        raise NotImplementedError
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        raise NotImplementedError
 
     def get_default_config_template(self) -> str:
         """
@@ -161,18 +153,44 @@ profiles:
     def list_logs(self, workflow_run_id: str) -> list[Log]:
         raise NotImplementedError
 
-    def list_resources(self, filters: Optional[dict] = None) -> list[Resource]:
+    def list_classical_resources(self) -> list[Resource]:
+        return []
+
+    def list_quantum_resources(self) -> list[Resource]:
+        from qall.provider.qc.scaleway import get_scaleway_worker_catalog
+
         platforms = self.__client.list_platforms()
         resources: list[Resource] = []
+        worker_catalog = get_scaleway_worker_catalog()
 
         for p in platforms:
-            resource = self._map_platform_to_resource(p)
+            resource = self._map_platform_to_resource(worker_catalog, p)
 
             resources.append(resource)
 
         return resources
 
-    def _map_platform_to_resource(self, p: QaaSPlatform) -> Resource:
+    def _map_platform_to_resource(self, worker_catalog, p: QaaSPlatform) -> Resource:
+        from qall.provider.qc.scaleway import ScalewayWorkerType
+
+        qiskit_worker = worker_catalog.get_by_name(ScalewayWorkerType.QISKIT).hash
+        cirq_worker = worker_catalog.get_by_name(ScalewayWorkerType.CIRQ).hash
+        cudaq_worker = worker_catalog.get_by_name(ScalewayWorkerType.CUDAQ).hash
+        pulser_worker = worker_catalog.get_by_name(ScalewayWorkerType.PULSER).hash
+        perceval_worker = worker_catalog.get_by_name(ScalewayWorkerType.PERCEVAL).hash
+
+        provider_to_worker_mapping = {
+            "pasqal": [pulser_worker],
+            "quandela": [perceval_worker],
+            "aqt": [qiskit_worker, cirq_worker, cudaq_worker],
+            "iqm": [qiskit_worker, cirq_worker, cudaq_worker],
+            "quobly": [qiskit_worker, cirq_worker, cudaq_worker],
+            "qiskit": [qiskit_worker, cirq_worker, cudaq_worker],
+            "quantumlib": [qiskit_worker, cudaq_worker],
+            "qperfect": [qiskit_worker, cirq_worker, cudaq_worker],
+            "nvidia": [qiskit_worker, cirq_worker, cudaq_worker],
+        }
+
         platform_id = p.id
         name = p.name
         provider_name = p.provider_name.lower()
@@ -185,8 +203,8 @@ profiles:
         is_bookable = p.is_bookable
 
         price_per_hour, _ = self._parse_grpc_money(p.price_per_hour)
-        price_per_shot = self._parse_grpc_money(p.price_per_shot)
-        price_per_circuit = self._parse_grpc_money(p.price_per_circuit)
+        price_per_shot, _ = self._parse_grpc_money(p.price_per_shot)
+        price_per_circuit, _ = self._parse_grpc_money(p.price_per_circuit)
 
         qpu_type = self._resolve_qpu_type(type_raw)
         technology = self._resolve_technology(technology_raw)
@@ -227,6 +245,7 @@ profiles:
             price=price,
             availability=availability,
             description=description,
+            compatible_workers=provider_to_worker_mapping[provider_name],
         )
 
     @staticmethod

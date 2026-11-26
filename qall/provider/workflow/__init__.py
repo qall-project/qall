@@ -15,4 +15,5 @@ from .decorator import workflow_provider, get_provider_client_by_name
 
 from .provider_client import WorkflowProviderClient
 
-from .scaleway.provider_client import ScalewayWorkflowProviderClient
+from .scaleway.scaleway_provider import ScalewayWorkflowProviderClient
+from .local.local_provider import LocalWorkflowProviderClient

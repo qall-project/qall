@@ -26,7 +26,6 @@ from qall.provider.qc import (
 @quantum_worker(
     requirements=["pulser", "pulser-simulation"],
     input_format="pulser",
-    output_format="pulser",
     provider="local",
 )
 class PulserLocalQuantumWorker(QuantumWorker):
@@ -50,9 +49,7 @@ class PulserLocalQuantumWorker(QuantumWorker):
         self.__device = devices_map.get(resource, MockDevice)
 
         context.bin_metadata["device"] = self.__device
-        context.metadata["device_name"] = getattr(
-            self.__device, "name", str(self.__device)
-        )
+        context.metadata["device_name"] = self.__device.name
         return context
 
     def get_context_status(self, context: str):
@@ -76,7 +73,7 @@ class PulserLocalQuantumWorker(QuantumWorker):
 
         return dict(sim_res.final_bitstrings)
 
-    def run(
+    def sample(
         self,
         program: Any,
         shots: int,
@@ -101,6 +98,9 @@ class PulserLocalQuantumWorker(QuantumWorker):
             n_shots=shots,
             variables=kwargs.get("variables", None),
         )
+
+    def estimate(self, program, shots, context, **kwargs):
+        return super().estimate(program, shots, context, **kwargs)
 
     def close_context(
         self,

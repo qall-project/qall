@@ -20,8 +20,6 @@ pytestmark = pytest.mark.daemon_integration
 
 
 def test_cudaq_local_worker_end_to_end(tmp_path: Path, local_daemon_session):
-    pytest.skip()
-
     counts = run_workflow_file(
         tmp_path,
         "cudaq_bell_wf.py",
@@ -42,8 +40,6 @@ def test_cudaq_local_worker_end_to_end(tmp_path: Path, local_daemon_session):
             return {str(k): int(v) for k, v in result.items()}
         """,
     )
-
-    print(counts)
 
     assert isinstance(counts, dict)
     assert sum(counts.values()) == 100

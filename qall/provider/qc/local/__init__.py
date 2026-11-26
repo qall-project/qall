@@ -14,48 +14,54 @@
 import qall.core as core
 
 from pathlib import Path
+from enum import StrEnum
 
 from qall.specification import WorkerSpec
 
 from ..catalog import WorkerCatalog, WorkerEntry
 
-__FILES = [
-    "cirq_local_qc_worker.py",
-    "qiskit_local_qc_worker.py",
-    "cudaq_local_qc_worker.py",
-    "pulser_local_qc_worker.py",
-    "perceval_local_qc_worker.py",
-]
+
+class LocalWorkerType(StrEnum):
+    CUDAQ = "cudaq_local_qc_worker"
+    QSIM = "qsim_local_qc_worker"
+    AER = "aer_local_qc_worker"
+    PULSER = "pulser_local_qc_worker"
+    PERCEVAL = "perceval_local_qc_worker"
 
 
-def register_local_workers(catalog: WorkerCatalog = None) -> WorkerCatalog:
-    catalog = catalog if catalog else WorkerCatalog()
-    local_entries = {}
+__CATALOG: WorkerCatalog = None
 
+
+def get_local_worker_catalog() -> WorkerCatalog:
+    global __CATALOG
+    if __CATALOG:
+        return __CATALOG
+
+    __CATALOG = WorkerCatalog()
     base_dir = Path(__file__).parent.resolve()
 
-    for file_name in __FILES:
-        file_path = base_dir / file_name
-
+    for worker in LocalWorkerType:
+        file_path = base_dir / f"{worker.value}.py"
         if not file_path.exists():
             raise FileNotFoundError(f"Local worker file not found: {file_path}")
 
         worker_spec = WorkerSpec(file_path)
-
         tag, dag = core.push_worker_on_registry(
             worker_spec=worker_spec,
-            worker_name=file_path.stem,
+            worker_name=worker.value,
             worker_version="latest",
             local_only=True,
         )
 
-        local_entries[tag.name] = WorkerEntry(
-            hash=dag.root_hash,
-            version=tag.version,
-            provider="local",
-            input_formats=[worker_spec.input_format],
+        __CATALOG.add(
+            tag.name,
+            WorkerEntry(
+                hash=dag.root_hash,
+                version=tag.version,
+                provider="local",
+                input_format=worker_spec.input_format,
+                name=worker.value,
+            ),
         )
 
-    catalog.batch_add_and_save(local_entries)
-
-    return catalog
+    return __CATALOG

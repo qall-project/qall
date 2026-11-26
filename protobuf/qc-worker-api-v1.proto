@@ -12,8 +12,11 @@ service Api {
   rpc CreateContext(CreateContextRequest)
       returns (QuantumContext);
 
-  rpc Run(RunRequest)
-      returns (RunResponse);
+  rpc Sample(SampleRequest)
+      returns (SampleResponse);
+
+  rpc Estimate(EstimateRequest)
+      returns (EstimateResponse);
 
   rpc CloseContext(CloseContextRequest)
       returns (QuantumContext);
@@ -73,7 +76,7 @@ message CreateContextResponse {
   Error error = 2;
 }
 
-message RunRequest {
+message SampleRequest {
   QuantumProgram program = 1;
 
   QuantumProgramParameters parameters = 2;
@@ -81,7 +84,23 @@ message RunRequest {
   QuantumContext context = 3;
 }
 
-message RunResponse {
+message SampleResponse {
+  QuantumProgramResult result = 1;
+
+  QuantumContext context = 2;
+
+  Error error = 3;
+}
+
+message EstimateRequest {
+  QuantumProgram program = 1;
+
+  QuantumProgramParameters parameters = 2;
+
+  QuantumContext context = 3;
+}
+
+message EstimateResponse {
   QuantumProgramResult result = 1;
 
   QuantumContext context = 2;
@@ -113,8 +132,6 @@ message Capabilities {
   string provider = 1;
 
   string input_format = 2;
-
-  string output_format = 3;
 }
 
 message CloseContextRequest {

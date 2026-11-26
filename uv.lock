@@ -1697,7 +1697,7 @@ wheels = [
 
 [[package]]
 name = "py-cid"
-version = "0.5.0"
+version = "0.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "morphys" },
@@ -1705,14 +1705,14 @@ dependencies = [
     { name = "py-multicodec" },
     { name = "py-multihash" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/96/8e/68c2bd0346247570e8e01e8c170a0237884e95cdfa43989527b71adaa978/py_cid-0.5.0.tar.gz", hash = "sha256:93c62586c672353a9862f3fce13c9848ea39a00378e0980e2f0eed91631f3d28", size = 38028, upload-time = "2026-02-13T19:03:28.603Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ed/15/a074a6aa64ef895bde0cbe258800fda5fbd148ae29da28bacf6924ed3aa7/py_cid-0.6.0.tar.gz", hash = "sha256:b03edc055a964ef7c2a982cf24b694b80e55eb2fbe2c65085e7493c37691bdf6", size = 40201, upload-time = "2026-11-22T03:50:13.811Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2b/18/eaea1571ae8b4fa490793a4b78a9641c4579a884f7a26f3d1b019d7e91c2/py_cid-0.5.0-py3-none-any.whl", hash = "sha256:2fbad437384534e2a0ab0c4068aac3e510c4cb710c89c8f6bf98f4b07ed54e3e", size = 16046, upload-time = "2026-02-13T19:03:27.516Z" },
+    { url = "https://files.pythonhosted.org/packages/30/a5/c0b715cda6eebe91b8da1e6310ea551200590b82d0cf59d46dc06fff7039/py_cid-0.6.0-py3-none-any.whl", hash = "sha256:6f657d3d8d605a54a73d80abf7ebf1c707e5b2a951f9075590c13fdf25aa950d", size = 16168, upload-time = "2026-11-22T03:50:12.368Z" },
 ]
 
 [[package]]
 name = "py-ipld-dag"
-version = "0.2.1"
+version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "base58" },
@@ -1722,52 +1722,48 @@ dependencies = [
     { name = "py-multicodec" },
     { name = "py-multihash" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/af/8f/861641aa8f6c21b8d829577d8e599879bb353612e00d2815251e89fd58d2/py_ipld_dag-0.2.1.tar.gz", hash = "sha256:90868d02548234aeb492c1e76ade43af92acd8a118af4246603d9b99268f19b7", size = 40110, upload-time = "2026-03-17T17:38:13.725Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/20/3f/94c2f6e4710e17bdfaad1a6beaa341a05e974a9d9d0a24c0022a0f53fcc6/py_ipld_dag-0.3.0.tar.gz", hash = "sha256:c1405fbc23141f8c172faf0a14f3323d2e9ef891ae7a3811195e238fee1f1989", size = 48244, upload-time = "2026-11-22T03:52:20.312Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/71/3e/542bfdb63f4c8666ff0c23bcda228dca751f3447b13431ddd9784d99c2ae/py_ipld_dag-0.2.1-py3-none-any.whl", hash = "sha256:52df9cdb4f1f0f9f6a0b100c7b1a39839f888e61c7053f4df2c53fe627517655", size = 21056, upload-time = "2026-03-17T17:38:12.513Z" },
+    { url = "https://files.pythonhosted.org/packages/68/31/b1e530a875c0024e8469e7720a63fc74823c2b413ee8f45380dc5b21ad77/py_ipld_dag-0.3.0-py3-none-any.whl", hash = "sha256:85db3101b70634e54516006684656d60dc528101377872e89a3a7c08c7aa0f19", size = 24533, upload-time = "2026-11-22T03:52:19.297Z" },
 ]
 
 [[package]]
 name = "py-multibase"
-version = "2.0.0"
+version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "morphys" },
     { name = "python-baseconv" },
-    { name = "six" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/bc/52/5ed393ab49df7e3b03995d3c4e53bae1e8c2ca40909cf25a41b346c09a38/py_multibase-2.0.0.tar.gz", hash = "sha256:58c1a264195fa1ae29ea707c6fc8196446f4bdb92e0f9a0f131e0f280b238839", size = 26857, upload-time = "2025-12-18T02:24:49.132Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/45/9d/d6dc9949439e64d7c0c0455a1a8d56aecfd32159d014f94439e65e61b96b/py_multibase-2.1.0.tar.gz", hash = "sha256:645541b8139913ef18cd5576aeaeeca7e142fc937e82359122ff95c3f2e16bdc", size = 31361, upload-time = "2026-11-22T03:47:32.022Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/36/c7/38035079d9978b32b962f996f1cccaa166ecfe38723ab4349ab32166c037/py_multibase-2.0.0-py3-none-any.whl", hash = "sha256:b29ce489b556134e73998a11712c406b70950812955df64084754e0774e40900", size = 10608, upload-time = "2025-12-18T02:24:47.827Z" },
+    { url = "https://files.pythonhosted.org/packages/0c/28/0140161e3c6940403a7f8168605b8195a956fbbc6052f612d9afc62120b7/py_multibase-2.1.0-py3-none-any.whl", hash = "sha256:fb2b2769f0cfa7fe4d3af61d6d37d3f1163ad8422a2d05d8ca968864e626fc07", size = 11270, upload-time = "2026-11-22T03:47:31.02Z" },
 ]
 
 [[package]]
 name = "py-multicodec"
-version = "1.0.0"
+version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "varint" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5e/26/ef24db0fbfec080b72c5ac4a1000da3a4d696a1e31862c695d683097a1b5/py_multicodec-1.0.0.tar.gz", hash = "sha256:78e4e3e47b6288cf635c3ca987152e6cb5510bdcdab307e7690c76ec3d5bbfeb", size = 44668, upload-time = "2025-12-18T20:41:37.976Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d1/7b/b8969890d4f73ab2fa59cdabe1018c7dbd4b1265041184349cbec175657d/py_multicodec-1.1.0.tar.gz", hash = "sha256:9e3f07e17cb047b2a058a049f70ee00751faadbff104c939d1358679295e138a", size = 54763, upload-time = "2026-11-22T03:47:59.826Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/76/da/768d07490faeae88ac361184164be9c262fececc3c6241b5fc471be4f659/py_multicodec-1.0.0-py3-none-any.whl", hash = "sha256:ae2e687bac8fdf54e3f5b3feded36b61a304d5e3c3af9438f7481f543ec15b8d", size = 26200, upload-time = "2025-12-18T20:41:37.055Z" },
+    { url = "https://files.pythonhosted.org/packages/18/51/1ba1f818c1429f0cc49f2b0b1f665b1e4ba1fa8833ea94da7c8240e5d300/py_multicodec-1.1.0-py3-none-any.whl", hash = "sha256:4a6d778d7d0bb46d93b84003f481a16b4dd792e9a5710c56aa4a5a2f656686e5", size = 31896, upload-time = "2026-11-22T03:47:58.528Z" },
 ]
 
 [[package]]
 name = "py-multihash"
-version = "3.0.0"
+version = "4.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "base58" },
     { name = "blake3" },
     { name = "mmh3" },
-    { name = "morphys" },
-    { name = "six" },
     { name = "varint" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/11/3d/ed68b0eccd0654f7f3c163d9b3d428f903e5e3e884ab1f0d0a16ba6a4f11/py_multihash-3.0.0.tar.gz", hash = "sha256:2e848941de5ef0533ca26b81940e2ffcf7b4322a3f803e8c97f4f0eca8767aa7", size = 41630, upload-time = "2025-12-17T19:30:00.596Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/21/1d/78da95c58c50b858c88f80aadf9798c8fdfef07bd022a931c36986ef3ce4/py_multihash-4.0.0.tar.gz", hash = "sha256:82d5302d7af1c4034809f50e44fd21c90aa5cc5e9af4fd9c2063a0cf56dc36e9", size = 53031, upload-time = "2026-11-22T03:46:47.494Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/24/e2/d65606db8369916fb5a9b4fe14df7e6072970d919300f3fb1c989a1d8e7d/py_multihash-3.0.0-py3-none-any.whl", hash = "sha256:3863ec1313b4eac1e5169137c143d40bf77456e57388f839441deba089f87326", size = 21215, upload-time = "2025-12-17T19:29:59.322Z" },
+    { url = "https://files.pythonhosted.org/packages/58/63/7c8a5484efb26e8e8342d41e8ffd891df010986fc198cc1e8c9cc21fc768/py_multihash-4.0.0-py3-none-any.whl", hash = "sha256:48c45a5bed498e7d95aa6e4d3e576f9a1bd65913bd1618664e08cc84b7de2795", size = 27618, upload-time = "2026-11-22T03:46:45.976Z" },
 ]
 
 [[package]]
@@ -2004,7 +2000,7 @@ wheels = [
 
 [[package]]
 name = "qall"
-version = "0.1.14"
+version = "0.1.15"
 source = { editable = "." }
 dependencies = [
     { name = "cloudpickle" },
@@ -2015,6 +2011,7 @@ dependencies = [
     { name = "keyring" },
     { name = "lmdb" },
     { name = "matplotlib" },
+    { name = "py-ipld-dag" },
     { name = "pyan3" },
     { name = "pyyaml" },
     { name = "qall-daemon-client" },
@@ -2049,11 +2046,12 @@ requires-dist = [
     { name = "keyring", specifier = ">=25.7.0" },
     { name = "lmdb", specifier = ">=2.3.0" },
     { name = "matplotlib", specifier = ">=3.11.0" },
+    { name = "py-ipld-dag", specifier = "==0.3.0" },
     { name = "pyan3", specifier = ">=2.9.0,<3" },
     { name = "pyyaml", specifier = ">=6.0.3" },
-    { name = "qall-daemon-client", specifier = ">=0.1.10" },
+    { name = "qall-daemon-client", specifier = ">=0.1.12" },
     { name = "qall-registry-client", specifier = ">=0.1.2" },
-    { name = "qio", specifier = ">=0.2.10" },
+    { name = "qio", specifier = ">=0.2.11" },
     { name = "retry", specifier = "==0.9.2" },
     { name = "rustworkx", specifier = "==0.17.1" },
     { name = "s3fs", specifier = ">=2025.6.0" },
@@ -2075,7 +2073,7 @@ objects = [
 
 [[package]]
 name = "qall-daemon-client"
-version = "0.1.10"
+version = "0.1.12"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dataclasses" },
@@ -2083,9 +2081,9 @@ dependencies = [
     { name = "grpcio" },
     { name = "protobuf" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e9/5e/fca531be105bcda33c2f07fd6572f05c2afc12f10c24de24f5d0d1ac2a8f/qall_daemon_client-0.1.10.tar.gz", hash = "sha256:31b8656e676f2e081993ecd821090807d53784e49f2f743f11764eb975be3fc9", size = 14083, upload-time = "2026-11-13T18:47:46.115Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/19/56/33dbcf4a1503b7f6592bc63af2b15e0be54c73b94fcd120c21e5d862e9d5/qall_daemon_client-0.1.12.tar.gz", hash = "sha256:d772e94e37b00e6d087caef05117975ae2d94843bffa43ac9699d82713296e92", size = 13703, upload-time = "2026-11-25T13:17:05.893Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a4/e8/d1358781c3f291ed8c8de96c3949c6b28fb79d6e4cba9b04c491aa2e3d49/qall_daemon_client-0.1.10-py3-none-any.whl", hash = "sha256:cc37b64457a7c1a8c3749cce81254175c2882f0349adb3dfe343a36d154b9fe4", size = 22054, upload-time = "2026-11-13T18:47:44.936Z" },
+    { url = "https://files.pythonhosted.org/packages/e6/c1/963f3979c2e70844faddd4bdf33435a0b9f33e689a07644d75a14e863ccb/qall_daemon_client-0.1.12-py3-none-any.whl", hash = "sha256:e2939611e0a25fc63027712145500d5b4727202b895499dd12201395ec3fdbed", size = 21070, upload-time = "2026-11-25T13:17:05.158Z" },
 ]
 
 [[package]]
@@ -2105,16 +2103,16 @@ wheels = [
 
 [[package]]
 name = "qio"
-version = "0.2.10"
+version = "0.2.11"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dataclasses-json" },
     { name = "openqasm3", extra = ["parser"] },
     { name = "pyqasm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/03/94/4ccc728dc05ea4d29573ba672e37cd6050604d10db27d25a84c39e8697a4/qio-0.2.10.tar.gz", hash = "sha256:6616da9d924a524f93eecb9f6d9829d2a2d09efb9a8a9e55e632a395bec1123c", size = 56590, upload-time = "2026-11-13T18:24:04.226Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/40/eab0def850b8164b456ed1f0a244add992452909c285e04d141bed0fa5ae/qio-0.2.11.tar.gz", hash = "sha256:84743de2df583d5fb91d06d6e548a0196b0edfd06ad493a5e67bd1205f8bb1fa", size = 57326, upload-time = "2026-11-20T08:33:59.888Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/de/4e/5285cea3e86c1fbceaebb182c9d26f64b65df81d81816a085ec1dd668821/qio-0.2.10-py3-none-any.whl", hash = "sha256:0e705df3cc42ae59fbe54f548fa61be6a6d31a1339110b43bc601d7fd05cc458", size = 97772, upload-time = "2026-11-13T18:24:03.154Z" },
+    { url = "https://files.pythonhosted.org/packages/2a/c0/d57799a7ccf619b4e27711581d662d0dd9adf9a418fc31ac155ef76c9834/qio-0.2.11-py3-none-any.whl", hash = "sha256:a3ffedf468fa1f540261ddf6db02ac3f1512a29dc42d5194038a48e3e3a8fc18", size = 99153, upload-time = "2026-11-20T08:33:58.871Z" },
 ]
 
 [[package]]

@@ -16,7 +16,7 @@ from .checkpoint import Checkpoint
 from .task_run import TaskRun, TaskRunStatus, TaskRunOutput
 from .workflow_run import WorkflowRun, WorkflowRunStatus
 from .tag import Tag
-from .workflow import Workflow
+from .workflow import Workflow, WorkflowPlan
 from .resource import (
     Resource,
     QpuSpec,
@@ -44,7 +44,6 @@ from .resource_contraint import ClassicalResourceConstraints, QuantumResourceCon
 from .resource_profile import (
     ResourceProfile,
     AllowedResourceCollection,
-    apply_resource_overrides,
 )
 from .dataloader import Dataloader, SECRET_CREDENTIAL_KEYS
 from .block import Block

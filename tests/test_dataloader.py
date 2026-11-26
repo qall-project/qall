@@ -25,7 +25,6 @@ from qall.cli.dataloader import dataloader_cli
 from qall.credential import credentials as credential_module
 from qall.runtime.dataloader import (
     bind_dataloader,
-    bind_dataloaders,
     unbind_dataloaders,
     reset,
     _normalize_dst,

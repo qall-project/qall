@@ -26,6 +26,7 @@ from ..protobuf.qc_worker_api_v1 import (
 )
 
 from qall.interop.mapping import (
+    get_result_type_for_circuit,
     native_program_to_qio_program,
     qio_result_to_native_result,
 )
@@ -95,7 +96,47 @@ class QuantumWorkerClient:
         return context_from_proto(response)
 
     @retry(delay=2, tries=10)
-    def run(
+    def sample(
+        self,
+        program: Any,
+        shots: int,
+        context: QuantumContext,
+        **kwargs,
+    ) -> tuple[Any, QuantumContext]:
+        proto_context = context_to_proto(context)
+
+        expected_result_format = get_result_type_for_circuit(program)
+
+        qio_program = native_program_to_qio_program(program)
+
+        qio_params = self._native_params_to_qio(shots=shots, **kwargs)
+
+        proto_program = self._serialize_program(qio_program)
+
+        proto_params = self._serialize_params(qio_params)
+
+        response = self._stub.Sample(
+            pb2.SampleRequest(
+                program=proto_program,
+                context=proto_context,
+                parameters=proto_params,
+            )
+        )
+
+        if response.HasField("error"):
+            raise RuntimeError(response.error.message)
+
+        deser_result = self._deserialize_result(response.result)
+
+        result = qio_result_to_native_result(deser_result, expected_result_format)
+
+        return (
+            result,
+            context_from_proto(response.context),
+        )
+
+    @retry(delay=2, tries=10)
+    def estimate(
         self,
         program: Any,
         shots: int,
@@ -113,8 +154,8 @@ class QuantumWorkerClient:
 
         proto_params = self._serialize_params(qio_params)
 
-        response = self._stub.Run(
-            pb2.RunRequest(
+        response = self._stub.Estimate(
+            pb2.EstimateRequest(
                 program=proto_program,
                 context=proto_context,
                 parameters=proto_params,
@@ -158,8 +199,6 @@ class QuantumWorkerClient:
         self,
         proto: pb2.QuantumProgramResult,
     ) -> QuantumProgramResult:
-        print("deserialize result", proto)
-
         if proto.format == "qio":
             return QuantumProgramResult.from_json_str(proto.payload.decode("utf-8"))
         raise NotImplementedError

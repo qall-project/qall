@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
 from qall.provider.worker import QuantumWorker
-from qall.interop.mapping import normalize_circuit_type, normalize_result_type
+from qall.interop.mapping import normalize_circuit_type
 
 from .imports import (
     discover_external_imports,
@@ -68,7 +68,6 @@ class WorkerSpec:
     requirements: list[str] = field(default_factory=list)
     image: str = field(default="python:3.13")
     input_format: str = field(default="")
-    output_format: str = field(default="")
     provider: str = field(default="")
     runtime_qall_version: str = field(default="")
 
@@ -88,7 +87,6 @@ class WorkerSpec:
         self.requirements = []
         self.image = "python:3.13"
         self.input_format = ""
-        self.output_format = ""
         self.provider = ""
         self.runtime_qall_version = importlib.metadata.version("qall")
 
@@ -192,7 +190,7 @@ class WorkerSpec:
         discovered = discover_external_imports(filepath.parent)
 
         try:
-            with lenient_imports(discovered):
+            with lenient_imports(discovered, force_stub=True):
                 exec(compile(tree, str(filepath), "exec"), module_globals)
 
             decorated_spec = module_globals.get(worker_cls.class_name)
@@ -278,7 +276,6 @@ class WorkerSpec:
         self.requirements = list(metadata.get("requirements", []))
         self.image = metadata.get("image", "python:3.13")
         self.input_format = normalize_circuit_type(metadata.get("input_format", ""))
-        self.output_format = normalize_result_type(metadata.get("output_format", ""))
         self.provider = metadata.get("provider", "")
 
         try:
@@ -302,7 +299,6 @@ class WorkerSpec:
         self.requirements = list(other.requirements)
         self.image = other.image
         self.input_format = other.input_format
-        self.output_format = other.output_format
         self.provider = other.provider
 
         self.name = other.name

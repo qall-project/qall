@@ -105,46 +105,27 @@ class BaseDaemonManager(abc.ABC):
         """
         with self.client as client:
             for task_hash, assignment in resource_assigments.items():
-                resource_name = (
-                    assignment.qpu_name
-                    or assignment.gpu_name
-                    or assignment.cpu_name
-                    or ""
-                )
+                if assignment.worker_hash is not None:
+                    if not any(
+                        assignment.worker_hash in r.compatible_workers
+                        for r in assignment.resources
+                    ):
+                        raise RuntimeError(
+                            f"Worker assignment {assignment.worker_hash} for task {task_hash} "
+                            "is not in any assigned resource's compatible_workers."
+                        )
 
                 res_entry = client.create_resource_assignment(
                     task_hash=task_hash,
                     resource_provider=assignment.provider,
-                    resource_name=resource_name,
+                    resource_names=[i.name for i in assignment.resources],
+                    worker_hash=assignment.worker_hash or "",
                 )
 
                 if not res_entry:
                     raise RuntimeError(
                         f"Failed to create resource assignment entry into daemon for task_hash '{task_hash}'"
                     )
-
-    def register_workers(self, worker_definitions: list):
-        """
-        Register worker definitions into the daemon.
-        """
-        with self.client as client:
-            for wd in worker_definitions:
-                if len(wd.input_formats) == 0:
-                    raise RuntimeError("worker definition must have one input format")
-
-                if len(wd.input_formats) != 1:
-                    raise RuntimeError(
-                        "worker definition doesn't support multiple input formats"
-                    )
-
-                we = client.create_worker_entry(
-                    worker_hash=wd.hash,
-                    worker_provider=wd.provider,
-                    input_format=wd.input_formats[0],
-                )
-
-                if not we:
-                    raise RuntimeError("failed to create worker entry into daemon")
 
     @abc.abstractmethod
     def _start_daemon(self) -> None:

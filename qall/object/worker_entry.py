@@ -13,14 +13,15 @@
 # limitations under the License.
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from dataclasses_json import dataclass_json
 
 
 @dataclass_json
 @dataclass(frozen=True)
 class WorkerEntry:
+    name: str
     provider: str
     version: str
     hash: str
-    input_formats: list[str] = field(default_factory=list)
+    input_format: str

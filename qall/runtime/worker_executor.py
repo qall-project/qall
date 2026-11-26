@@ -112,7 +112,7 @@ class WorkerRuntimeExecutor:
 
         try:
             worker = worker_class()
-            worker.set_capabilities(metadata.input_format, metadata.output_format)
+            worker.set_capabilities(metadata.input_format)
         except Exception as exc:
             raise RuntimeError(
                 f"Failed to instantiate QuantumWorker {worker_class.__name__}"

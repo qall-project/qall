@@ -25,9 +25,8 @@ from qall.provider.qc import (
 
 
 @quantum_worker(
-    requirements=["perceval-quandela", "drawsvg>=2.4.0"],
-    input_format="perceval.Circuit",
-    output_format="perceval",
+    requirements=["perceval-quandela==1.3.1", "drawsvg>=2.4.0"],
+    input_format="perceval.Experiment",
     provider="local",
 )
 class PercevalLocalQuantumWorker(QuantumWorker):
@@ -43,8 +42,19 @@ class PercevalLocalQuantumWorker(QuantumWorker):
         context: QuantumContext,
         **kwargs,
     ) -> QuantumContext:
-        backend_name = resource if resource else "SLOS"
-        self.__backend = SimulatedComputer(backend_name)
+        devices_map = {
+            "LOCAL-PERCEVAL-SLOS": "SLOS",
+            "LOCAL-PERCEVAL-MPS": "MPS",
+            "LOCAL-PERCEVAL-NAIVE": "Naive",
+            "LOCAL-PERCEVAL-NAIVE-APPROX": "NaiveApprox",
+            "LOCAL-PERCEVAL-SLAP": "SLAP",
+            "LOCAL-PERCEVAL-SAMPLING": "SamplingStepper",
+            "LOCAL-PERCEVAL-CLIFFORD": "CliffordClifford2017",
+        }
+
+        backend_name = devices_map.get(resource, "SLOS")
+        self.__backend = SimulatedComputer(backend=backend_name)
+
         return context
 
     def get_context_status(self, context: str):
@@ -52,9 +62,9 @@ class PercevalLocalQuantumWorker(QuantumWorker):
             raise RuntimeError("No local backend has been initialized yet.")
         return True
 
-    def run(
+    def sample(
         self,
-        program: Any,
+        program: Experiment,
         shots: int,
         context: QuantumContext,
         **kwargs,
@@ -62,18 +72,13 @@ class PercevalLocalQuantumWorker(QuantumWorker):
         max_shots_per_call = kwargs.get("max_shots_per_call", shots)
         noise_model = kwargs.get("noise", None)
 
-        if isinstance(program, Experiment):
-            experiment = program
-        else:
-            experiment = Experiment(program)
-
-        if getattr(experiment, "input_state", None) is None:
-            n_modes = experiment.circuit_size
+        if program.input_state is None:
+            n_modes = program.circuit_size
             input_state = kwargs.get(
                 "input_state",
                 BasicState([1] + [0] * max(0, n_modes - 1)),
             )
-            experiment.with_input(input_state)
+            program.with_input(input_state)
 
         try:
             if noise_model is not None:
@@ -81,7 +86,7 @@ class PercevalLocalQuantumWorker(QuantumWorker):
 
             factory = ExecutionFactory(
                 computer=self.__backend,
-                experiment=experiment,
+                experiment=program,
                 max_shots_per_call=max_shots_per_call,
             )
 
@@ -90,6 +95,9 @@ class PercevalLocalQuantumWorker(QuantumWorker):
             self.__backend.noise = None
 
         return results
+
+    def estimate(self, program, shots, context, **kwargs):
+        return super().estimate(program, shots, context, **kwargs)
 
     def close_context(
         self,

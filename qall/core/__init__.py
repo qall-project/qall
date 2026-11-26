@@ -11,8 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from .workflow import create_workflow, run_workflow
-from .workflow_run import create_workflow_run, fix_workflow_run, stop_workflow_run
+from .workflow import (
+    build_workflow,
+    plan_workflow,
+    deploy_workflow,
+    get_workflow,
+    list_workflows,
+    get_workflow_from_hash,
+)
+from .workflow_run import (
+    create_workflow_run,
+    fix_workflow_run,
+    stop_workflow_run,
+    get_workflow_run,
+    list_workflow_runs,
+)
 from .quantum_run import (
     create_quantum_worker_manager,
     create_quantum_run,
@@ -29,7 +42,12 @@ from .registry import (
     logout_registry,
     clear_registry,
 )
-from .provider import login_provider, logout_provider, get_provider_client_by_name
+from .provider import (
+    login_provider,
+    logout_provider,
+    get_provider_client_by_name,
+    list_resources,
+)
 from .runtime import execute_task
 from .dataloader import (
     init_dataloader_config,
@@ -53,3 +71,4 @@ from .daemon import (
     get_daemon_status,
     push_artifact,
 )
+from .run import run, fix

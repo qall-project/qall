@@ -127,7 +127,6 @@ class WorkerMetadata:
     name: str = ""
     provider: str = ""
     input_format: str = ""
-    output_format: str = ""
     type: str = field(default=__TYPE)
 
     def to_dict(self) -> dict[str, Any]:
@@ -135,7 +134,6 @@ class WorkerMetadata:
             "name": self.name,
             "provider": self.provider,
             "input_format": self.input_format,
-            "output_format": self.output_format,
             "type": self.__TYPE,
         }
 
@@ -159,7 +157,6 @@ class WorkerMetadata:
             name=data.get("name", ""),
             provider=data.get("provider", ""),
             input_format=data.get("input_format", ""),
-            output_format=data.get("output_format", ""),
         )
 
 

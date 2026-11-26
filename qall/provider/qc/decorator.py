@@ -13,8 +13,6 @@
 # limitations under the License.
 from __future__ import annotations
 
-from qall.specification import WorkerSpec
-
 
 def quantum_worker(**kwargs):
     """
@@ -32,6 +30,8 @@ def quantum_worker(**kwargs):
     """
 
     def decorator_worker(cls: type) -> type:
+        from qall.specification import WorkerSpec
+
         cls.__qall_worker_spec__ = kwargs
 
         return WorkerSpec(cls, **kwargs)
