@@ -14,11 +14,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Optional
 
 
-class QpuTopology(Enum):
+class ExecutionMode(StrEnum):
+    unknown = "unknown"
+    local = "local"
+    classical_local_quantum_remote = "classical_local_quantum_remote"
+    remote = "remote"
+
+
+class QpuTopology(StrEnum):
     unknown = "unknown"
     linear = "linear"
     grid = "grid"
@@ -26,19 +33,19 @@ class QpuTopology(Enum):
     all_to_all = "all_to_all"
 
 
-class QpuType(Enum):
+class QpuType(StrEnum):
     unknown = "unknown"
     emulator = "emulator"
     physical = "physical"
 
 
-class QpuHosting(Enum):
+class QpuHosting(StrEnum):
     unknown = "unknown"
     remote = "remote"
     on_premise = "on_premise"
 
 
-class QpuTechnology(Enum):
+class QpuTechnology(StrEnum):
     unknown = "unknown"
     continuous_photon = "continuous_photon"
     discrete_photon = "discrete_photon"
@@ -48,7 +55,7 @@ class QpuTechnology(Enum):
     nv_diamond = "nv_diamond"
 
 
-class QpuModality(Enum):
+class QpuModality(StrEnum):
     unknown = "unknown"
     digital = "digital"
     gate_based = "gate_based"
@@ -58,7 +65,7 @@ class QpuModality(Enum):
     annealing = "annealing"
 
 
-class ResourceAvailability(Enum):
+class ResourceAvailability(StrEnum):
     unknown = "unknown"
     available = "available"
     unavailable = "unavailable"

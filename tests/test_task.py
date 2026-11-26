@@ -985,7 +985,7 @@ def test_bundle_local_dependencies_excludes_qall_run_from_body():
             deps = _bundle_local_dependencies(mod.f)
             assert "qall.run" not in deps
             assert "run" not in deps
-            assert "create_quantum_run" not in deps
+            assert "execute_quantum_sample" not in deps
         finally:
             sys.path.remove(tmpdir)
             sys.modules.pop("bundle_sdk_run_mod", None)

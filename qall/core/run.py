@@ -11,7 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Optional
+from typing import Optional, Union
+
+from qall.object import ExecutionMode
 
 from qall.core import (
     push_artifact,
@@ -25,7 +27,7 @@ from qall.core import (
 def run(
     entrypoint_file: Optional[str] = None,
     entrypoint_hash: Optional[str] = None,
-    local_only: bool = False,
+    execution_mode: Union[ExecutionMode, str] = "remote",
     allowed_qpus: Optional[list[str]] = None,
     allowed_gpus: Optional[list[str]] = None,
     allowed_cpus: Optional[list[str]] = None,
@@ -36,6 +38,9 @@ def run(
     run_kwargs: Optional[list] = None,
     run_input_artifact_hash: Optional[str] = None,
 ):
+    if isinstance(execution_mode, str):
+        execution_mode = ExecutionMode(execution_mode)
+
     if entrypoint_file and entrypoint_hash:
         raise RuntimeError(
             "run: cannot provide both entrypoint_file and entrypoint_hash"
@@ -56,7 +61,8 @@ def run(
             entrypoint=entrypoint_file,
             workflow_name=workflow_name,
             workflow_version=workflow_version,
-            local_only=local_only,
+            local_only=execution_mode
+            in [ExecutionMode.local, ExecutionMode.classical_local_quantum_remote],
         )
     elif entrypoint_hash:
         workflow_tag = get_workflow_from_hash(entrypoint_hash)
@@ -67,6 +73,7 @@ def run(
         allowed_cpus=allowed_cpus,
         allowed_gpus=allowed_gpus,
         allowed_qpus=allowed_qpus,
+        execution_mode=execution_mode,
     )
 
     # As assignment is memory-only in daemon for now, push assignment directly in create_workflow_run
@@ -77,7 +84,7 @@ def run(
 
     run_obj, artifacts = create_workflow_run(
         workflow_plan=workflow_plan,
-        local_only=local_only,
+        execution_mode=execution_mode,
         run_input_artifact_hash=run_input_artifact_hash,
         auto_start_daemon=True,
     )

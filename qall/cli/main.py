@@ -23,6 +23,8 @@ from qall import (
     logger as qall_logger,
 )
 
+from qall.object import ExecutionMode
+
 from .artifact import artifact_cli
 from .provider import provider_cli
 from .registry import registry_cli
@@ -82,7 +84,13 @@ def run(
         ..., help="Path to the Python script containing tasks."
     ),
     local: bool = typer.Option(
-        False, "--local", "-l", help="Wether to run locally or remotely"
+        False, "--local", "-l", help="Wether to run the workflow fully locally."
+    ),
+    clocal: bool = typer.Option(
+        False,
+        "--clocal",
+        "-cl",
+        help="Wether to run the classical tasks of the workflow locally.",
     ),
     input_artifact_hash: Optional[str] = typer.Option(
         None,
@@ -132,9 +140,19 @@ def run(
 
     typer.echo(f"Initiating compilation run for: {entrypoint}")
 
+    if local and clocal:
+        raise typer.BadParameter("Cannot combine CLI option --local and --clocal")
+
+    execution_mode = ExecutionMode.remote
+
+    if local:
+        execution_mode = ExecutionMode.local
+    elif clocal:
+        execution_mode = ExecutionMode.classical_local_quantum_remote
+
     artifacts = core.run(
         entrypoint=entrypoint,
-        local_only=local,
+        execution_mode=execution_mode,
         allowed_qpus=allowed_qpus,
         allowed_gpus=allowed_gpus,
         allowed_cpus=allowed_cpus,

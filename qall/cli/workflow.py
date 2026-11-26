@@ -16,6 +16,7 @@ import typer
 import qall.core as core
 
 from qall.registry import BlockRegistry
+from qall.object import ExecutionMode
 
 from typing import Optional
 
@@ -42,9 +43,6 @@ def workflow_build(
     version: Optional[str] = typer.Option(
         "latest", "--version", "-v", help="Version tag for the target build."
     ),
-    local: bool = typer.Option(
-        True, "--local", "-l", help="Store blocks only in the local registry."
-    ),
 ):
     """Compile a workflow script into an IPLD DAG and push it to the registry."""
     try:
@@ -52,7 +50,7 @@ def workflow_build(
             entrypoint=entrypoint,
             workflow_name=name,
             workflow_version=version,
-            local_only=local,
+            local_only=True,
         )
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
@@ -90,16 +88,32 @@ def workflow_plan(
     local: bool = typer.Option(
         True, "--local", "-l", help="Resolve classical tasks against local resources."
     ),
+    clocal: bool = typer.Option(
+        True,
+        "--clocal",
+        "-l",
+        help="Resolve classical tasks against localhost and remote quantum resources by logged provider.",
+    ),
 ):
     """Resolve hardware and quantum worker assignments for a built workflow."""
     try:
+        if local and clocal:
+            raise typer.BadParameter("Cannot combine CLI option --local and --clocal")
+
+        execution_mode = ExecutionMode.remote
+
+        if local:
+            execution_mode = ExecutionMode.local
+        elif clocal:
+            execution_mode = ExecutionMode.classical_local_quantum_remote
+
         plan = core.plan_workflow(
             workflow_tag=workflow_tag,
             profile_name=profile,
             allowed_cpus=allowed_cpus,
             allowed_gpus=allowed_gpus,
             allowed_qpus=allowed_qpus,
-            local_only=local,
+            execution_mode=execution_mode,
         )
         dag = BlockRegistry(read_only=True).get_workflow_dag(plan.tag)
     except Exception as e:

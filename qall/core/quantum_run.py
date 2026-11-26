@@ -47,7 +47,7 @@ def create_quantum_worker_manager(
     return __qw_manager
 
 
-def create_quantum_run(
+def execute_quantum_sample(
     program: Any,
     shots: int,
     **kwargs,
@@ -57,6 +57,22 @@ def create_quantum_run(
         raise RuntimeError("QuantumWorkerManager has not been initialized.")
 
     return __qw_manager.sample(
+        program=program,
+        shots=shots,
+        **kwargs,
+    )
+
+
+def execute_quantum_estimation(
+    program: Any,
+    shots: int,
+    **kwargs,
+) -> Any:
+    global __qw_manager
+    if __qw_manager is None:
+        raise RuntimeError("QuantumWorkerManager has not been initialized.")
+
+    return __qw_manager.estimate(
         program=program,
         shots=shots,
         **kwargs,

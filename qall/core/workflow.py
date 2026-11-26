@@ -13,9 +13,16 @@
 # limitations under the License.
 from pathlib import Path
 
-from typing import Optional
+from typing import Optional, Union
 
-from qall.object import Tag, Workflow, WorkflowPlan, ResourceProfile, TaskDag
+from qall.object import (
+    Tag,
+    Workflow,
+    WorkflowPlan,
+    ResourceProfile,
+    TaskDag,
+    ExecutionMode,
+)
 
 from qall.registry import (
     RegistryCredentials,
@@ -75,8 +82,11 @@ def plan_workflow(
     allowed_cpus: Optional[list[str]] = None,
     allowed_gpus: Optional[list[str]] = None,
     allowed_qpus: Optional[list[str]] = None,
-    local_only: bool = False,
+    execution_mode: Union[ExecutionMode, str] = "remote",
 ) -> WorkflowPlan:
+    if isinstance(execution_mode, str):
+        execution_mode = ExecutionMode(execution_mode)
+
     workflow_tag = (
         Tag.parse(workflow_tag) if isinstance(workflow_tag, str) else workflow_tag
     )
@@ -92,7 +102,7 @@ def plan_workflow(
 
     available_resources = list_resources(
         provider_name=profile.provider,
-        local_is_classical=local_only or profile.provider == "local",
+        execution_mode=execution_mode,
     )
 
     assignments = resolve_workflow_resources(

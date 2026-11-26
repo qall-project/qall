@@ -13,14 +13,14 @@
 # limitations under the License.
 from typing import Any
 
-from qall.core.quantum_run import create_quantum_run
+from qall.core.quantum_run import execute_quantum_sample, execute_quantum_estimation
 
 
 def sample(target: Any, *args, **kwargs):
     shots = args[0] if args else kwargs.pop("shots", 0)
     kwargs.pop("autosleep_after", None)
 
-    return create_quantum_run(target, shots, **kwargs)
+    return execute_quantum_sample(target, shots, **kwargs)
 
 
 def observe(target: Any, *args, **kwargs):

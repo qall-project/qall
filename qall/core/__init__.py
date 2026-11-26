@@ -28,7 +28,8 @@ from .workflow_run import (
 )
 from .quantum_run import (
     create_quantum_worker_manager,
-    create_quantum_run,
+    execute_quantum_sample,
+    execute_quantum_estimation,
     stop_quantum_worker_manager,
 )
 from .artifact import list_artifacts, get_artifact, download_artifact

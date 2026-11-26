@@ -30,6 +30,7 @@ from .resource import (
     QpuTechnology,
     QpuType,
     QpuHosting,
+    ExecutionMode,
 )
 from .log import Log
 from .task import (

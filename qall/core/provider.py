@@ -13,7 +13,9 @@
 # limitations under the License.
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Union
+
+from qall.object import ExecutionMode
 
 from qall.provider import (
     get_provider_client_by_name,
@@ -41,30 +43,44 @@ def logout_provider() -> str:
 
 def list_resources(
     provider_name: Optional[str] = None,
-    local_is_classical: bool = False,
+    execution_mode: Union[ExecutionMode, str] = "remote",
 ):
-    provider_name = provider_name or get_logged_provider_name() or "local"
+    if isinstance(execution_mode, str):
+        execution_mode = ExecutionMode(execution_mode)
 
     available_resources = []
 
-    if local_is_classical:
+    if execution_mode == ExecutionMode.local:
         provider_client = get_provider_client_by_name("local")
         available_resources.extend(provider_client.list_classical_resources())
+        available_resources.extend(provider_client.list_quantum_resources())
+    elif execution_mode == ExecutionMode.classical_local_quantum_remote:
+        local_provider_client = get_provider_client_by_name("local")
 
-        if provider_name == "local":
-            available_resources.extend(provider_client.list_quantum_resources())
+        remote_provider_name = provider_name or get_logged_provider_name()
+        remote_provider_credentials = get_provider_login_credentials()
+        remote_provider_client = get_provider_client_by_name(remote_provider_name)
 
-    if provider_name != "local":
-        provider_credentials = get_provider_login_credentials()
-
-        provider_client = get_provider_client_by_name(provider_name)
-
-        if not provider_client.login(provider_credentials):
+        if not remote_provider_client.login(remote_provider_credentials.credentials):
             raise RuntimeError(
-                f"Failed to authenticate against provider '{provider_name}'."
+                f"Failed to authenticate against provider '{remote_provider_name}'."
             )
 
-        available_resources.extend(provider_client.list_classical_resources())
-        available_resources.extend(provider_client.list_quantum_resources())
+        available_resources.extend(local_provider_client.list_classical_resources())
+        available_resources.extend(remote_provider_client.list_quantum_resources())
+    elif execution_mode == ExecutionMode.remote and provider_name == "local":
+        raise RuntimeError(f"Cannot target local provider in remote execution mode.")
+    elif execution_mode == ExecutionMode.remote:
+        remote_provider_name = provider_name or get_logged_provider_name()
+        remote_provider_credentials = get_provider_login_credentials()
+        remote_provider_client = get_provider_client_by_name(remote_provider_name)
+
+        if not remote_provider_client.login(remote_provider_credentials.credentials):
+            raise RuntimeError(
+                f"Failed to authenticate against provider '{remote_provider_name}'."
+            )
+
+        available_resources.extend(remote_provider_client.list_classical_resources())
+        available_resources.extend(remote_provider_client.list_quantum_resources())
 
     return available_resources

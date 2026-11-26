@@ -904,7 +904,7 @@ def _bundle_object(
         return
 
     # Never bundle the qall task library itself. Qall SDK callables (task,
-    # workflow, run, create_quantum_run, ...) are always available in the
+    # workflow, run, execute_quantum_sample, ...) are always available in the
     # target runtime, and shipping their bare function source - without the
     # module-level imports their signatures rely on (e.g. `from typing import
     # Optional`) - produces payloads that crash with NameError. This is the
