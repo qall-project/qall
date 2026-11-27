@@ -20,8 +20,6 @@ pytestmark = pytest.mark.daemon_integration
 
 
 def test_pulser_local_worker_end_to_end(tmp_path: Path, local_daemon_session):
-    pytest.skip()
-
     counts = run_workflow_file(
         tmp_path,
         "pulser_analog_wf.py",

@@ -16,6 +16,8 @@ import typer
 from typing import Optional
 
 import qall.core as core
+
+from qall.object import ExecutionMode
 from qall.core.config import resolve_active_profile
 
 from .utils import pretty_resources
@@ -35,6 +37,12 @@ def resource_list(
     local: bool = typer.Option(
         False, "--local", "-l", help="List local resources only."
     ),
+    clocal: bool = typer.Option(
+        False,
+        "--clocal",
+        "-cl",
+        help="List classical local resources only and remote quantum resources.",
+    ),
 ):
     """Poll the compute provider to list all accessible CPU, GPU, and physical/emulated QPU hardware."""
     active_profile = resolve_active_profile(
@@ -42,9 +50,19 @@ def resource_list(
     )
     provider_name = "local" if local else active_profile.provider
 
+    if local and clocal:
+        raise typer.BadParameter("Cannot combine CLI options --local and --clocal")
+
+    execution_mode = ExecutionMode.remote
+
+    if local:
+        execution_mode = ExecutionMode.local
+    elif clocal:
+        execution_mode = ExecutionMode.classical_local_quantum_remote
+
     resources = core.list_resources(
         provider_name=provider_name,
-        local_is_classical=local or provider_name == "local",
+        execution_mode=execution_mode,
     )
 
     typer.echo(pretty_resources(resources))

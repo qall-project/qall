@@ -141,7 +141,7 @@ def run(
     typer.echo(f"Initiating compilation run for: {entrypoint}")
 
     if local and clocal:
-        raise typer.BadParameter("Cannot combine CLI option --local and --clocal")
+        raise typer.BadParameter("Cannot combine CLI options --local and --clocal")
 
     execution_mode = ExecutionMode.remote
 

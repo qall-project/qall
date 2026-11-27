@@ -84,7 +84,6 @@ def run(
 
     run_obj, artifacts = create_workflow_run(
         workflow_plan=workflow_plan,
-        execution_mode=execution_mode,
         run_input_artifact_hash=run_input_artifact_hash,
         auto_start_daemon=True,
     )

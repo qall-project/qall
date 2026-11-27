@@ -123,8 +123,8 @@ def run_workflow_file(
     wf_run, artifacts = run(
         entrypoint_file=str(wf_path),
         workflow_name=wf_path.stem,
-        local_only=True,
         run_input_artifact_hash=input_artifact_hash,
+        execution_mode="local",
     )
     assert wf_run.status == WorkflowRunStatus.DONE, f"Workflow '{wf_path.stem}' failed"
     _ensure_host_registry_writable()

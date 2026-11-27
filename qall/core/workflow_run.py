@@ -24,6 +24,7 @@ from qall.object import (
     WorkflowRunStatus,
     DaemonStatus,
     WorkflowPlan,
+    ExecutionMode,
 )
 from qall.registry import BlockRegistry, RegistryCredentials
 from qall.provider import (
@@ -53,14 +54,28 @@ def create_workflow_run(
     registry_credentials: Optional[RegistryCredentials] = None,
     provider_client: Optional[WorkflowProviderClient] = None,
     provider_credentials: Optional[ProviderCredentials] = None,
-    local_only: bool = False,
     auto_start_daemon: bool = False,
 ) -> tuple[WorkflowRun, Optional[list]]:
     registry = registry_client or BlockRegistry(read_only=True)
     dag = registry.get_workflow_dag(workflow_plan.tag)
 
     provider_credentials = provider_credentials or get_provider_login_credentials()
-    if not local_only and not provider_credentials:
+
+    execution_mode = workflow_plan.execution_mode
+
+    if execution_mode is ExecutionMode.unknown:
+        raise RuntimeError("Cannot run if unknown execution mode.")
+
+    must_run_locally = execution_mode in [
+        ExecutionMode.local,
+        ExecutionMode.classical_local_quantum_remote,
+    ]
+    must_be_logged = execution_mode in [
+        ExecutionMode.remote,
+        ExecutionMode.classical_local_quantum_remote,
+    ]
+
+    if must_be_logged and not provider_credentials:
         raise RuntimeError(
             "You must be logged in to execute workflows remotely. "
             "Run `qall login <provider>` or use `--local`."
@@ -68,7 +83,7 @@ def create_workflow_run(
 
     artifacts = None
 
-    if local_only:
+    if must_run_locally:
         daemon_status = get_daemon_status()
         daemon_is_already_running = daemon_status.status == DaemonStatus.RUNNING
 

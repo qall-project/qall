@@ -60,7 +60,7 @@ def resolve_workflow_resources(
 
     for node in task_dag.nodes:
         task_hash = node.hash
-        task_resources = []
+        task_resources: list[Resource] = []
         quantum_res: Optional[Resource] = None
         worker_hash: Optional[str] = None
 
@@ -76,10 +76,12 @@ def resolve_workflow_resources(
         classical_res = resolve_task_classical(node, profile, available_resources)
         task_resources.append(classical_res)
 
-        provider = profile.provider
-        if not provider or provider == "*":
-            active = quantum_res or classical_res
-            provider = active.provider if active else "local"
+        active = quantum_res or classical_res
+        provider = (
+            active.provider
+            if (active and active.provider)
+            else (profile.provider or "local")
+        )
 
         assignments[task_hash] = TaskResourceAssignment(
             task_hash=task_hash,
@@ -221,10 +223,17 @@ def resolve_task_classical(
         ):
             continue
 
-        if "*" not in allowed_names and res.name not in allowed_names:
+        if res.qpu is not None:
             continue
 
-        if res.qpu is not None:
+        # In --clocal  mode, profile targets remote provider but classical part
+        # is resolve in "local" : we do not filter localhost by remote cpu names
+        is_clocal_fallback = res.provider == "local" and profile.provider != "local"
+        if (
+            not is_clocal_fallback
+            and "*" not in allowed_names
+            and res.name not in allowed_names
+        ):
             continue
 
         if needs_gpu:

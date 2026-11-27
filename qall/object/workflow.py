@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from .resource import TaskResourceAssignment
+from .resource import TaskResourceAssignment, ExecutionMode
 from .tag import Tag
 
 
@@ -45,3 +45,19 @@ class Workflow:
 class WorkflowPlan:
     task_assignments: dict[str, TaskResourceAssignment]
     tag: Tag
+
+    @property
+    def execution_mode(self) -> ExecutionMode:
+        modes = {a.execution_mode for a in self.task_assignments.values()}
+        modes.discard(ExecutionMode.unknown)
+
+        if not modes:
+            return ExecutionMode.unknown
+
+        if ExecutionMode.remote in modes:
+            return ExecutionMode.remote
+
+        if ExecutionMode.classical_local_quantum_remote in modes:
+            return ExecutionMode.classical_local_quantum_remote
+
+        return ExecutionMode.local

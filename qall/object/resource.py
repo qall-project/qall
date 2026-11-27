@@ -139,3 +139,25 @@ class TaskResourceAssignment:
     provider: str
     resources: list[Resource]
     worker_hash: Optional[str] = None
+
+    @property
+    def execution_mode(self) -> ExecutionMode:
+        if not self.resources:
+            return ExecutionMode.unknown
+
+        classical_providers = {
+            r.provider for r in self.resources if r.qpu is None and r.provider
+        }
+        quantum_providers = {
+            r.provider for r in self.resources if r.qpu is not None and r.provider
+        }
+
+        has_remote_classical = any(p != "local" for p in classical_providers)
+        has_remote_quantum = any(p != "local" for p in quantum_providers)
+
+        if has_remote_classical:
+            return ExecutionMode.remote
+        if has_remote_quantum:
+            return ExecutionMode.classical_local_quantum_remote
+
+        return ExecutionMode.local

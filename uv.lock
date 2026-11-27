@@ -2000,7 +2000,7 @@ wheels = [
 
 [[package]]
 name = "qall"
-version = "0.1.15"
+version = "0.1.16"
 source = { editable = "." }
 dependencies = [
     { name = "cloudpickle" },
@@ -2049,7 +2049,7 @@ requires-dist = [
     { name = "py-ipld-dag", specifier = "==0.3.0" },
     { name = "pyan3", specifier = ">=2.9.0,<3" },
     { name = "pyyaml", specifier = ">=6.0.3" },
-    { name = "qall-daemon-client", specifier = ">=0.1.12" },
+    { name = "qall-daemon-client", specifier = ">=0.1.13" },
     { name = "qall-registry-client", specifier = ">=0.1.2" },
     { name = "qio", specifier = ">=0.2.11" },
     { name = "retry", specifier = "==0.9.2" },
@@ -2073,7 +2073,7 @@ objects = [
 
 [[package]]
 name = "qall-daemon-client"
-version = "0.1.12"
+version = "0.1.13"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dataclasses" },
@@ -2081,9 +2081,9 @@ dependencies = [
     { name = "grpcio" },
     { name = "protobuf" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/19/56/33dbcf4a1503b7f6592bc63af2b15e0be54c73b94fcd120c21e5d862e9d5/qall_daemon_client-0.1.12.tar.gz", hash = "sha256:d772e94e37b00e6d087caef05117975ae2d94843bffa43ac9699d82713296e92", size = 13703, upload-time = "2026-11-25T13:17:05.893Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/16/0b/e74459d499c9bc736b210721ada20791c2f5b58310922ff1108187ee404f/qall_daemon_client-0.1.13.tar.gz", hash = "sha256:8806b2269dfbaa97a114844b4fa4b7df3fc10432f50668d3766aa5d48899c4a7", size = 13714, upload-time = "2026-11-26T11:16:14.876Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e6/c1/963f3979c2e70844faddd4bdf33435a0b9f33e689a07644d75a14e863ccb/qall_daemon_client-0.1.12-py3-none-any.whl", hash = "sha256:e2939611e0a25fc63027712145500d5b4727202b895499dd12201395ec3fdbed", size = 21070, upload-time = "2026-11-25T13:17:05.158Z" },
+    { url = "https://files.pythonhosted.org/packages/5a/a1/f96c6d62487dda7f128e01fd543b6d93f01b67a7205a0efc92d3d53ce3ce/qall_daemon_client-0.1.13-py3-none-any.whl", hash = "sha256:5ed97b6f1b1fbbde568f9a070d7f4db47a24f474e547a7956a4a21fa750c47d3", size = 21071, upload-time = "2026-11-26T11:16:13.949Z" },
 ]
 
 [[package]]
