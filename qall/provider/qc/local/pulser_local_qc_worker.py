@@ -14,6 +14,7 @@
 from typing import Any
 
 from pulser.devices import AnalogDevice, DigitalAnalogDevice, MockDevice
+from pulser.backend import BitStrings
 from pulser_simulation import QutipBackendV2, QutipConfig
 
 from qall.provider.qc import (
@@ -54,7 +55,7 @@ class PulserLocalQuantumWorker(QuantumWorker):
         if not context.metadata:
             context.metadata = {}
 
-        context.bin_metadata["device"] = self.__device
+        context.add_bin_field("device", self.__device)
         context.metadata["device_name"] = self.__device.name
         return context
 
@@ -73,7 +74,7 @@ class PulserLocalQuantumWorker(QuantumWorker):
             and program.is_parametrized()
             else program
         )
-        config = QutipConfig(default_num_shots=n_shots)
+        config = QutipConfig(default_num_shots=n_shots, observables=[BitStrings()])
         sim = QutipBackendV2(seq, config=config)
         sim_res = sim.run()
 

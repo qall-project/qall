@@ -53,6 +53,7 @@ _QUANTUM_CIRCUIT_TYPE_MAPPING = {
     "qio.QuantumProgram": _CIRCUIT_TYPE_QIO_PROGRAM,
     "pulser": _CIRCUIT_TYPE_PULSER_SEQUENCE,
     "pulser.Sequence": _CIRCUIT_TYPE_PULSER_SEQUENCE,
+    "pulser.sequence.sequence.Sequence": _CIRCUIT_TYPE_PULSER_SEQUENCE,
     "perceval": _CIRCUIT_TYPE_PERCEVAL_EXPERIMENT,
     "perceval.Experiment": _CIRCUIT_TYPE_PERCEVAL_EXPERIMENT,
     "perceval.Circuit": _CIRCUIT_TYPE_PERCEVAL_CIRCUIT,

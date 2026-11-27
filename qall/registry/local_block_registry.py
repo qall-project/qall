@@ -72,6 +72,9 @@ class LocalBlockRegistryClient(RegistryClient):
     def untag(self, name: str, version: str) -> bool:
         return self.__datastore.delete_tag(name, version)
 
+    def get_tag_by_hash(self, root_hash: str) -> Tag | None:
+        return self.__datastore.get_tag_by_hash(root_hash=root_hash)
+
     def clear(self):
         self.__blockstore.clear()
         self.__datastore.clear()

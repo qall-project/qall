@@ -11,14 +11,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from qall.core.quantum_run import get_quantum_context, QuantumContext
+from typing import Any
+
+from qall.core.quantum_run import get_quantum_context
 
 
-@property
-def context() -> QuantumContext:
-    """
-    Returns the current quantum context.
-    This function is a shortcut to get the current quantum context from the
-    QuantumWorkerManager.
-    """
-    return get_quantum_context()
+class _ContextProxy:
+    def __getitem__(self, key: str) -> Any:
+        return get_quantum_context()[key]
+
+    def get(self, key: str, default: Any = None) -> Any:
+        ctx = get_quantum_context()
+        return ctx.get(key, default) if hasattr(ctx, "get") else default
+
+    def __contains__(self, key: str) -> bool:
+        ctx = get_quantum_context()
+        return key in ctx.bin_metadata or key in ctx.metadata
+
+
+context = _ContextProxy()
