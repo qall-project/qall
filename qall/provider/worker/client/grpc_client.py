@@ -14,6 +14,7 @@
 import grpc
 
 from typing import Any
+from google.protobuf.json_format import MessageToDict, ParseDict
 
 from retry import retry
 from qio.core import QuantumProgram, QuantumProgramResult, QuantumComputationParameters
@@ -37,23 +38,36 @@ from ..context import QuantumContext
 def context_from_proto(
     proto: pb2.QuantumContext,
 ) -> QuantumContext:
+    config = (
+        MessageToDict(proto.configuration) if proto.HasField("configuration") else {}
+    )
+    meta = MessageToDict(proto.metadata) if proto.HasField("metadata") else {}
 
     return QuantumContext(
         resource=proto.resource,
-        configuration=dict(proto.configuration),
-        metadata=dict(proto.metadata),
+        configuration=config,
+        metadata=meta,
+        bin_metadata=dict(proto.bin_metadata),
     )
 
 
 def context_to_proto(
     context: QuantumContext,
 ) -> pb2.QuantumContext:
-
-    return pb2.QuantumContext(
-        resource=context.resource,
-        configuration=context.configuration,
-        metadata=context.metadata,
+    pb_context = pb2.QuantumContext(
+        resource=context.resource or "",
     )
+
+    if context.configuration:
+        ParseDict(context.configuration, pb_context.configuration)
+
+    if context.metadata:
+        ParseDict(context.metadata, pb_context.metadata)
+
+    if context.bin_metadata:
+        pb_context.bin_metadata.update(context.bin_metadata)
+
+    return pb_context
 
 
 class QuantumWorkerClient:

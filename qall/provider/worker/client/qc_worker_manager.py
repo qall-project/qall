@@ -70,6 +70,7 @@ class QuantumWorkerManager:
             for w in self.__workers
             if is_circuit_convertible(input_format, w.capabilities.input_format)
         ]
+
         if not candidates:
             raise RuntimeError(
                 f"No worker compatible with client circuit format: {input_format}"

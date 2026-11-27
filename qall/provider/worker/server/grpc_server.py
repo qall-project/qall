@@ -44,13 +44,11 @@ def context_from_proto(
     )
     meta = MessageToDict(proto.metadata) if proto.HasField("metadata") else {}
 
-    bin_meta = dict(proto.bin_metadata)
-
     return QuantumContext(
         resource=proto.resource,
         configuration=config,
         metadata=meta,
-        bin_metadata=bin_meta,
+        bin_metadata=dict(proto.bin_metadata),
     )
 
 
@@ -67,7 +65,7 @@ def context_to_proto(
     if context.metadata:
         ParseDict(context.metadata, pb_context.metadata)
 
-    if context.bin_metadata is not None:
+    if context.bin_metadata:
         pb_context.bin_metadata.update(context.bin_metadata)
 
     return pb_context

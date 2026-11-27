@@ -48,6 +48,12 @@ class PulserLocalQuantumWorker(QuantumWorker):
         }
         self.__device = devices_map.get(resource, MockDevice)
 
+        if not context.bin_metadata:
+            context.bin_metadata = {}
+
+        if not context.metadata:
+            context.metadata = {}
+
         context.bin_metadata["device"] = self.__device
         context.metadata["device_name"] = self.__device.name
         return context

@@ -27,16 +27,23 @@ class QuantumContext:
     bin_metadata: dict[str, bytes] = field(default_factory=dict)
 
     _unpickled_cache: dict[str, Any] = field(
-        default_factory=dict, init=False, repr=False
+        default_factory=dict, init=False, repr=False, compare=False
     )
 
-    def add_bin_field(self, field: str, value: Any):
+    def add_bin_field(self, field: str, value: Any) -> None:
+        if self.bin_metadata is None:
+            self.bin_metadata = {}
         self.bin_metadata[field] = cloudpickle.dumps(value)
+        self._unpickled_cache[field] = value
 
-    def get_bin_field(self, field: str) -> Any:
-        if field in self.bin_metadata:
-            return cloudpickle.loads(self.bin_metadata[field])
-        return None
+    def get_bin_field(self, field: str, default: Any = None) -> Any:
+        if field in self._unpickled_cache:
+            return self._unpickled_cache[field]
+        if self.bin_metadata and field in self.bin_metadata:
+            obj = cloudpickle.loads(self.bin_metadata[field])
+            self._unpickled_cache[field] = obj
+            return obj
+        return default
 
     def __getitem__(self, key: str) -> Any:
         if key in self._unpickled_cache:
